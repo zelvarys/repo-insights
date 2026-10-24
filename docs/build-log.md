@@ -150,3 +150,19 @@ back to the individual `@radix-ui/react-*` packages used by the v2 setup.
 
 Verified with `npm run typecheck:frontend`, `npm run build:frontend`, and the
 Vite dev server serving every route above plus unknown paths.
+
+---
+
+## Frontend F2 — Auth + API Client ✅
+
+Typed fetch wrapper (`credentials: include`) with an `ApiError` that preserves
+status, code, message, details, and request ID. TanStack Query with
+`['auth', 'me']` hydrates a Zustand store. `AuthGate` shows a skeleton while
+loading; `ProtectedRoute` redirects to `/` when there is no user. The landing
+page CTA starts GitHub OAuth, and the header user menu shows the avatar,
+username, and Sign out. Session persistence relies on the httpOnly cookie.
+
+Routes moved to `/dashboard`, `/repos`, `/repos/:id`, and
+`/repos/:id/settings`; `/app` and `/app/*` redirect to `/dashboard`. Because
+`/repos` is both an API path and an SPA route, the Vite proxy serves
+`index.html` for browser navigations while forwarding API fetches to `:3000`.

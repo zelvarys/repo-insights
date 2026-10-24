@@ -121,3 +121,32 @@ Files: `vitest.config.ts`, `tests/**/*.test.ts`, `tests/helpers/*`; extended `er
 Vite 6 + React 18 + TypeScript + Tailwind v4 + shadcn/ui (Neutral).
 `src/` is a workspace. Vite proxy forwards `/auth`, `/repos`, `/scans`,
 `/health` to `:3000`. Aliases: `@/*` → `src/src`, `@shared/*` → `shared`.
+
+---
+
+## Frontend F1 — Router, Shell & Landing
+
+React Router v6 data router with lazy pages, a shared app shell, and the
+public marketing page.
+
+Routes:
+
+- `/` — landing page
+- `/app` — dashboard
+- `/app/repos` — repositories
+- `/app/repos/:owner/:repo` — repository report
+- `/app/repos/:owner/:repo/settings` — repository settings
+- `*` — 404
+
+Files: `src/src/router.tsx`, `App.tsx`,
+`components/{ErrorBoundary,PageLoader}.tsx`,
+`components/layout/{AppShell,PageHeader}.tsx`,
+`components/auth/ProtectedRoute.tsx`, `pages/*`, and shadcn `card`,
+`separator`, `avatar`, `dropdown-menu`, `sheet`, `badge`, `progress`.
+
+Added `react-router-dom@6.30.6` and `date-fns@4.4.0`. The shadcn CLI pulled
+v4 component sources from the current registry; their imports were converted
+back to the individual `@radix-ui/react-*` packages used by the v2 setup.
+
+Verified with `npm run typecheck:frontend`, `npm run build:frontend`, and the
+Vite dev server serving every route above plus unknown paths.

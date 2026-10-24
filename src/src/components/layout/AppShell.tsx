@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Menu,
 } from "lucide-react"
+import { UserMenu } from "@/components/app/UserMenu"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -18,8 +19,8 @@ import {
 import { cn } from "@/lib/utils"
 
 const navItems = [
-  { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/app/repos", label: "Repositories", icon: FolderGit2, end: false },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/repos", label: "Repositories", icon: FolderGit2, end: false },
 ]
 
 function NavItems({ onNavigate }: { onNavigate?: () => void }) {
@@ -55,7 +56,7 @@ export function AppShell() {
     <div className="flex min-h-svh bg-background">
       <aside className="hidden w-64 shrink-0 flex-col border-r bg-sidebar md:flex">
         <div className="flex h-16 items-center border-b px-6">
-          <Link to="/app" className="flex items-center gap-2 font-semibold">
+          <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
             <GitBranch className="size-5" />
             repo-insights
           </Link>
@@ -94,7 +95,7 @@ export function AppShell() {
               <SheetHeader className="border-b p-6 text-left">
                 <SheetTitle asChild>
                   <Link
-                    to="/app"
+                    to="/dashboard"
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-2 font-semibold"
                   >
@@ -109,7 +110,7 @@ export function AppShell() {
             </SheetContent>
           </Sheet>
 
-          <Link to="/app" className="flex items-center gap-2 font-semibold md:hidden">
+          <Link to="/dashboard" className="flex items-center gap-2 font-semibold md:hidden">
             <GitBranch className="size-5" />
             repo-insights
           </Link>
@@ -119,12 +120,7 @@ export function AppShell() {
           </div>
 
           <div className="ml-auto flex items-center gap-2 md:ml-0">
-            <Button variant="outline" size="sm" asChild>
-              <a href="/auth/github">
-                <Github className="size-4" />
-                Sign in
-              </a>
-            </Button>
+            <UserMenu />
           </div>
         </header>
 

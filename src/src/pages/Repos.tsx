@@ -1,5 +1,4 @@
-import { FolderGit2, Github } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { FolderGit2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { PageHeader } from "@/components/layout/PageHeader"
 
@@ -9,14 +8,6 @@ export default function Repos() {
       <PageHeader
         title="Repositories"
         description="Repositories you have connected to repo-insights."
-        actions={
-          <Button asChild>
-            <a href="/auth/github">
-              <Github className="size-4" />
-              Connect GitHub
-            </a>
-          </Button>
-        }
       />
 
       <Card>
@@ -26,15 +17,8 @@ export default function Repos() {
           </div>
           <h2 className="text-lg font-semibold">No repositories yet</h2>
           <p className="max-w-md text-sm text-muted-foreground">
-            Connect your GitHub account to choose the repositories you want to
-            track.
+            Repository management will be available in the next phase.
           </p>
-          <Button asChild className="mt-2">
-            <a href="/auth/github">
-              <Github className="size-4" />
-              Connect GitHub
-            </a>
-          </Button>
         </CardContent>
       </Card>
     </>

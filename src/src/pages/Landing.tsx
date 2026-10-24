@@ -1,5 +1,6 @@
+import { useEffect } from "react"
 import type { RepoMetrics, ToolCategory } from "@shared/types/api"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import {
   ArrowRight,
   BarChart3,
@@ -26,6 +27,12 @@ import {
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
+import { queryClient } from "@/lib/query-client"
+import { useAuthStore } from "@/store/auth"
+
+function startGithubLogin() {
+  window.location.href = "/auth/github"
+}
 
 const steps = [
   {
@@ -260,6 +267,23 @@ function ProgressRow({ label, value }: { label: string; value: number }) {
 }
 
 export default function Landing() {
+  const navigate = useNavigate()
+  const user = useAuthStore((state) => state.user)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("auth") === "ok") {
+      window.history.replaceState({}, "", "/")
+      void queryClient.invalidateQueries({ queryKey: ["auth", "me"] })
+    }
+  }, [])
+
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard", { replace: true })
+    }
+  }, [user, navigate])
+
   return (
     <div className="min-h-svh bg-background">
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
@@ -272,11 +296,9 @@ export default function Landing() {
             <Button variant="ghost" asChild className="hidden sm:inline-flex">
               <a href="#how-it-works">How it works</a>
             </Button>
-            <Button asChild>
-              <a href="/auth/github">
-                <Github className="size-4" />
-                Connect GitHub
-              </a>
+            <Button onClick={startGithubLogin}>
+              <Github className="size-4" />
+              Connect GitHub
             </Button>
           </div>
         </div>
@@ -299,11 +321,9 @@ export default function Landing() {
               who is not.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button size="lg" asChild>
-                <a href="/auth/github">
-                  <Github className="size-4" />
-                  Connect GitHub
-                </a>
+              <Button size="lg" onClick={startGithubLogin}>
+                <Github className="size-4" />
+                Connect GitHub
               </Button>
               <Button size="lg" variant="outline" asChild>
                 <a href="#sample">
@@ -507,7 +527,7 @@ export default function Landing() {
             <a href="#faq" className="hover:text-foreground">
               FAQ
             </a>
-            <Link to="/app" className="hover:text-foreground">
+            <Link to="/dashboard" className="hover:text-foreground">
               Dashboard
             </Link>
           </nav>

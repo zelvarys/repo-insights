@@ -36,7 +36,7 @@ export default function Dashboard() {
         description="A quick view of adoption across your tracked repositories."
         actions={
           <Button asChild>
-            <Link to="/app/repos">
+            <Link to="/repos">
               <FolderGit2 className="size-4" />
               Repositories
             </Link>
@@ -70,7 +70,7 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <Link to="/app/repos">Go to repositories</Link>
+            <Link to="/repos">Go to repositories</Link>
           </Button>
         </CardContent>
       </Card>

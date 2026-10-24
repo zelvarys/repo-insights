@@ -1,6 +1,6 @@
 import { lazy, Suspense, type ReactNode } from "react"
-import { createBrowserRouter } from "react-router-dom"
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute"
+import { createBrowserRouter, Navigate } from "react-router-dom"
+import { ProtectedRoute } from "@/components/app/ProtectedRoute"
 import { RouteErrorBoundary } from "@/components/ErrorBoundary"
 import { AppShell } from "@/components/layout/AppShell"
 import { PageLoader } from "@/components/PageLoader"
@@ -31,19 +31,23 @@ export const router = createBrowserRouter([
       },
       {
         path: "app",
+        element: <Navigate to="/dashboard" replace />,
+      },
+      {
+        path: "app/*",
+        element: <Navigate to="/dashboard" replace />,
+      },
+      {
         element: <ProtectedRoute />,
         children: [
           {
             element: <AppShell />,
             children: [
-              { index: true, element: withSuspense(<Dashboard />) },
+              { path: "dashboard", element: withSuspense(<Dashboard />) },
               { path: "repos", element: withSuspense(<Repos />) },
+              { path: "repos/:id", element: withSuspense(<RepoDetail />) },
               {
-                path: "repos/:owner/:repo",
-                element: withSuspense(<RepoDetail />),
-              },
-              {
-                path: "repos/:owner/:repo/settings",
+                path: "repos/:id/settings",
                 element: withSuspense(<RepoSettings />),
               },
             ],

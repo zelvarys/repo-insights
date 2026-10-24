@@ -5,21 +5,19 @@ import { Card, CardContent } from "@/components/ui/card"
 import { PageHeader } from "@/components/layout/PageHeader"
 
 export default function RepoDetail() {
-  const { owner, repo } = useParams()
-  const fullName = owner && repo ? `${owner}/${repo}` : "Repository"
-  const hasParams = Boolean(owner && repo)
+  const { id } = useParams<{ id: string }>()
 
   return (
     <>
       <PageHeader
-        title={fullName}
+        title="Repository"
         description="Adoption report for this repository."
-        backTo="/app/repos"
+        backTo="/repos"
         backLabel="Repositories"
         actions={
-          hasParams ? (
+          id ? (
             <Button variant="outline" asChild>
-              <Link to={`/app/repos/${owner}/${repo}/settings`}>
+              <Link to={`/repos/${id}/settings`}>
                 <Settings className="size-4" />
                 Settings
               </Link>

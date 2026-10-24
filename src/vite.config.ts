@@ -20,7 +20,16 @@ export default defineConfig({
     fs: { allow: [repoRoot] },
     proxy: {
       "/auth": "http://localhost:3000",
-      "/repos": "http://localhost:3000",
+      // /repos is both an API path and an SPA route. Proxy API calls, but
+      // serve index.html for full-page browser navigations.
+      "/repos": {
+        target: "http://localhost:3000",
+        bypass(req) {
+          if (req.headers.accept?.includes("text/html")) {
+            return "/index.html"
+          }
+        },
+      },
       "/scans": "http://localhost:3000",
       "/health": "http://localhost:3000",
     },

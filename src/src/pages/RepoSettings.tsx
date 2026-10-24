@@ -9,18 +9,16 @@ import {
 import { PageHeader } from "@/components/layout/PageHeader"
 
 export default function RepoSettings() {
-  const { owner, repo } = useParams()
-  const fullName = owner && repo ? `${owner}/${repo}` : "Repository"
-  const backTo =
-    owner && repo ? `/app/repos/${owner}/${repo}` : "/app/repos"
+  const { id } = useParams<{ id: string }>()
+  const backTo = id ? `/repos/${id}` : "/repos"
 
   return (
     <>
       <PageHeader
         title="Repository settings"
-        description={fullName}
+        description="Repository"
         backTo={backTo}
-        backLabel={owner && repo ? "Back to report" : "Repositories"}
+        backLabel={id ? "Back to report" : "Repositories"}
       />
 
       <Card>

@@ -184,13 +184,13 @@ in `src/src/types/local.ts` because it is not yet in the shared API types.
 
 ---
 
-## Frontend F4 — Settings, Dark Mode, Polish ✅
+## Frontend F4 — Settings, GitHub Dark Theme, Polish ✅
 
 `/repos/:id/settings` with per-tool switches grouped by category, optimistic
 save with debounce + revert on error, warning banner if zero tools enabled.
-Dark mode: ThemeProvider with light/dark/system, localStorage persistence,
-respects prefers-color-scheme. Charts use `useChartColors()` for theme-aware
-colors. Every page has loading skeletons, empty states, and error states
+The UI is permanently GitHub dark: `html.dark` plus the GitHub dark palette
+in `index.css`, with no light-mode toggle. Charts use `useChartColors()` for
+dark-aware colors. Every page has loading skeletons, empty states, and error states
 with retry. Mobile-first: all pages work at 375px, sidebar becomes Sheet,
 tables stack. Accessibility pass: keyboard nav, focus management, aria
 labels on icon-only buttons.

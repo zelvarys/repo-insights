@@ -1,5 +1,3 @@
-import { useTheme } from "@/components/app/ThemeProvider"
-
 export type ChartColors = {
   primary: string
   muted: string
@@ -10,14 +8,12 @@ export type ChartColors = {
 }
 
 export function useChartColors(): ChartColors {
-  const { resolvedTheme } = useTheme()
-
   return {
     primary: "var(--chart-2)",
     muted: "var(--muted-foreground)",
     grid: "var(--border)",
     destructive: "var(--destructive)",
-    warning: resolvedTheme === "dark" ? "#facc15" : "#eab308",
+    warning: "var(--chart-3)",
     track: "var(--muted)",
   }
 }

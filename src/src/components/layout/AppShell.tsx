@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Menu,
 } from "lucide-react"
-import { ThemeToggle } from "@/components/app/ThemeToggle"
 import { UserMenu } from "@/components/app/UserMenu"
 import { Button } from "@/components/ui/button"
 import {
@@ -121,7 +120,6 @@ export function AppShell() {
           </div>
 
           <div className="ml-auto flex items-center gap-2 md:ml-0">
-            <ThemeToggle />
             <UserMenu />
           </div>
         </header>

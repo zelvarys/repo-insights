@@ -52,7 +52,7 @@ npm run worker          # in a separate terminal — BullMQ scan worker
 npm run dev:frontend    # frontend on http://localhost:5173
 ```
 
-See [`docs/local-development.md`](docs/local-development.md) for Postgres/Redis setup (native or Docker).
+See [`docs/development.md`](docs/development.md) for Postgres/Redis setup (native or Docker).
 
 ## Documentation
 

@@ -19,7 +19,7 @@ Thanks for taking the time to contribute.
 5. `npm run dev` (API) and `npm run worker` (in a second terminal)
 6. `npm test` to confirm everything is green
 
-Full details in `docs/local-development.md`.
+Full details in `docs/development.md`.
 
 ## Adding a detector
 

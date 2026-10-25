@@ -166,3 +166,18 @@ Routes moved to `/dashboard`, `/repos`, `/repos/:id`, and
 `/repos/:id/settings`; `/app` and `/app/*` redirect to `/dashboard`. Because
 `/repos` is both an API path and an SPA route, the Vite proxy serves
 `index.html` for browser navigations while forwarding API fetches to `:3000`.
+
+---
+
+## Frontend F3 — Repo List + Detail ✅
+
+`/repos` lists tracked repos with an AddRepoDialog that fetches GitHub
+repos and posts `githubId`. `/repos/:id` shows metrics with ScoreGauge
+(Recharts radial), coverage/adoption stat cards, and a tool list grouped by
+category with detected/relevant badges. Run-scan handles cached vs queued
+scans and polls `/scans/:id` until complete, with a 60s timeout. Scan
+history shows the last five scans and expands to show the summary.
+
+Added `recharts@3.10.1`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`,
+and shadcn `dialog`, `input`, `table`, `tabs`, `tooltip`. `GitHubRepo` lives
+in `src/src/types/local.ts` because it is not yet in the shared API types.

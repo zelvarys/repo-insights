@@ -24,7 +24,7 @@ import {
   cacheCompletedScan,
   invalidateScanCache,
 } from './scan.service.js';
-import type { ScanSummary } from '../../../shared/types/api.js';
+import type { ScanSummary } from '../../../shared/types.js';
 
 const MAX_COMMIT_DETAIL_LOOKUPS = 30;
 const MAX_CONTRIBUTORS_PAGES = 2;

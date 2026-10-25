@@ -2,7 +2,7 @@ import { pool } from '../../config/database.js';
 import { scanQueue, type ScanJobData } from './scan.queue.js';
 import { getTrackedRepository } from '../repositories/repository.service.js';
 import { cacheGet, cacheSet, cacheDel, cacheKeys } from '../../utils/cache.js';
-import type { ScanSummary, ScanStatus } from '../../../shared/types/api.js';
+import type { ScanSummary, ScanStatus } from '../../../shared/types.js';
 
 function toScan(row: {
   id: string;

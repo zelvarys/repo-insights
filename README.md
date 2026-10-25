@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/favicon.png" alt="repo-insights logo" width="96" height="96" />
+</p>
+
 # repo-insights
 
 An analytics platform for open-source maintainers and engineering teams that answers a question they've never had data for:
@@ -23,13 +27,19 @@ Backend MVP complete (Phases 0–10). Frontend MVP complete.
 ## Repository layout
 
 ```
-server/     Backend — Express API + BullMQ worker
-src/        Frontend — Vite app
-shared/     TypeScript types shared between server and frontend (API contract)
-tests/      Vitest unit + integration tests
-scripts/    Migration runner and dev utilities
-docs/       Architecture, API reference, detector details, build log
+server/       Backend — Express API + BullMQ worker
+src/          Frontend — React source for the Vite app
+public/       Frontend static assets (favicon)
+shared/       TypeScript types shared between server and frontend (API contract)
+migrations/   SQL migrations
+tests/        Vitest unit + integration tests
+scripts/      Migration runner and dev utilities
+docs/         Architecture, API reference, detector details, build log
 ```
+
+Frontend and backend share the root `package.json`, `tsconfig*.json`, and
+tooling config. Vite builds to `dist/frontend/`; the server builds to
+`dist/server/`.
 
 ## Quickstart
 

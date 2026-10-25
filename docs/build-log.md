@@ -16,7 +16,7 @@ Files: `package.json`, `tsconfig.json`, `.env(.example)`, `.gitignore`, `server/
 
 Postgres and Redis running locally, schema applied via a migration runner.
 
-Files: `server/config/database.ts`, `server/config/redis.ts`, `server/db/migrations/001_initial_schema.sql`, `scripts/migrate.js`.
+Files: `server/config/database.ts`, `server/config/redis.ts`, `migrations/001_initial_schema.sql`, `scripts/migrate.js`.
 
 ---
 
@@ -87,7 +87,7 @@ Files: `server/modules/metrics/*`.
 
 `tracked_tools` table. `GET/PUT /repos/:id/tracked-tools`. Scan worker backfills newly detected + relevant tools (user choices win). Metrics scores against the user's tracked set; falls back to detected+relevant when uncurated.
 
-Files: `server/db/migrations/002_tracked_tools.sql`, `server/modules/tracked-tools/*`.
+Files: `migrations/002_tracked_tools.sql`, `server/modules/tracked-tools/*`.
 
 ---
 
@@ -120,7 +120,7 @@ Files: `vitest.config.ts`, `tests/**/*.test.ts`, `tests/helpers/*`; extended `er
 
 Vite 6 + React 18 + TypeScript + Tailwind v4 + shadcn/ui (Neutral).
 `src/` is a workspace. Vite proxy forwards `/auth`, `/repos`, `/scans`,
-`/health` to `:3000`. Aliases: `@/*` → `src/src`, `@shared/*` → `shared`.
+`/health` to `:3000`. Aliases: `@/*` → `src`, `@shared/*` → `shared`.
 
 ---
 
@@ -138,7 +138,7 @@ Routes:
 - `/app/repos/:owner/:repo/settings` — repository settings
 - `*` — 404
 
-Files: `src/src/router.tsx`, `App.tsx`,
+Files: `src/router.tsx`, `App.tsx`,
 `components/{ErrorBoundary,PageLoader}.tsx`,
 `components/layout/{AppShell,PageHeader}.tsx`,
 `components/auth/ProtectedRoute.tsx`, `pages/*`, and shadcn `card`,
@@ -180,7 +180,7 @@ history shows the last five scans and expands to show the summary.
 
 Added `recharts@3.10.1`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`,
 and shadcn `dialog`, `input`, `table`, `tabs`, `tooltip`. `GitHubRepo` lives
-in `src/src/types/local.ts` because it is not yet in the shared API types.
+in `src/types/local.ts` because it is not yet in the shared API types.
 
 ---
 
@@ -200,3 +200,15 @@ latest metrics, so language-specific tools correctly show "Not applicable"
 instead of inheriting the detected state. Saving tracked tools also
 invalidates the metrics cache, so the score reflects the new selection
 immediately.
+
+---
+
+## Monorepo layout cleanup
+
+Flattened the frontend from `src/src/` to `src/`, moved `index.html`,
+`public/`, `vite.config.ts`, `components.json`, and the frontend tsconfigs to
+the repo root, and merged the frontend dependencies/scripts into the root
+`package.json`. Migrations moved to `migrations/`, shared types to
+`shared/types.ts`, and stale `.gitkeep` files were removed. Tailwind now uses
+the root `tailwind.config.ts` and `postcss.config.js`; the production frontend
+build goes to `dist/frontend/`.

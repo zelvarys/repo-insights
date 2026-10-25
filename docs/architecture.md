@@ -2,12 +2,12 @@
 
 ## Overview
 
-`repo-insights` is a two-process backend: an Express HTTP API and a BullMQ scan worker. Both connect to the same Postgres database and Redis instance. A future frontend (Vite app in `src/`) will call the API over HTTP.
+`repo-insights` is a two-process backend: an Express HTTP API and a BullMQ scan worker. Both connect to the same Postgres database and Redis instance. The frontend (Vite app in `src/`) calls the API over HTTP.
 
 ```
 ┌─────────────┐        HTTP        ┌─────────────────┐
 │  Frontend   │ ─────────────────▶ │  API (Express)  │
-│  src/ (TBD) │ ◀───────────────── │  server/app.ts  │
+│  src/       │ ◀───────────────── │  server/app.ts  │
 └─────────────┘      JSON + JWT    └────────┬────────┘
                                             │
                               ┌─────────────┼─────────────┐

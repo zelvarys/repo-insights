@@ -153,7 +153,7 @@ Tests use the same Postgres and Redis as development. Each test truncates the DB
 
 ## Frontend
 
-The frontend lives in `src/` and runs as a Vite app.
+The frontend source lives in `src/` and runs as a Vite app.
 
 ```bash
 npm install             # one install at root covers backend + frontend
@@ -167,11 +167,15 @@ terminal.
 Frontend scripts:
 
 - `npm run dev:frontend` — Vite dev server
-- `npm run build:frontend` — production build into `src/dist/`
+- `npm run build:frontend` — production build into `dist/frontend/`
 - `npm run typecheck:frontend` — TypeScript check
 
-shadcn components live in `src/src/components/ui/`. Add a new one with:
+shadcn components live in `src/components/ui/`. Add a new one from the repo root with:
 
 ```bash
-cd src && npx shadcn@latest add <component>
+npx shadcn@latest add <component>
 ```
+
+The shared frontend/backend config lives at the root: `vite.config.ts`,
+`tailwind.config.ts`, `postcss.config.js`, `components.json`, and
+`tsconfig*.json`.

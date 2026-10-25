@@ -181,3 +181,22 @@ history shows the last five scans and expands to show the summary.
 Added `recharts@3.10.1`, `@radix-ui/react-tabs`, `@radix-ui/react-tooltip`,
 and shadcn `dialog`, `input`, `table`, `tabs`, `tooltip`. `GitHubRepo` lives
 in `src/src/types/local.ts` because it is not yet in the shared API types.
+
+---
+
+## Frontend F4 — Settings, Dark Mode, Polish ✅
+
+`/repos/:id/settings` with per-tool switches grouped by category, optimistic
+save with debounce + revert on error, warning banner if zero tools enabled.
+Dark mode: ThemeProvider with light/dark/system, localStorage persistence,
+respects prefers-color-scheme. Charts use `useChartColors()` for theme-aware
+colors. Every page has loading skeletons, empty states, and error states
+with retry. Mobile-first: all pages work at 375px, sidebar becomes Sheet,
+tables stack. Accessibility pass: keyboard nav, focus management, aria
+labels on icon-only buttons.
+
+The tracked-tools API now derives each tool's `relevant` flag from the
+latest metrics, so language-specific tools correctly show "Not applicable"
+instead of inheriting the detected state. Saving tracked tools also
+invalidates the metrics cache, so the score reflects the new selection
+immediately.

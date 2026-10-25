@@ -11,8 +11,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAddRepo, useGitHubRepos } from "@/hooks/useRepos"
+import { cn } from "@/lib/utils"
 import type { GitHubRepo } from "@/types/local"
 
 type AddRepoDialogProps = {
@@ -23,19 +25,28 @@ type AddRepoDialogProps = {
 function RepoRow({
   repo,
   disabled,
+  active,
   onSelect,
+  onHover,
 }: {
   repo: GitHubRepo
   disabled: boolean
+  active: boolean
   onSelect: (repo: GitHubRepo) => void
+  onHover: () => void
 }) {
   return (
     <Button
       type="button"
       variant="ghost"
+      id={`add-repo-option-${repo.id}`}
       disabled={disabled}
       onClick={() => onSelect(repo)}
-      className="h-auto w-full justify-start gap-3 rounded-md px-3 py-3 text-left"
+      onMouseEnter={onHover}
+      className={cn(
+        "h-auto w-full justify-start gap-3 rounded-md px-3 py-3 text-left",
+        active && "bg-accent text-accent-foreground",
+      )}
     >
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{repo.full_name}</p>
@@ -61,20 +72,35 @@ function RepoRow({
 
 export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
   const [search, setSearch] = useState("")
+  const [activeIndex, setActiveIndex] = useState(0)
   const githubRepos = useGitHubRepos()
   const addRepo = useAddRepo()
 
   useEffect(() => {
-    if (!open) setSearch("")
+    if (!open) {
+      setSearch("")
+      setActiveIndex(0)
+    }
   }, [open])
 
   const query = search.trim().toLowerCase()
   const repos =
     githubRepos.data?.repos.filter((repo) =>
-      repo.full_name.toLowerCase().includes(query)
+      repo.full_name.toLowerCase().includes(query),
     ) ?? []
 
+  useEffect(() => {
+    setActiveIndex(0)
+  }, [query])
+
+  useEffect(() => {
+    if (activeIndex >= repos.length) {
+      setActiveIndex(Math.max(0, repos.length - 1))
+    }
+  }, [activeIndex, repos.length])
+
   function handleSelect(repo: GitHubRepo) {
+    if (addRepo.isPending) return
     addRepo.mutate(repo.id, {
       onSuccess: ({ repository }) => {
         toast.success("Repository added", {
@@ -105,13 +131,37 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (repos.length === 0) return
+              if (event.key === "ArrowDown") {
+                event.preventDefault()
+                setActiveIndex((index) => (index + 1) % repos.length)
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault()
+                setActiveIndex(
+                  (index) => (index - 1 + repos.length) % repos.length,
+                )
+              } else if (event.key === "Enter") {
+                const repo = repos[activeIndex]
+                if (repo) {
+                  event.preventDefault()
+                  handleSelect(repo)
+                }
+              }
+            }}
             placeholder="Search repositories..."
             className="pl-9"
             aria-label="Search GitHub repositories"
+            aria-controls="add-repo-list"
+            aria-activedescendant={
+              repos[activeIndex]
+                ? `add-repo-option-${repos[activeIndex].id}`
+                : undefined
+            }
           />
         </div>
 
-        <div className="max-h-80 overflow-y-auto pr-1">
+        <ScrollArea className="h-80 pr-1" id="add-repo-list">
           {githubRepos.isLoading ? (
             <div className="space-y-2">
               {Array.from({ length: 4 }).map((_, index) => (
@@ -154,17 +204,19 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
             </div>
           ) : (
             <div className="space-y-1">
-              {repos.map((repo) => (
+              {repos.map((repo, index) => (
                 <RepoRow
                   key={repo.id}
                   repo={repo}
                   disabled={addRepo.isPending}
+                  active={index === activeIndex}
                   onSelect={handleSelect}
+                  onHover={() => setActiveIndex(index)}
                 />
               ))}
             </div>
           )}
-        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   )

@@ -8,7 +8,7 @@ Connect a GitHub repository and get clear, per-tool adoption metrics — who's u
 
 ## Status
 
-Backend MVP complete (Phases 0–10). Frontend in progress.
+Backend MVP complete (Phases 0–10). Frontend MVP complete.
 
 - [x] GitHub OAuth
 - [x] Repository tracking
@@ -17,14 +17,14 @@ Backend MVP complete (Phases 0–10). Frontend in progress.
 - [x] Metrics aggregation with per-repo tool selection
 - [x] Scan + metrics caching, rate limiting
 - [x] Unit + integration tests
-- [ ] Frontend dashboard
+- [x] Frontend dashboard
 - [ ] Benchmarking, Slack, API access
 
 ## Repository layout
 
 ```
 server/     Backend — Express API + BullMQ worker
-src/        Frontend — Vite app (in progress)
+src/        Frontend — Vite app
 shared/     TypeScript types shared between server and frontend (API contract)
 tests/      Vitest unit + integration tests
 scripts/    Migration runner and dev utilities

@@ -8,73 +8,19 @@ import {
   Settings,
 } from "lucide-react"
 import { toast } from "sonner"
+import { EmptyState } from "@/components/app/EmptyState"
+import { ErrorState } from "@/components/app/ErrorState"
+import { RepoDetailSkeleton } from "@/components/app/LoadingSkeletons"
 import { MetricsPanel } from "@/components/app/MetricsPanel"
 import { ScanHistory } from "@/components/app/ScanHistory"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   useRepo,
   useRepoMetrics,
   useRepoScans,
 } from "@/hooks/useRepoDetail"
 import { useRunScan, useScanPoll } from "@/hooks/useRunScan"
-
-function MetricsSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-        <Card>
-          <CardContent className="flex items-center justify-center py-6">
-            <Skeleton className="size-56 rounded-full" />
-          </CardContent>
-        </Card>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {Array.from({ length: 2 }).map((_, index) => (
-            <Card key={index}>
-              <CardContent className="space-y-3 py-6">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-32" />
-                <Skeleton className="h-3 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-      <Card>
-        <CardContent className="space-y-3 py-6">
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-9 w-64" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function ErrorState({
-  title,
-  message,
-  onRetry,
-}: {
-  title: string
-  message: string
-  onRetry: () => void
-}) {
-  return (
-    <Card>
-      <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="max-w-md text-sm text-muted-foreground">{message}</p>
-        <Button variant="outline" onClick={onRetry}>
-          Try again
-        </Button>
-      </CardContent>
-    </Card>
-  )
-}
 
 function NoScanState({
   scanning,
@@ -86,23 +32,15 @@ function NoScanState({
   disabled: boolean
 }) {
   return (
-    <Card>
-      <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-        <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-          {scanning ? (
-            <Loader2 className="size-6 animate-spin" />
-          ) : (
-            <ScanLine className="size-6" />
-          )}
-        </div>
-        <h2 className="text-lg font-semibold">
-          {scanning ? "Scan in progress" : "No scan yet"}
-        </h2>
-        <p className="max-w-md text-sm text-muted-foreground">
-          {scanning
-            ? "The worker is scanning this repository. Metrics will appear automatically."
-            : "Run your first scan to see tool adoption metrics for this repository."}
-        </p>
+    <EmptyState
+      icon={ScanLine}
+      title={scanning ? "Scan in progress" : "No scan yet"}
+      description={
+        scanning
+          ? "The worker is scanning this repository. Metrics will appear automatically."
+          : "Run your first scan to see tool adoption metrics for this repository."
+      }
+      action={
         <Button onClick={onRunScan} disabled={disabled}>
           {scanning ? (
             <Loader2 className="size-4 animate-spin" />
@@ -111,8 +49,8 @@ function NoScanState({
           )}
           {scanning ? "Scanning..." : "Run scan"}
         </Button>
-      </CardContent>
-    </Card>
+      }
+    />
   )
 }
 
@@ -258,21 +196,19 @@ export default function RepoDetail() {
       />
 
       {repoQuery.isLoading ? (
-        <MetricsSkeleton />
+        <RepoDetailSkeleton />
       ) : repoQuery.isError ? (
         <ErrorState
-          title="Could not load repository"
-          message={repoQuery.error?.message ?? "Unknown error"}
+          error={repoQuery.error ?? new Error("Unknown error")}
           onRetry={() => repoQuery.refetch()}
         />
       ) : (
         <>
           {metricsQuery.isLoading ? (
-            <MetricsSkeleton />
+            <RepoDetailSkeleton />
           ) : metricsQuery.isError ? (
             <ErrorState
-              title="Could not load metrics"
-              message={metricsQuery.error?.message ?? "Unknown error"}
+              error={metricsQuery.error ?? new Error("Unknown error")}
               onRetry={() => metricsQuery.refetch()}
             />
           ) : metrics && metrics.scanId !== null ? (

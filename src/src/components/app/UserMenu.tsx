@@ -1,4 +1,4 @@
-import { LogOut } from "lucide-react"
+import { LogOut, Settings } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -8,6 +8,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useAuth } from "@/hooks/useAuth"
 import { useLogout } from "@/hooks/useLogout"
 
@@ -57,6 +62,20 @@ export function UserMenu() {
           </span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuItem
+              aria-disabled="true"
+              tabIndex={-1}
+              onSelect={(event) => event.preventDefault()}
+              className="cursor-not-allowed opacity-50"
+            >
+              <Settings className="size-4" />
+              Settings
+            </DropdownMenuItem>
+          </TooltipTrigger>
+          <TooltipContent side="left">Coming soon</TooltipContent>
+        </Tooltip>
         <DropdownMenuItem
           onClick={() => logout.mutate()}
           disabled={logout.isPending}

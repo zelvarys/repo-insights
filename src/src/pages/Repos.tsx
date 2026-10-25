@@ -11,6 +11,9 @@ import {
   Users,
 } from "lucide-react"
 import { AddRepoDialog } from "@/components/app/AddRepoDialog"
+import { EmptyState } from "@/components/app/EmptyState"
+import { ErrorState } from "@/components/app/ErrorState"
+import { ReposSkeleton } from "@/components/app/LoadingSkeletons"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,27 +25,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
 import { useRepos } from "@/hooks/useRepos"
-
-function RepoCardSkeleton() {
-  return (
-    <Card>
-      <CardHeader>
-        <Skeleton className="h-5 w-2/3" />
-        <Skeleton className="h-4 w-1/3" />
-      </CardHeader>
-      <CardContent className="flex gap-2">
-        <Skeleton className="h-6 w-16" />
-        <Skeleton className="h-6 w-20" />
-        <Skeleton className="h-6 w-24" />
-      </CardContent>
-      <CardFooter>
-        <Skeleton className="h-4 w-full" />
-      </CardFooter>
-    </Card>
-  )
-}
 
 export default function Repos() {
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -65,46 +48,26 @@ export default function Repos() {
       <AddRepoDialog open={dialogOpen} onOpenChange={setDialogOpen} />
 
       {reposQuery.isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <RepoCardSkeleton key={index} />
-          ))}
-        </div>
+        <ReposSkeleton />
       ) : reposQuery.isError ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <h2 className="text-lg font-semibold">
-              Could not load repositories
-            </h2>
-            <p className="max-w-md text-sm text-muted-foreground">
-              {reposQuery.error?.message ?? "Unknown error"}
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => reposQuery.refetch()}
-            >
-              Try again
-            </Button>
-          </CardContent>
-        </Card>
+        <ErrorState
+          error={reposQuery.error ?? new Error("Unknown error")}
+          onRetry={() => reposQuery.refetch()}
+        />
       ) : repos.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <FolderGit2 className="size-6" />
-            </div>
-            <h2 className="text-lg font-semibold">No repos yet</h2>
-            <p className="max-w-md text-sm text-muted-foreground">
-              Connect a GitHub repository to start tracking tool adoption.
-            </p>
+        <EmptyState
+          icon={FolderGit2}
+          title="No repos yet"
+          description="Connect a GitHub repository to start tracking tool adoption."
+          action={
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="size-4" />
               Add repository
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {repos.map((repo) => (
             <Link
               key={repo.id}

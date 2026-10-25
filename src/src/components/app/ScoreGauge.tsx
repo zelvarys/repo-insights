@@ -4,20 +4,25 @@ import {
   RadialBarChart,
   ResponsiveContainer,
 } from "recharts"
+import {
+  useChartColors,
+  type ChartColors,
+} from "@/hooks/useChartColors"
 
 type ScoreGaugeProps = {
   score: number
 }
 
-function scoreColor(score: number): string {
-  if (score <= 33) return "var(--destructive)"
-  if (score <= 66) return "#eab308"
-  return "var(--chart-2)"
+function scoreColor(score: number, colors: ChartColors): string {
+  if (score <= 33) return colors.destructive
+  if (score <= 66) return colors.warning
+  return colors.primary
 }
 
 export function ScoreGauge({ score }: ScoreGaugeProps) {
+  const colors = useChartColors()
   const value = Math.min(100, Math.max(0, score))
-  const color = scoreColor(value)
+  const color = scoreColor(value, colors)
   const data = [{ name: "Adoption score", value, fill: color }]
 
   return (
@@ -45,7 +50,7 @@ export function ScoreGauge({ score }: ScoreGaugeProps) {
           />
           <RadialBar
             dataKey="value"
-            background={{ fill: "var(--muted)" }}
+            background={{ fill: colors.track }}
             cornerRadius={999}
           />
         </RadialBarChart>

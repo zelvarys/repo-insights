@@ -9,6 +9,8 @@ import { signJwt, parseExpiresIn } from '../../server/utils/jwt.js';
 import { env } from '../../server/config/env.js';
 import { encryptToken } from '../../server/utils/crypto.js';
 import { processScanJobForTests } from '../../server/modules/scans/scan.worker.js';
+import { requestScan } from '../../server/modules/scans/scan.service.js';
+import { scanQueue } from '../../server/modules/scans/scan.queue.js';
 import { deleteScanContext } from '../../server/modules/scans/scan.context.js';
 
 let app: Express;
@@ -314,6 +316,39 @@ describe('scan pipeline', () => {
     expect(
       rows.rows.find((r) => r.id === post.body.scan.id)?.status,
     ).toBe('pending');
+  });
+
+  it('creates only one scan and one job for concurrent requests', async () => {
+    const countsBefore = await scanQueue.getJobCounts(
+      'waiting',
+      'active',
+      'delayed',
+      'prioritized',
+    );
+    const totalBefore = Object.values(countsBefore).reduce((a, b) => a + b, 0);
+
+    const [first, second] = await Promise.all([
+      requestScan(repoId, userId),
+      requestScan(repoId, userId),
+    ]);
+
+    expect(first.scan.id).toBe(second.scan.id);
+    expect([first.cached, second.cached].filter(Boolean)).toHaveLength(1);
+
+    const countsAfter = await scanQueue.getJobCounts(
+      'waiting',
+      'active',
+      'delayed',
+      'prioritized',
+    );
+    const totalAfter = Object.values(countsAfter).reduce((a, b) => a + b, 0);
+    expect(totalAfter - totalBefore).toBe(1);
+
+    const rows = await pool.query<{ count: string }>(
+      'SELECT COUNT(*)::text AS count FROM scans WHERE repo_id = $1',
+      [repoId],
+    );
+    expect(rows.rows[0]?.count).toBe('1');
   });
 
   it('second POST within an hour returns cached scan (200, not 202)', async () => {

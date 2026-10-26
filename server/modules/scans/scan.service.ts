@@ -85,38 +85,67 @@ export async function requestScan(
     return { scan: cached.scan, cached: true };
   }
 
-  const existing = await pool.query(
-    `SELECT id, repo_id, status, started_at, completed_at, error,
-            summary, created_at
-     FROM scans
-     WHERE repo_id = $1 AND status IN ('pending','running')
-     ORDER BY created_at DESC
-     LIMIT 1`,
-    [repoId],
-  );
-  const inFlight = existing.rows[0];
-  if (inFlight) {
-    const staleError = staleScanError(inFlight.status, inFlight.created_at);
-    if (!staleError) {
-      return { scan: toScan(inFlight), cached: true };
-    }
-    await pool.query(
-      `UPDATE scans
-       SET status = 'failed', completed_at = NOW(), error = $2
-       WHERE id = $1`,
-      [inFlight.id, staleError],
+  let scan: ScanSummary | null = null;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      'SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))',
+      [repoId],
     );
+
+    const existing = await client.query<{
+      id: string;
+      repo_id: string;
+      status: string;
+      started_at: Date | null;
+      completed_at: Date | null;
+      error: string | null;
+      summary: unknown;
+      created_at: Date;
+    }>(
+      `SELECT id, repo_id, status, started_at, completed_at, error,
+              summary, created_at
+       FROM scans
+       WHERE repo_id = $1 AND status IN ('pending','running')
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [repoId],
+    );
+    const inFlight = existing.rows[0];
+    if (inFlight) {
+      const staleError = staleScanError(inFlight.status, inFlight.created_at);
+      if (!staleError) {
+        await client.query('COMMIT');
+        return { scan: toScan(inFlight), cached: true };
+      }
+      await client.query(
+        `UPDATE scans
+         SET status = 'failed', completed_at = NOW(), error = $2
+         WHERE id = $1`,
+        [inFlight.id, staleError],
+      );
+    }
+
+    const insert = await client.query(
+      `INSERT INTO scans (repo_id, status)
+       VALUES ($1, 'pending')
+       RETURNING id, repo_id, status, started_at, completed_at, error,
+                 summary, created_at`,
+      [repoId],
+    );
+    scan = toScan(insert.rows[0]!);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
 
-  const insert = await pool.query(
-    `INSERT INTO scans (repo_id, status)
-     VALUES ($1, 'pending')
-     RETURNING id, repo_id, status, started_at, completed_at, error,
-               summary, created_at`,
-    [repoId],
-  );
-
-  const scan = toScan(insert.rows[0]!);
+  if (!scan) {
+    throw new Error(`Failed to create scan for repository ${repoId}`);
+  }
 
   const jobData: ScanJobData = {
     scanId: scan.id,

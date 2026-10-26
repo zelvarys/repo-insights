@@ -31,7 +31,6 @@ export async function cacheDel(key: string): Promise<void> {
 /** Namespaced keys so different features can't collide. */
 export const cacheKeys = {
   scanResult: (repoId: string) => `cache:scan-result:${repoId}`,
-  scanLock: (repoId: string) => `lock:scan:${repoId}`,
   metrics: (repoId: string, scanId: string) =>
     `cache:metrics:${repoId}:${scanId}`,
 } as const;

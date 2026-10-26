@@ -2,7 +2,10 @@ import { pool } from '../../config/database.js';
 import { getTrackedRepository } from '../repositories/repository.service.js';
 import { badRequest } from '../../utils/errors.js';
 import { detectors } from '../tools/detector.registry.js';
-import type { TrackedToolRow } from '../../../shared/types/api.js';
+import { getRepoMetrics } from '../metrics/metrics.service.js';
+import { cacheDel, cacheKeys } from '../../utils/cache.js';
+import { logger } from '../../utils/logger.js';
+import type { TrackedToolRow } from '../../../shared/types.js';
 
 export async function listTrackedTools(repoId: string): Promise<TrackedToolRow[]> {
   await getTrackedRepository(repoId);
@@ -46,6 +49,11 @@ export async function listTrackedTools(repoId: string): Promise<TrackedToolRow[]
   const trackedMap = new Map<string, boolean>();
   for (const r of trackedRows.rows) trackedMap.set(r.tool_name, r.enabled);
 
+  const metrics = scanId ? await getRepoMetrics(repoId) : null;
+  const relevance = new Map(
+    (metrics?.tools ?? []).map((tool) => [tool.name, tool.relevant]),
+  );
+
   return detectors.map((detector) => {
     const detectedInfo = detectedMap.get(detector.name);
     const enabled = trackedMap.get(detector.name) ?? false;
@@ -53,7 +61,7 @@ export async function listTrackedTools(repoId: string): Promise<TrackedToolRow[]
       toolName: detector.name,
       enabled,
       detected: detectedInfo?.detected ?? false,
-      relevant: detectedInfo?.detected ?? false,
+      relevant: relevance.get(detector.name) ?? false,
       category: detectedInfo?.category ?? detector.category,
     };
   });
@@ -122,6 +130,24 @@ export async function replaceTrackedTools(
     throw err;
   } finally {
     client.release();
+  }
+
+  const latestScan = await pool.query<{ id: string }>(
+    `SELECT id FROM scans
+     WHERE repo_id = $1 AND status = 'complete'
+     ORDER BY completed_at DESC
+     LIMIT 1`,
+    [repoId],
+  );
+  const scanId = latestScan.rows[0]?.id;
+  if (scanId) {
+    try {
+      await cacheDel(cacheKeys.metrics(repoId, scanId));
+    } catch (err) {
+      logger.warn(
+        `metrics cache invalidation failed for repo ${repoId}: ${(err as Error).message}`,
+      );
+    }
   }
 
   return listTrackedTools(repoId);

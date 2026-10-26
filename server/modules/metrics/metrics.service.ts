@@ -6,7 +6,7 @@ import type {
   ToolMetric,
   RepoMetrics,
   ToolCategory,
-} from '../../../shared/types/api.js';
+} from '../../../shared/types.js';
 
 const COMMIT_PRESENCE_TOOLS = new Set([
   'github-actions',

@@ -1,4 +1,8 @@
-# repo-insights
+<h1 align="center">
+  <img src="public/favicon.png" alt="Repo Insights logo" width="96" height="96" />
+  <br />
+  Repo Insights
+</h1>
 
 An analytics platform for open-source maintainers and engineering teams that answers a question they've never had data for:
 
@@ -8,7 +12,7 @@ Connect a GitHub repository and get clear, per-tool adoption metrics — who's u
 
 ## Status
 
-Backend MVP complete (Phases 0–10). Frontend in progress.
+Backend MVP complete (Phases 0–10). Frontend MVP complete.
 
 - [x] GitHub OAuth
 - [x] Repository tracking
@@ -17,19 +21,25 @@ Backend MVP complete (Phases 0–10). Frontend in progress.
 - [x] Metrics aggregation with per-repo tool selection
 - [x] Scan + metrics caching, rate limiting
 - [x] Unit + integration tests
-- [ ] Frontend dashboard
+- [x] Frontend dashboard
 - [ ] Benchmarking, Slack, API access
 
 ## Repository layout
 
 ```
-server/     Backend — Express API + BullMQ worker
-src/        Frontend — Vite app (in progress)
-shared/     TypeScript types shared between server and frontend (API contract)
-tests/      Vitest unit + integration tests
-scripts/    Migration runner and dev utilities
-docs/       Architecture, API reference, detector details, build log
+server/       Backend — Express API + BullMQ worker
+src/          Frontend — React source for the Vite app
+public/       Frontend static assets (favicon)
+shared/       TypeScript types shared between server and frontend (API contract)
+migrations/   SQL migrations
+tests/        Vitest unit + integration tests
+scripts/      Migration runner and dev utilities
+docs/         Architecture, API reference, detector details, build log
 ```
+
+Frontend and backend share the root `package.json`, `tsconfig*.json`, and
+tooling config. Vite builds to `dist/frontend/`; the server builds to
+`dist/server/`.
 
 ## Quickstart
 
@@ -39,9 +49,10 @@ cp .env.example .env    # fill in DATABASE_URL, REDIS_URL, GitHub OAuth keys, JW
 npm run migrate
 npm run dev             # API on http://localhost:3000
 npm run worker          # in a separate terminal — BullMQ scan worker
+npm run dev:frontend    # frontend on http://localhost:5173
 ```
 
-See [`docs/local-development.md`](docs/local-development.md) for Postgres/Redis setup (native or Docker).
+See [`docs/development.md`](docs/development.md) for Postgres/Redis setup (native or Docker).
 
 ## Documentation
 

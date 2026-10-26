@@ -1,5 +1,6 @@
 import type { ToolDetector, DetectionResult } from '../detector.interface.js';
 import type { ScanContext } from '../../scans/scan.context.js';
+import { computeAdoptionRate } from './adoption.js';
 
 const TEST_FILE_RE = /(^|\/)(__tests__\/|.*\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs)$)/;
 
@@ -75,11 +76,11 @@ export const jestDetector: ToolDetector = {
       if (!(login in perContributor)) perContributor[login] = false;
     }
 
-    const usingCount = Object.values(perContributor).filter(Boolean).length;
-    const adoptionRate =
-      contributorLogins.length > 0
-        ? Math.round((usingCount / contributorLogins.length) * 10000) / 100
-        : 0;
+    const adoptionRate = computeAdoptionRate(
+      contributorLogins,
+      perContributor,
+      true,
+    );
 
     // If Jest isn't configured at all, adoption is meaningless → 0
     if (!detected) {

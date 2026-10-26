@@ -1,5 +1,6 @@
 import type { ToolDetector, DetectionResult } from '../detector.interface.js';
 import type { ScanContext } from '../../scans/scan.context.js';
+import { computeAdoptionRate } from './adoption.js';
 
 const PY_SOURCE_RE = /\.py$/;
 
@@ -53,12 +54,11 @@ export const ruffDetector: ToolDetector = {
       if (touched) perContributor[commit.authorLogin] = true;
     }
 
-    const contributorLogins = ctx.contributors.map((c) => c.login);
-    const usingCount = Object.values(perContributor).filter(Boolean).length;
-    const adoptionRate =
-      contributorLogins.length > 0 && detected
-        ? Math.round((usingCount / contributorLogins.length) * 10000) / 100
-        : 0;
+    const adoptionRate = computeAdoptionRate(
+      ctx.contributors.map((c) => c.login),
+      perContributor,
+      detected,
+    );
 
     return {
       tool: 'ruff',

@@ -57,6 +57,21 @@ describe('eslintDetector', () => {
     expect(result.adoptionRate).toBe(50);
   });
 
+  it('caps adoption at 100 when commits have authors outside the top contributors', async () => {
+    const ctx = buildScanContext({
+      configFiles: { '.eslintrc.json': '{}' },
+      contributors: [{ login: 'alice', contributions: 5 }],
+      commits: [
+        buildCommit({ authorLogin: 'alice', filenames: ['src/a.ts'] }),
+        buildCommit({ authorLogin: 'mallory', filenames: ['src/b.ts'] }),
+      ],
+    });
+
+    const result = await eslintDetector.detect(ctx);
+
+    expect(result.adoptionRate).toBe(100);
+  });
+
   it('not detected without config or dependency', async () => {
     const ctx = buildScanContext({
       configFiles: { 'package.json': JSON.stringify({ dependencies: {} }) },

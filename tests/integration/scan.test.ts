@@ -286,6 +286,36 @@ describe('scan pipeline', () => {
     expect(pytestTool?.relevant).toBe(false);
   });
 
+  it('fails a stale pending scan and starts a new one', async () => {
+    const stale = await pool.query<{ id: string }>(
+      `INSERT INTO scans (repo_id, status, created_at)
+       VALUES ($1, 'pending', NOW() - INTERVAL '11 minutes')
+       RETURNING id`,
+      [repoId],
+    );
+    const staleId = stale.rows[0]!.id;
+
+    const post = await request(app)
+      .post(`/repos/${repoId}/scan`)
+      .set('Cookie', `token=${token}`);
+
+    expect(post.status).toBe(202);
+    expect(post.body.cached).toBe(false);
+    expect(post.body.scan.id).not.toBe(staleId);
+
+    const rows = await pool.query<{
+      id: string;
+      status: string;
+      error: string | null;
+    }>('SELECT id, status, error FROM scans WHERE repo_id = $1', [repoId]);
+    const staleRow = rows.rows.find((r) => r.id === staleId);
+    expect(staleRow?.status).toBe('failed');
+    expect(staleRow?.error).toBe('Scan timed out before starting');
+    expect(
+      rows.rows.find((r) => r.id === post.body.scan.id)?.status,
+    ).toBe('pending');
+  });
+
   it('second POST within an hour returns cached scan (200, not 202)', async () => {
     stubGithubFetch({
       contributors: [{ login: 'alice', contributions: 1 }],

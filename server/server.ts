@@ -3,6 +3,7 @@ import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
 import { pingDb, closeDb } from './config/database.js';
 import { closeRedis } from './config/redis.js';
+import { failStalePendingScans } from './modules/scans/scan.service.js';
 
 const app = createApp();
 
@@ -12,6 +13,15 @@ async function start() {
   } catch (err) {
     logger.error('Cannot reach Postgres at boot', err);
     process.exit(1);
+  }
+
+  try {
+    const failed = await failStalePendingScans();
+    if (failed > 0) {
+      logger.warn(`Marked ${failed} stale pending scan(s) as failed at boot`);
+    }
+  } catch (err) {
+    logger.warn(`Stale scan reconciliation failed at boot: ${(err as Error).message}`);
   }
 
   const server = app.listen(env.PORT, () => {

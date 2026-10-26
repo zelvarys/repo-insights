@@ -34,3 +34,5 @@ export const conflict = (msg: string) => new AppError(msg, 409, 'CONFLICT');
 
 export const internal = (msg = 'Internal server error') =>
   new AppError(msg, 500, 'INTERNAL_ERROR');
+export const serviceUnavailable = (msg = 'Service unavailable') =>
+  new AppError(msg, 503, 'SERVICE_UNAVAILABLE');

@@ -2,6 +2,8 @@ import { pool } from '../../config/database.js';
 import { scanQueue, type ScanJobData } from './scan.queue.js';
 import { getTrackedRepository } from '../repositories/repository.service.js';
 import { cacheGet, cacheSet, cacheDel, cacheKeys } from '../../utils/cache.js';
+import { logger } from '../../utils/logger.js';
+import { serviceUnavailable } from '../../utils/errors.js';
 import type { ScanSummary, ScanStatus } from '../../../shared/types.js';
 
 function toScan(row: {
@@ -27,6 +29,48 @@ function toScan(row: {
 }
 
 const FRESH_SCAN_TTL_SECONDS = 60 * 60;
+const PENDING_STALE_AFTER_MS = 10 * 60 * 1000;
+const RUNNING_STALE_AFTER_MS = 30 * 60 * 1000;
+
+function staleScanError(status: string, createdAt: Date): string | null {
+  const age = Date.now() - createdAt.getTime();
+  if (status === 'pending' && age > PENDING_STALE_AFTER_MS) {
+    return 'Scan timed out before starting';
+  }
+  if (status === 'running' && age > RUNNING_STALE_AFTER_MS) {
+    return 'Scan timed out while running';
+  }
+  return null;
+}
+
+function isRedisUnavailableError(err: unknown): boolean {
+  const error = err as { code?: string; message?: string };
+  if (
+    error.code &&
+    [
+      'ECONNREFUSED',
+      'ECONNRESET',
+      'ETIMEDOUT',
+      'ENOTFOUND',
+      'EAI_AGAIN',
+      'NR_CLOSED',
+    ].includes(error.code)
+  ) {
+    return true;
+  }
+  return /redis|connection is closed|connection lost/i.test(error.message ?? '');
+}
+
+export async function failStalePendingScans(): Promise<number> {
+  const result = await pool.query(
+    `UPDATE scans
+     SET status = 'failed', completed_at = NOW(),
+         error = 'Scan timed out before starting'
+     WHERE status = 'pending'
+       AND created_at < NOW() - INTERVAL '10 minutes'`,
+  );
+  return result.rowCount ?? 0;
+}
 
 export async function requestScan(
   repoId: string,
@@ -50,8 +94,18 @@ export async function requestScan(
      LIMIT 1`,
     [repoId],
   );
-  if (existing.rows[0]) {
-    return { scan: toScan(existing.rows[0]), cached: true };
+  const inFlight = existing.rows[0];
+  if (inFlight) {
+    const staleError = staleScanError(inFlight.status, inFlight.created_at);
+    if (!staleError) {
+      return { scan: toScan(inFlight), cached: true };
+    }
+    await pool.query(
+      `UPDATE scans
+       SET status = 'failed', completed_at = NOW(), error = $2
+       WHERE id = $1`,
+      [inFlight.id, staleError],
+    );
   }
 
   const insert = await pool.query(
@@ -69,7 +123,28 @@ export async function requestScan(
     repoId,
     requestedBy: userId,
   };
-  await scanQueue.add('scan', jobData, { jobId: scan.id });
+  try {
+    await scanQueue.add('scan', jobData, { jobId: scan.id });
+  } catch (err) {
+    try {
+      await pool.query(
+        `UPDATE scans
+         SET status = 'failed', completed_at = NOW(),
+             error = 'Failed to enqueue scan'
+         WHERE id = $1`,
+        [scan.id],
+      );
+    } catch (updateErr) {
+      logger.warn(
+        `Failed to mark scan ${scan.id} as failed after enqueue error: ${(updateErr as Error).message}`,
+      );
+    }
+
+    if (isRedisUnavailableError(err)) {
+      throw serviceUnavailable('Scan queue is unavailable');
+    }
+    throw err;
+  }
 
   return { scan, cached: false };
 }

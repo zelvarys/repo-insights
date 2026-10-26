@@ -2,7 +2,12 @@ import { describe, it, expect, beforeAll } from 'vitest';
 
 describe('jwt', () => {
   let signJwt: (userId: string, expiresInSeconds: number) => string;
-  let verifyJwt: (token: string) => { sub: string; iat: number; exp: number };
+  let verifyJwt: (token: string) => {
+    sub: string;
+    iat: number;
+    exp: number;
+    jti?: string;
+  };
   let parseExpiresIn: (value: string) => number;
 
   beforeAll(async () => {
@@ -21,6 +26,9 @@ describe('jwt', () => {
     const payload = verifyJwt(token);
     expect(payload.sub).toBe('user-123');
     expect(payload.exp - payload.iat).toBe(3600);
+    expect(payload.jti).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
   });
 
   it('rejects a tampered signature', () => {

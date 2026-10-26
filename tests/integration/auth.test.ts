@@ -63,6 +63,26 @@ describe('auth', () => {
     expect(String(setCookie)).toMatch(/token=;/);
   });
 
+  it('revokes the session token on logout', async () => {
+    const userId = await insertUser({ githubId: 3, username: 'carol' });
+    const token = signJwt(userId, parseExpiresIn(env.JWT_EXPIRES_IN));
+
+    const before = await request(app)
+      .get('/auth/me')
+      .set('Cookie', `token=${token}`);
+    expect(before.status).toBe(200);
+
+    const logout = await request(app)
+      .post('/auth/logout')
+      .set('Cookie', `token=${token}`);
+    expect(logout.status).toBe(200);
+
+    const after = await request(app)
+      .get('/auth/me')
+      .set('Cookie', `token=${token}`);
+    expect(after.status).toBe(401);
+  });
+
   it('rejects an expired token', async () => {
     const userId = await insertUser({ githubId: 2, username: 'bob' });
     const token = signJwt(userId, -1);

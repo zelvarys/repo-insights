@@ -5,7 +5,8 @@ import { env } from '../../config/env.js';
 import { buildAuthorizeUrl, exchangeCodeForToken } from '../../integrations/github/github.oauth.js';
 import { handleGithubCallback, getUserById } from './auth.service.js';
 import { badRequest, unauthorized } from '../../utils/errors.js';
-import { parseExpiresIn } from '../../utils/jwt.js';
+import { parseExpiresIn, verifyJwt } from '../../utils/jwt.js';
+import { revokeSession } from './session.js';
 
 const STATE_TTL_SECONDS = 600;
 const STATE_COOKIE = 'oauth_state';
@@ -94,7 +95,26 @@ export async function getMe(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-export async function logout(_req: Request, res: Response) {
-  res.clearCookie('token', { path: '/' });
-  res.json({ ok: true });
+export async function logout(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    res.clearCookie('token', { path: '/' });
+    const token = req.cookies?.token;
+    if (token && typeof token === 'string') {
+      try {
+        const payload = verifyJwt(token);
+        if (payload.jti) {
+          await revokeSession(payload.jti, payload.exp);
+        }
+      } catch {
+        // Invalid or expired tokens have nothing to revoke.
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
 }

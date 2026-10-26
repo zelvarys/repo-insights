@@ -1,10 +1,11 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { env } from '../config/env.js';
 
-type JwtPayload = {
+export type JwtPayload = {
   sub: string;      // user id
   iat: number;
   exp: number;
+  jti?: string;     // session id, used for revocation
 };
 
 function base64url(input: Buffer | string): string {
@@ -31,6 +32,7 @@ export function signJwt(userId: string, expiresInSeconds: number): string {
     sub: userId,
     iat: now,
     exp: now + expiresInSeconds,
+    jti: randomUUID(),
   };
   const body = base64url(JSON.stringify(payload));
   const signature = sign(`${header}.${body}`);

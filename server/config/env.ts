@@ -30,6 +30,7 @@ export const env = {
   JWT_SECRET: required('JWT_SECRET'),
   JWT_EXPIRES_IN: optional('JWT_EXPIRES_IN', '7d'),
   TOKEN_ENCRYPTION_KEY: required('TOKEN_ENCRYPTION_KEY'),
+  GITHUB_FETCH_TIMEOUT_MS: Number(optional('GITHUB_FETCH_TIMEOUT_MS', '15000')),
 } as const;
 
 export const isProd = env.NODE_ENV === 'production';
@@ -38,6 +39,16 @@ export const isTest = env.NODE_ENV === 'test';
 
 if (!Number.isFinite(env.PORT) || env.PORT <= 0) {
   console.error(`❌ Invalid PORT: ${process.env.PORT}`);
+  process.exit(1);
+}
+
+if (
+  !Number.isFinite(env.GITHUB_FETCH_TIMEOUT_MS) ||
+  env.GITHUB_FETCH_TIMEOUT_MS <= 0
+) {
+  console.error(
+    `❌ Invalid GITHUB_FETCH_TIMEOUT_MS: ${process.env.GITHUB_FETCH_TIMEOUT_MS}`,
+  );
   process.exit(1);
 }
 

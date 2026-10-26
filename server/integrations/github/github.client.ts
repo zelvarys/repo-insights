@@ -1,5 +1,6 @@
 import type { GitHubUser, GitHubEmail } from './github.types.js';
 import { logger } from '../../utils/logger.js';
+import { env } from '../../config/env.js';
 
 const API = 'https://api.github.com';
 const GRAPHQL = 'https://api.github.com/graphql';
@@ -18,12 +19,36 @@ function isNotFound(err: unknown): boolean {
   return err instanceof GitHubApiError && err.status === 404;
 }
 
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  label: string,
+): Promise<Response> {
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: AbortSignal.timeout(env.GITHUB_FETCH_TIMEOUT_MS),
+    });
+  } catch (err) {
+    if (
+      err instanceof DOMException &&
+      (err.name === 'TimeoutError' || err.name === 'AbortError')
+    ) {
+      throw new GitHubApiError(
+        `GitHub API timeout after ${env.GITHUB_FETCH_TIMEOUT_MS}ms: ${label}`,
+        504,
+      );
+    }
+    throw err;
+  }
+}
+
 async function ghFetch<T>(
   path: string,
   token: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetchWithTimeout(`${API}${path}`, {
     ...init,
     headers: {
       Accept: 'application/vnd.github+json',
@@ -32,7 +57,7 @@ async function ghFetch<T>(
       'User-Agent': 'repo-insights',
       ...(init.headers ?? {}),
     },
-  });
+  }, path);
   if (!res.ok) {
     const body = await res.text();
     throw new GitHubApiError(
@@ -48,7 +73,7 @@ async function ghGraphql<T>(
   variables: Record<string, unknown>,
   token: string,
 ): Promise<T> {
-  const res = await fetch(GRAPHQL, {
+  const res = await fetchWithTimeout(GRAPHQL, {
     method: 'POST',
     headers: {
       Accept: 'application/vnd.github+json',
@@ -57,7 +82,7 @@ async function ghGraphql<T>(
       'User-Agent': 'repo-insights',
     },
     body: JSON.stringify({ query, variables }),
-  });
+  }, 'graphql');
   if (!res.ok) {
     const body = await res.text();
     throw new GitHubApiError(
@@ -201,7 +226,7 @@ export async function getContributorCount(
   repo: string,
 ): Promise<number> {
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://api.github.com/repos/${owner}/${repo}/contributors?per_page=1&anon=false`,
       {
         headers: {
@@ -210,6 +235,7 @@ export async function getContributorCount(
           'User-Agent': 'repo-insights',
         },
       },
+      `${owner}/${repo}/contributors`,
     );
     if (!res.ok) {
       if (res.status === 404) return 0;

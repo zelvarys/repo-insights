@@ -340,6 +340,12 @@ export function startWorker(): Worker<ScanJobData> {
   worker.on('failed', (job, err) =>
     logger.error(`Job ${job?.id} failed: ${err.message}`),
   );
+  worker.on('error', (err) => {
+    logger.error(`Scan worker error: ${err.message}`);
+  });
+  worker.on('stalled', (jobId) => {
+    logger.warn(`Scan job ${jobId} stalled`);
+  });
   return worker;
 }
 

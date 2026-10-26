@@ -9,7 +9,7 @@ const testEnvPath = path.resolve(rootDir, '.env.test');
 
 if (!existsSync(testEnvPath)) {
   throw new Error(
-    'Missing .env.test. Copy .env.test.example to .env.test and fill in DATABASE_URL.',
+    'Missing .env.test. Create .env.test with NODE_ENV=test and DATABASE_URL pointing at a _test database.',
   );
 }
 

@@ -23,7 +23,6 @@
     "typecheck:all": "npm run typecheck && npm run typecheck:frontend",
     "lint": "eslint .",
     "format": "prettier --write \"server/**/*.ts\"",
-    "pretest": "cp -n .env.test.example .env.test || true",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage"

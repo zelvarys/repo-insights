@@ -164,9 +164,10 @@ npm run test:watch
 npm run test:cov
 ```
 
-Tests read configuration from `.env.test`. `npm test` copies `.env.test.example`
-to `.env.test` on first run (the file is gitignored), but you must create the
-test database and apply migrations first:
+Tests read configuration from a gitignored `.env.test`. Create it with
+`NODE_ENV=test`, `DATABASE_URL` pointing at a database whose name ends in
+`_test`, and the required app secrets. Then create the database and apply
+migrations:
 
 ```bash
 createdb repo_insights_test

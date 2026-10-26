@@ -21,9 +21,27 @@ All errors have the shape:
 }
 ```
 
-Known codes: `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_REQUEST`, `CONFLICT`, `INVALID_JSON`, `RATE_LIMITED`, `INTERNAL_ERROR`, `VALIDATION_ERROR`.
+Known codes: `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_REQUEST`, `CONFLICT`, `INVALID_JSON`, `RATE_LIMITED`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`, `VALIDATION_ERROR`.
 
 Rate-limited responses also include `Retry-After` and `X-RateLimit-*` headers.
+
+## Rate limits
+
+Limits are fixed windows per minute. Once authenticated, the identity is the
+user id (not the IP), so users behind a shared proxy do not exhaust each
+other's quota. Unauthenticated routes key by IP.
+
+| Scope | Limit |
+|-------|-------|
+| All API routes | 300/min |
+| `POST /repos/:id/scan` | 10/min |
+| `GET /repos/:id/metrics` | 120/min |
+| Scan reads (`GET /repos/:id/scans`, `GET /scans/:scanId`) | 120/min |
+| Writes (`PUT /repos/:id/tracked-tools`, `DELETE /repos/:id`) | 20/min |
+| Auth routes | 300/min |
+
+If the API runs behind a reverse proxy, set `TRUST_PROXY` so Express resolves
+the client IP correctly for unauthenticated limits.
 
 ## Health
 
@@ -39,7 +57,7 @@ No auth, no rate limit.
 
 ### `GET /auth/github`
 
-Redirects to GitHub's authorize URL. Sets a `state` value in Redis (10m TTL) and an `oauth_state` httpOnly cookie for CSRF protection.
+Redirects to GitHub's authorize URL. Sets a `state` value in Redis (10m TTL) and an `oauth_state` httpOnly cookie for CSRF protection. Requests the read-only scopes `read:user`, `user:email`, `public_repo`, and `read:org`.
 
 ### `GET /auth/github/callback?code=…&state=…`
 
@@ -63,7 +81,9 @@ Requires auth.
 
 ### `POST /auth/logout`
 
-No auth required. Clears the `token` cookie if present.
+No auth required. Clears the `token` cookie and revokes the current JWT's
+session id if the cookie contains a valid token. Revoked sessions are rejected
+by `requireAuth` even if the JWT itself has not expired.
 
 ```json
 { "ok": true }
@@ -79,6 +99,16 @@ No auth required. Clears the `token` cookie if present.
 
 Requires auth. Lists repos the user owns, collaborates on, or has contributed to in an org. Org repos where the user has never committed are excluded.
 
+Query parameters:
+
+| Name | Default | Description |
+|------|---------|-------------|
+| `page` | `1` | 1-based page number (max 10,000) |
+| `perPage` | `100` | Page size (max 100) |
+
+Pagination is applied after GitHub listings are merged and capped at ten
+GitHub pages per request. `hasMore` indicates whether another API page exists.
+
 ```json
 {
   "repos": [
@@ -92,7 +122,9 @@ Requires auth. Lists repos the user owns, collaborates on, or has contributed to
       "stargazers_count": 5,
       "forks_count": 1
     }
-  ]
+  ],
+  "hasMore": false,
+  "page": 1
 }
 ```
 
@@ -136,6 +168,24 @@ Requires auth. Lists tracked repos.
 
 Requires auth. Returns one tracked repo.
 
+### `DELETE /repos/:id`
+
+Requires auth. Rate-limited to 20/min.
+
+Permanently untracks a repository and deletes its scan history, tool usage,
+metrics cache, and tracked-tool settings. Pending or running scans are marked
+`failed` with `error = "Repository removed"` before the repository row is
+deleted; the schema cascades `scans`, `tool_usage`, and `tracked_tools`.
+Redis keys `cache:scan-result:<repoId>` and `cache:metrics:<repoId>:*` are
+invalidated. `scan:context:<scanId>` entries are left to expire.
+
+Returns `204 No Content` with an empty body. Unknown repository → `404
+NOT_FOUND`; malformed id → `400 BAD_REQUEST`.
+
+> **Tenancy:** any authenticated user may remove any tracked repository,
+> matching the shared-workspace access model. See
+> `docs/architecture.md#tenancy-model`.
+
 ## Scans
 
 ### `POST /repos/:id/scan`
@@ -144,6 +194,10 @@ Requires auth. Rate-limited to 10/min.
 
 - **`202 Accepted`** — new scan queued. Body: `{ scan: {...}, cached: false }`
 - **`200 OK`** — either a fresh cached scan (< 1h old) or a pending/running scan already exists. Body: `{ scan: {...}, cached: true }`
+- **`503 SERVICE_UNAVAILABLE`** — the scan queue (Redis) is unavailable. The
+  scan is marked failed before returning.
+- **`500 INTERNAL_ERROR`** — another enqueue failure occurred; the scan is
+  marked failed.
 
 Scan shape:
 
@@ -208,7 +262,7 @@ Requires auth. Rate-limited to 120/min. Cached for 60s per `(repoId, latest scan
 }
 ```
 
-`coverage` and `adoption` are also 0–100. `adoptionScore = coverage × adoption / 100`. See `docs/architecture.md#scoring`.
+`coverage` and `adoption` are also 0–100. `adoptionScore = coverage × adoption / 100`. Coverage is the share of tracked tools that were detected; adoption is the mean per-contributor adoption of detected tracked tools, excluding commit-presence proxies (`github-actions`, `dependabot`, `renovate`). The same scoring module produces the metrics response and the cached scan summary, so both always report the same score. See `docs/architecture.md#scoring`.
 
 Repos with no completed scan return a well-shaped empty response (`scanId: null`, `tools: []`, `adoptionScore: 0`).
 
@@ -235,7 +289,7 @@ Requires auth. Returns all 13 registry tools with their current state for this r
 
 ### `PUT /repos/:id/tracked-tools`
 
-Requires auth. Full replacement of the user's tracked set.
+Requires auth. Rate-limited to 20/min. Full replacement of the user's tracked set.
 
 ```json
 {

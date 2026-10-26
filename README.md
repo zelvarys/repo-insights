@@ -22,6 +22,7 @@ Backend MVP complete (Phases 0–10). Frontend MVP complete.
 - [x] Scan + metrics caching, rate limiting
 - [x] Unit + integration tests
 - [x] Frontend dashboard
+- [x] Remove tracked repositories (`DELETE /repos/:id`)
 - [ ] Benchmarking, Slack, API access
 
 ## Repository layout
@@ -51,6 +52,9 @@ npm run dev             # API on http://localhost:3000
 npm run worker          # in a separate terminal — BullMQ scan worker
 npm run dev:frontend    # frontend on http://localhost:5173
 ```
+
+Before opening a pull request, run `npm run lint`, `npm run typecheck`,
+`npm run typecheck:frontend`, and `npm test`.
 
 See [`docs/development.md`](docs/development.md) for Postgres/Redis setup (native or Docker).
 

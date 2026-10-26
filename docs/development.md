@@ -98,6 +98,8 @@ alias startdb='pg_ctl -D $PREFIX/var/lib/postgresql -l $PREFIX/var/lib/postgresq
 | `JWT_EXPIRES_IN` | no (default `7d`) | Accepts `3600`, `60s`, `5m`, `2h`, `7d` |
 | `TOKEN_ENCRYPTION_KEY` | yes (64 hex chars) | AES-256-GCM key for GitHub access tokens at rest |
 | `FRONTEND_URL` | yes | Redirect target after OAuth; also the CORS origin |
+| `GITHUB_FETCH_TIMEOUT_MS` | no (default `15000`) | Timeout for each GitHub API request; must be > 0 |
+| `TRUST_PROXY` | no | Set when behind a reverse proxy so rate limits use the real client IP. `true`, `false`, or an Express trust-proxy value |
 
 Generate the two secrets with:
 
@@ -114,6 +116,10 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 5. Leave **Expire user access tokens** unchecked
 6. Copy the Client ID and generate a Client Secret into `.env`
 
+The app requests the read-only scopes `read:user`, `user:email`, `public_repo`,
+and `read:org` at login. Scans only read repository contents, contributors,
+commits, and workflows; no write scopes are requested.
+
 ## Migrations
 
 ```bash
@@ -121,6 +127,13 @@ npm run migrate
 ```
 
 Re-running is a no-op. The `migrations` table in Postgres records what's applied.
+
+To migrate the test database explicitly:
+
+```bash
+createdb repo_insights_test
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/repo_insights_test npm run migrate
+```
 
 ## Run
 
@@ -138,7 +151,9 @@ curl -s http://localhost:3000/health
 # → {"status":"ok",...}
 
 npm run typecheck
+npm run typecheck:frontend
 npm test
+npm run lint
 ```
 
 ## Running tests
@@ -149,7 +164,20 @@ npm run test:watch
 npm run test:cov
 ```
 
-Tests use the same Postgres and Redis as development. Each test truncates the DB before running. Do not point tests at a production database.
+Tests read configuration from `.env.test`. `npm test` copies `.env.test.example`
+to `.env.test` on first run (the file is gitignored), but you must create the
+test database and apply migrations first:
+
+```bash
+createdb repo_insights_test
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/repo_insights_test npm run migrate
+```
+
+Tests use the same Redis instance as development. Each test truncates the
+Postgres database before running. `truncateAll()` refuses to run unless
+`NODE_ENV=test` and the database name ends in `_test` (override with
+`ALLOW_TEST_TRUNCATE=1` only if you are certain). Do not point tests at a
+production database.
 
 ## Frontend
 

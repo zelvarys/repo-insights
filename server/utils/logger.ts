@@ -3,8 +3,10 @@ type Level = 'debug' | 'info' | 'warn' | 'error';
 function emit(level: Level, msg: string, meta?: unknown): void {
   const prefix = `[${level.toUpperCase()}]`;
   if (meta === undefined) {
+    // eslint-disable-next-line no-console -- logger is the console wrapper
     console.log(`${prefix} ${msg}`);
   } else {
+    // eslint-disable-next-line no-console -- logger is the console wrapper
     console.log(`${prefix} ${msg}`, meta);
   }
 }

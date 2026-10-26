@@ -37,8 +37,8 @@ export function useAddRepo() {
     mutationFn: (githubId: number) =>
       api.post<{ repository: TrackedRepository }>("/repos", { githubId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["repos"] })
-      queryClient.invalidateQueries({ queryKey: ["repos", "github"] })
+      void queryClient.invalidateQueries({ queryKey: ["repos"] })
+      void queryClient.invalidateQueries({ queryKey: ["repos", "github"] })
     },
   })
 }

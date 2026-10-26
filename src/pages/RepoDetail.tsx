@@ -90,10 +90,10 @@ export default function RepoDetail() {
 
     if (scan.status === "complete") {
       toast.success("Scan complete")
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["repo", repoId, "metrics"],
       })
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["repo", repoId, "scans"],
       })
       setPollingScanId(null)
@@ -101,7 +101,7 @@ export default function RepoDetail() {
       toast.error("Scan failed", {
         description: scan.error ?? "The scan failed without an error message.",
       })
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["repo", repoId, "scans"],
       })
       setPollingScanId(null)
@@ -138,10 +138,10 @@ export default function RepoDetail() {
 
         if (cached) {
           toast.success("Using cached scan")
-          queryClient.invalidateQueries({
+          void queryClient.invalidateQueries({
             queryKey: ["repo", repoId, "metrics"],
           })
-          queryClient.invalidateQueries({
+          void queryClient.invalidateQueries({
             queryKey: ["repo", repoId, "scans"],
           })
           return

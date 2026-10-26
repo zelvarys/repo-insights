@@ -13,5 +13,14 @@ export const trackedToolsRoutes = Router();
 
 trackedToolsRoutes.use(requireAuth);
 
-trackedToolsRoutes.get('/repos/:id/tracked-tools', getTrackedTools);
-trackedToolsRoutes.put('/repos/:id/tracked-tools', putTrackedTools);
+trackedToolsRoutes.get(
+  '/repos/:id/tracked-tools',
+  globalLimiter,
+  getTrackedTools,
+);
+trackedToolsRoutes.put(
+  '/repos/:id/tracked-tools',
+  globalLimiter,
+  trackedToolsWriteLimiter,
+  putTrackedTools,
+);

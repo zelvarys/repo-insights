@@ -57,4 +57,4 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-start();
+void start();

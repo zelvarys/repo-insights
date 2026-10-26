@@ -11,7 +11,7 @@ export function useRunScan(repoId: string) {
         {}
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["repo", repoId, "scans"] })
+      void queryClient.invalidateQueries({ queryKey: ["repo", repoId, "scans"] })
     },
   })
 

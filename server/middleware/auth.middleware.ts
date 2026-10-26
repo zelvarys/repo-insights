@@ -28,7 +28,7 @@ export async function requireAuth(
     }
     req.userId = payload.sub;
     next();
-  } catch (err) {
+  } catch {
     next(unauthorized('Invalid or expired session'));
   }
 }

@@ -58,8 +58,8 @@ export function useUpdateTrackedTools(repoId: string) {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: trackedToolsKey(repoId) })
-      queryClient.invalidateQueries({ queryKey: ["repo", repoId, "metrics"] })
+      void queryClient.invalidateQueries({ queryKey: trackedToolsKey(repoId) })
+      void queryClient.invalidateQueries({ queryKey: ["repo", repoId, "metrics"] })
     },
   })
 }

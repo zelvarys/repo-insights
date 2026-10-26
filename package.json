@@ -21,7 +21,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:frontend": "tsc -p tsconfig.app.json --noEmit",
     "typecheck:all": "npm run typecheck && npm run typecheck:frontend",
-    "lint": "eslint server --ext .ts",
+    "lint": "eslint .",
     "format": "prettier --write \"server/**/*.ts\"",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -83,6 +83,7 @@
     "tailwindcss": "^4.1.0",
     "tsx": "^4.16.2",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.72.0",
     "vite": "^6.0.5",
     "vitest": "^2.0.2"
   }

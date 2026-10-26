@@ -64,6 +64,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck:all
 
+      - name: Lint
+        run: npm run lint
+
       - name: Run migrations
         run: npm run migrate
 
@@ -88,4 +91,3 @@ jobs:
 
       - name: Lint
         run: npm run lint
-        continue-on-error: true

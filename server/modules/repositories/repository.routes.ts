@@ -4,9 +4,13 @@ import {
   postRepository,
   getRepositories,
   getRepository,
+  deleteRepository,
 } from './repository.controller.js';
 import { requireAuth } from '../../middleware/auth.middleware.js';
-import { globalLimiter } from '../../middleware/rate-limiters.js';
+import {
+  globalLimiter,
+  writeLimiter,
+} from '../../middleware/rate-limiters.js';
 
 export const repositoryRoutes = Router();
 
@@ -24,3 +28,6 @@ repositoryRoutes.get('/', globalLimiter, getRepositories);
 
 // Get one tracked repo
 repositoryRoutes.get('/:id', globalLimiter, getRepository);
+
+// Untrack a repo (shared workspace)
+repositoryRoutes.delete('/:id', globalLimiter, writeLimiter, deleteRepository);

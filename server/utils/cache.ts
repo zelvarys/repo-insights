@@ -28,9 +28,15 @@ export async function cacheDel(key: string): Promise<void> {
   await redis.del(key);
 }
 
+export async function cacheDelPattern(pattern: string): Promise<void> {
+  const keys = await redis.keys(pattern);
+  if (keys.length > 0) await redis.del(...keys);
+}
+
 /** Namespaced keys so different features can't collide. */
 export const cacheKeys = {
   scanResult: (repoId: string) => `cache:scan-result:${repoId}`,
   metrics: (repoId: string, scanId: string) =>
     `cache:metrics:${repoId}:${scanId}`,
+  metricsPattern: (repoId: string) => `cache:metrics:${repoId}:*`,
 } as const;

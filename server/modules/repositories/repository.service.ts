@@ -7,6 +7,8 @@ import {
   type GitHubRepo,
 } from '../../integrations/github/github.client.js';
 import { AppError, badRequest, notFound } from '../../utils/errors.js';
+import { cacheDel, cacheDelPattern, cacheKeys } from '../../utils/cache.js';
+import { logger } from '../../utils/logger.js';
 import type { TrackedRepository } from '../../../shared/types.js';
 
 function toTracked(row: {
@@ -132,6 +134,31 @@ export async function addTrackedRepository(
   );
 
   return toTracked(rows[0]!);
+}
+
+/**
+ * Shared-workspace model: any authenticated user may remove any tracked repo.
+ */
+export async function deleteTrackedRepository(id: string): Promise<void> {
+  await getTrackedRepository(id);
+
+  await pool.query(
+    `UPDATE scans
+     SET status = 'failed', completed_at = NOW(), error = 'Repository removed'
+     WHERE repo_id = $1 AND status IN ('pending','running')`,
+    [id],
+  );
+
+  await pool.query('DELETE FROM repositories WHERE id = $1', [id]);
+
+  try {
+    await cacheDel(cacheKeys.scanResult(id));
+    await cacheDelPattern(cacheKeys.metricsPattern(id));
+  } catch (err) {
+    logger.warn(
+      `Failed to invalidate cache for deleted repository ${id}: ${(err as Error).message}`,
+    );
+  }
 }
 
 export async function listTrackedRepositories(): Promise<TrackedRepository[]> {

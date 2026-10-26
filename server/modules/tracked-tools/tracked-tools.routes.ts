@@ -6,7 +6,7 @@ import {
 import { requireAuth } from '../../middleware/auth.middleware.js';
 import {
   globalLimiter,
-  trackedToolsWriteLimiter,
+  writeLimiter,
 } from '../../middleware/rate-limiters.js';
 
 export const trackedToolsRoutes = Router();
@@ -21,6 +21,6 @@ trackedToolsRoutes.get(
 trackedToolsRoutes.put(
   '/repos/:id/tracked-tools',
   globalLimiter,
-  trackedToolsWriteLimiter,
+  writeLimiter,
   putTrackedTools,
 );

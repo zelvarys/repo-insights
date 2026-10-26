@@ -210,7 +210,18 @@ async function processScanJob(job: {
       [repoId],
     );
     const repo = repoRow.rows[0];
-    if (!repo) throw new Error(`Repository ${repoId} not found`);
+    if (!repo) {
+      logger.warn(
+        `Repository ${repoId} was removed before scan ${scanId} started`,
+      );
+      await pool.query(
+        `UPDATE scans
+         SET status = 'failed', completed_at = NOW(), error = 'Repository removed'
+         WHERE id = $1`,
+        [scanId],
+      );
+      return;
+    }
 
     const token = await getAccessTokenForUser(requestedBy);
     if (!token) {

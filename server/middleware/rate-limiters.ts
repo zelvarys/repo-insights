@@ -18,8 +18,8 @@ export const scanReadLimiter = rateLimit({
   max: 120,
 });
 
-export const trackedToolsWriteLimiter = rateLimit({
-  name: 'tracked-tools-write',
+export const writeLimiter = rateLimit({
+  name: 'write',
   windowSeconds: 60,
   max: 20,
 });

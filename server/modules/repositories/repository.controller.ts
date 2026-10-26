@@ -4,6 +4,7 @@ import {
   addTrackedRepository,
   listTrackedRepositories,
   getTrackedRepository,
+  deleteTrackedRepository,
 } from './repository.service.js';
 import { parseAddRepositoryBody, parseRepoIdParam } from './repository.schema.js';
 import { badRequest, unauthorized } from '../../utils/errors.js';
@@ -48,6 +49,26 @@ export async function postRepository(req: Request, res: Response, next: NextFunc
 
     const repo = await addTrackedRepository(req.userId, input.githubId);
     res.status(201).json({ repository: repo });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteRepository(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    if (!req.userId) throw unauthorized();
+    let id: string;
+    try {
+      id = parseRepoIdParam(req.params.id);
+    } catch (err) {
+      throw badRequest((err as Error).message);
+    }
+    await deleteTrackedRepository(id);
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

@@ -4,6 +4,10 @@ import {
   putTrackedTools,
 } from './tracked-tools.controller.js';
 import { requireAuth } from '../../middleware/auth.middleware.js';
+import {
+  globalLimiter,
+  trackedToolsWriteLimiter,
+} from '../../middleware/rate-limiters.js';
 
 export const trackedToolsRoutes = Router();
 

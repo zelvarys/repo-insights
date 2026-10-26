@@ -31,6 +31,7 @@ export const env = {
   JWT_EXPIRES_IN: optional('JWT_EXPIRES_IN', '7d'),
   TOKEN_ENCRYPTION_KEY: required('TOKEN_ENCRYPTION_KEY'),
   GITHUB_FETCH_TIMEOUT_MS: Number(optional('GITHUB_FETCH_TIMEOUT_MS', '15000')),
+  TRUST_PROXY: optional('TRUST_PROXY', ''),
 } as const;
 
 export const isProd = env.NODE_ENV === 'production';

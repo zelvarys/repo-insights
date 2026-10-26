@@ -416,6 +416,18 @@ describe('scan pipeline', () => {
     expect(second.body.scan.id).toBe(first.body.scan.id);
   });
 
+  it('rate limits repeated scan requests per user', async () => {
+    const statuses: number[] = [];
+    for (let i = 0; i < 12; i++) {
+      const res = await request(app)
+        .post(`/repos/${repoId}/scan`)
+        .set('Cookie', `token=${token}`);
+      statuses.push(res.status);
+    }
+
+    expect(statuses).toContain(429);
+  });
+
   it('scan with broken token fails and invalidates cache', async () => {
     stubGithubFetch({});
 

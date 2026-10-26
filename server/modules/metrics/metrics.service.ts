@@ -6,6 +6,7 @@ import {
   computeScore,
   detectLanguages,
   isToolRelevant,
+  languagesFromArray,
   languagesToArray,
   type DetectedLanguages,
 } from './scoring.js';
@@ -34,8 +35,9 @@ async function computeRepoMetrics(repoId: string): Promise<RepoMetrics> {
   const latestScan = await pool.query<{
     id: string;
     completed_at: Date | null;
+    languages: string[] | null;
   }>(
-    `SELECT id, completed_at
+    `SELECT id, completed_at, languages
      FROM scans
      WHERE repo_id = $1 AND status = 'complete'
      ORDER BY completed_at DESC
@@ -103,34 +105,38 @@ async function computeRepoMetrics(repoId: string): Promise<RepoMetrics> {
     perToolStats.set(row.tool_name, entry);
   }
 
-  const ctx = await loadCachedContext(scan.id);
   let languages: DetectedLanguages;
-  if (ctx) {
-    const commitFilenames = ctx.commits.flatMap((c) =>
-      c.files.map((f) => f.filename),
-    );
-    languages = detectLanguages({
-      rootFiles: ctx.rootFiles,
-      commitFilenames,
-      configFileKeys: Object.keys(ctx.configFiles),
-    });
+  if (scan.languages !== null) {
+    languages = languagesFromArray(scan.languages);
   } else {
-    const detectedNames = new Set(
-      toolRows.rows.filter((r) => r.detected).map((r) => r.tool_name),
-    );
-    languages = {
-      js:
-        detectedNames.has('jest') ||
-        detectedNames.has('eslint') ||
-        detectedNames.has('prettier'),
-      python:
-        detectedNames.has('pytest') ||
-        detectedNames.has('black') ||
-        detectedNames.has('ruff'),
-      go:
-        detectedNames.has('go-test') || detectedNames.has('golangci-lint'),
-      php: detectedNames.has('phpunit'),
-    };
+    const ctx = await loadCachedContext(scan.id);
+    if (ctx) {
+      const commitFilenames = ctx.commits.flatMap((c) =>
+        c.files.map((f) => f.filename),
+      );
+      languages = detectLanguages({
+        rootFiles: ctx.rootFiles,
+        commitFilenames,
+        configFileKeys: Object.keys(ctx.configFiles),
+      });
+    } else {
+      const detectedNames = new Set(
+        toolRows.rows.filter((r) => r.detected).map((r) => r.tool_name),
+      );
+      languages = {
+        js:
+          detectedNames.has('jest') ||
+          detectedNames.has('eslint') ||
+          detectedNames.has('prettier'),
+        python:
+          detectedNames.has('pytest') ||
+          detectedNames.has('black') ||
+          detectedNames.has('ruff'),
+        go:
+          detectedNames.has('go-test') || detectedNames.has('golangci-lint'),
+        php: detectedNames.has('phpunit'),
+      };
+    }
   }
 
   const tools: ToolMetric[] = toolRows.rows.map((row) => {

@@ -9,6 +9,7 @@ import { signJwt, parseExpiresIn } from '../../server/utils/jwt.js';
 import { env } from '../../server/config/env.js';
 import { encryptToken } from '../../server/utils/crypto.js';
 import { processScanJobForTests } from '../../server/modules/scans/scan.worker.js';
+import { deleteScanContext } from '../../server/modules/scans/scan.context.js';
 
 let app: Express;
 let token: string;
@@ -226,11 +227,16 @@ describe('scan pipeline', () => {
     const scanRow = await pool.query<{
       status: string;
       summary: Record<string, unknown>;
+      languages: string[] | null;
     }>(
-      'SELECT status, summary FROM scans WHERE id = $1',
+      'SELECT status, summary, languages FROM scans WHERE id = $1',
       [scanId],
     );
     expect(scanRow.rows[0]?.status).toBe('complete');
+    expect(scanRow.rows[0]?.languages).toEqual(['js']);
+
+    // Simulate the Redis context expiring before metrics are read.
+    await deleteScanContext(scanId);
 
     // tool_usage populated
     const toolUsage = await pool.query<{ tool_name: string }>(
@@ -265,6 +271,19 @@ describe('scan pipeline', () => {
     expect(summary.toolsChecked).toBe(metrics.body.toolsChecked);
     expect(summary.toolsTracked).toBe(metrics.body.toolsTracked);
     expect(summary.toolsDetected).toBe(metrics.body.toolsDetected);
+
+    const trackedTools = await request(app)
+      .get(`/repos/${repoId}/tracked-tools`)
+      .set('Cookie', `token=${token}`);
+    expect(trackedTools.status).toBe(200);
+    const jestTool = trackedTools.body.tools.find(
+      (t: { toolName: string }) => t.toolName === 'jest',
+    );
+    expect(jestTool?.relevant).toBe(true);
+    const pytestTool = trackedTools.body.tools.find(
+      (t: { toolName: string }) => t.toolName === 'pytest',
+    );
+    expect(pytestTool?.relevant).toBe(false);
   });
 
   it('second POST within an hour returns cached scan (200, not 202)', async () => {

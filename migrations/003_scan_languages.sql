@@ -1,0 +1,1 @@
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS languages TEXT[];

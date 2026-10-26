@@ -277,11 +277,13 @@ async function processScanJob(job: { data: ScanJobData }): Promise<void> {
     });
 
     const completed = await pool.query(
-      `UPDATE scans SET status = 'complete', completed_at = NOW(), summary = $2
+      `UPDATE scans
+       SET status = 'complete', completed_at = NOW(), summary = $2,
+           languages = $3
        WHERE id = $1
        RETURNING id, repo_id, status, started_at, completed_at, error,
                  summary, created_at`,
-      [scanId, JSON.stringify(summary)],
+      [scanId, JSON.stringify(summary), languagesToArray(languages)],
     );
 
     const row = completed.rows[0];

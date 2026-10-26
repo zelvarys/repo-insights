@@ -71,6 +71,16 @@ export function isToolRelevant(
   return true;
 }
 
+export function languagesFromArray(languages: string[] | null): DetectedLanguages {
+  const set = new Set(languages ?? []);
+  return {
+    js: set.has('js'),
+    python: set.has('python'),
+    go: set.has('go'),
+    php: set.has('php'),
+  };
+}
+
 export function languagesToArray(langs: DetectedLanguages): string[] {
   const out: string[] = [];
   if (langs.js) out.push('js');

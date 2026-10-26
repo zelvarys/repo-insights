@@ -223,8 +223,11 @@ describe('scan pipeline', () => {
     } as any);
 
     // Scan row complete
-    const scanRow = await pool.query<{ status: string }>(
-      'SELECT status FROM scans WHERE id = $1',
+    const scanRow = await pool.query<{
+      status: string;
+      summary: Record<string, unknown>;
+    }>(
+      'SELECT status, summary FROM scans WHERE id = $1',
       [scanId],
     );
     expect(scanRow.rows[0]?.status).toBe('complete');
@@ -254,6 +257,14 @@ describe('scan pipeline', () => {
     expect(metrics.body.scanId).toBe(scanId);
     expect(metrics.body.toolsTracked).toBeGreaterThan(0);
     expect(metrics.body.languages).toContain('js');
+
+    const summary = scanRow.rows[0]!.summary;
+    expect(summary.adoptionScore).toBe(metrics.body.adoptionScore);
+    expect(summary.coverage).toBe(metrics.body.coverage);
+    expect(summary.adoption).toBe(metrics.body.adoption);
+    expect(summary.toolsChecked).toBe(metrics.body.toolsChecked);
+    expect(summary.toolsTracked).toBe(metrics.body.toolsTracked);
+    expect(summary.toolsDetected).toBe(metrics.body.toolsDetected);
   });
 
   it('second POST within an hour returns cached scan (200, not 202)', async () => {

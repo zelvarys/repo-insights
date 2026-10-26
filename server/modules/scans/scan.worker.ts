@@ -24,7 +24,13 @@ import {
   cacheCompletedScan,
   invalidateScanCache,
 } from './scan.service.js';
-import type { ScanSummary } from '../../../shared/types.js';
+import {
+  computeScore,
+  detectLanguages,
+  isToolRelevant,
+  languagesToArray,
+} from '../metrics/scoring.js';
+import type { ScanSummary, ToolMetric } from '../../../shared/types.js';
 
 const MAX_COMMIT_DETAIL_LOOKUPS = 30;
 const MAX_CONTRIBUTORS_PAGES = 2;
@@ -183,55 +189,6 @@ async function persistToolUsage(
   }
 }
 
-function detectLanguagesFromContext(ctx: ScanContext): {
-  js: boolean; python: boolean; go: boolean; php: boolean;
-} {
-  const commitFilenames = ctx.commits.flatMap((c) =>
-    c.files.map((f) => f.filename),
-  );
-  const allFiles = [...ctx.rootFiles, ...commitFilenames];
-  const configs = new Set(Object.keys(ctx.configFiles));
-  const hasExt = (ext: string) => allFiles.some((f) => f.endsWith(ext));
-  const hasConfig = (...paths: string[]) => paths.some((p) => configs.has(p));
-
-  return {
-    js:
-      hasConfig('package.json') ||
-      hasExt('.js') || hasExt('.jsx') || hasExt('.ts') ||
-      hasExt('.tsx') || hasExt('.mjs') || hasExt('.cjs'),
-    python:
-      hasConfig('pyproject.toml', 'setup.py', 'setup.cfg',
-               'requirements.txt', 'pytest.ini', 'tox.ini') ||
-      hasExt('.py'),
-    go: hasConfig('go.mod', 'go.sum') || hasExt('.go'),
-    php:
-      hasConfig('composer.json', 'composer.lock',
-               'phpunit.xml', 'phpunit.xml.dist') ||
-      hasExt('.php'),
-  };
-}
-
-function buildSummary(results: DetectionResult[]): Record<string, unknown> {
-  const tools = results.map((r) => ({
-    name: r.tool, category: r.category,
-    detected: r.detected, adoptionRate: r.adoptionRate,
-  }));
-  const detected = results.filter((r) => r.detected);
-  const adoptionScore =
-    detected.length > 0
-      ? Math.round(
-          (detected.reduce((s, r) => s + r.adoptionRate, 0) / detected.length) *
-            100,
-        ) / 100
-      : 0;
-  return {
-    adoptionScore,
-    toolsChecked: results.length,
-    toolsDetected: detected.length,
-    tools,
-  };
-}
-
 async function processScanJob(job: { data: ScanJobData }): Promise<void> {
   const { scanId, repoId, requestedBy } = job.data;
   logger.info(`Worker picked up scan ${scanId} for repo ${repoId}`);
@@ -264,7 +221,13 @@ async function processScanJob(job: { data: ScanJobData }): Promise<void> {
     const results = await runDetectors(ctx);
     await persistToolUsage(scanId, repoId, results);
 
-    const languages = detectLanguagesFromContext(ctx);
+    const languages = detectLanguages({
+      rootFiles: ctx.rootFiles,
+      commitFilenames: ctx.commits.flatMap((c) =>
+        c.files.map((f) => f.filename),
+      ),
+      configFileKeys: Object.keys(ctx.configFiles),
+    });
     try {
       await backfillTrackedToolsFromScan(
         repoId,
@@ -279,7 +242,39 @@ async function processScanJob(job: { data: ScanJobData }): Promise<void> {
       );
     }
 
-    const summary = buildSummary(results);
+    const trackedRows = await pool.query<{ tool_name: string }>(
+      `SELECT tool_name FROM tracked_tools WHERE repo_id = $1`,
+      [repoId],
+    );
+    const trackedNames = new Set(trackedRows.rows.map((r) => r.tool_name));
+
+    const summaryTools: ToolMetric[] = results
+      .map((result) => {
+        const perContributor = result.perContributor ?? {};
+        const logins = Object.keys(perContributor);
+        return {
+          name: result.tool,
+          category: result.category,
+          detected: result.detected,
+          relevant: isToolRelevant(result.tool, languages),
+          tracked: trackedNames.has(result.tool),
+          adoptionRate: result.adoptionRate,
+          contributorCount: logins.length,
+          contributorsUsing: logins.filter((login) => perContributor[login])
+            .length,
+          countsTowardScore: true,
+          evidence: result.evidence,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    const summary = computeScore(summaryTools, trackedNames, {
+      repoId,
+      repoFullName: `${repo.owner}/${repo.name}`,
+      scanId,
+      scanCompletedAt: null,
+      languages: languagesToArray(languages),
+    });
 
     const completed = await pool.query(
       `UPDATE scans SET status = 'complete', completed_at = NOW(), summary = $2

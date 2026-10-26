@@ -2,90 +2,20 @@ import { pool } from '../../config/database.js';
 import { getTrackedRepository } from '../repositories/repository.service.js';
 import { cacheGet, cacheSet, cacheKeys } from '../../utils/cache.js';
 import { logger } from '../../utils/logger.js';
+import {
+  computeScore,
+  detectLanguages,
+  isToolRelevant,
+  languagesToArray,
+  type DetectedLanguages,
+} from './scoring.js';
 import type {
   ToolMetric,
   RepoMetrics,
   ToolCategory,
 } from '../../../shared/types.js';
 
-const COMMIT_PRESENCE_TOOLS = new Set([
-  'github-actions',
-  'dependabot',
-  'renovate',
-]);
-
-const JS_TOOLS = new Set(['jest', 'eslint', 'prettier']);
-const PYTHON_TOOLS = new Set(['pytest', 'black', 'ruff']);
-const GO_TOOLS = new Set(['go-test', 'golangci-lint']);
-const PHP_TOOLS = new Set(['phpunit']);
-
 const METRICS_CACHE_TTL_SECONDS = 60;
-
-type DetectedLanguages = {
-  js: boolean;
-  python: boolean;
-  go: boolean;
-  php: boolean;
-};
-
-function detectLanguages(input: {
-  rootFiles: string[];
-  commitFilenames: string[];
-  configFileKeys: string[];
-}): DetectedLanguages {
-  const { rootFiles, commitFilenames, configFileKeys } = input;
-  const allFiles = [...rootFiles, ...commitFilenames];
-  const configs = new Set(configFileKeys);
-  const hasExt = (ext: string) => allFiles.some((f) => f.endsWith(ext));
-  const hasConfig = (...paths: string[]) => paths.some((p) => configs.has(p));
-
-  return {
-    js:
-      hasConfig('package.json') ||
-      hasExt('.js') ||
-      hasExt('.jsx') ||
-      hasExt('.ts') ||
-      hasExt('.tsx') ||
-      hasExt('.mjs') ||
-      hasExt('.cjs'),
-    python:
-      hasConfig(
-        'pyproject.toml',
-        'setup.py',
-        'setup.cfg',
-        'requirements.txt',
-        'pytest.ini',
-        'tox.ini',
-      ) ||
-      hasExt('.py'),
-    go: hasConfig('go.mod', 'go.sum') || hasExt('.go'),
-    php:
-      hasConfig(
-        'composer.json',
-        'composer.lock',
-        'phpunit.xml',
-        'phpunit.xml.dist',
-      ) ||
-      hasExt('.php'),
-  };
-}
-
-function isToolRelevant(toolName: string, langs: DetectedLanguages): boolean {
-  if (JS_TOOLS.has(toolName)) return langs.js;
-  if (PYTHON_TOOLS.has(toolName)) return langs.python;
-  if (GO_TOOLS.has(toolName)) return langs.go;
-  if (PHP_TOOLS.has(toolName)) return langs.php;
-  return true;
-}
-
-function languagesToArray(langs: DetectedLanguages): string[] {
-  const out: string[] = [];
-  if (langs.js) out.push('js');
-  if (langs.python) out.push('python');
-  if (langs.go) out.push('go');
-  if (langs.php) out.push('php');
-  return out;
-}
 
 async function loadCachedContext(
   scanId: string,
@@ -115,21 +45,13 @@ async function computeRepoMetrics(repoId: string): Promise<RepoMetrics> {
 
   const scan = latestScan.rows[0];
   if (!scan) {
-    return {
+    return computeScore([], new Set(), {
       repoId: repo.id,
       repoFullName: repo.fullName,
       scanId: null,
       scanCompletedAt: null,
-      adoptionScore: 0,
-      coverage: 0,
-      adoption: 0,
       languages: [],
-      toolsChecked: 0,
-      toolsRelevant: 0,
-      toolsTracked: 0,
-      toolsDetected: 0,
-      tools: [],
-    };
+    });
   }
 
   const toolRows = await pool.query<{
@@ -223,45 +145,18 @@ async function computeRepoMetrics(repoId: string): Promise<RepoMetrics> {
       adoptionRate: Number(row.adoption_rate),
       contributorCount: stats?.contributorCount ?? 0,
       contributorsUsing: stats?.contributorsUsing ?? 0,
-      countsTowardScore: !COMMIT_PRESENCE_TOOLS.has(row.tool_name),
+      countsTowardScore: true,
       evidence: row.evidence,
     };
   });
 
-  const trackedTools = tools.filter((t) => t.tracked);
-  const scoringSet =
-    trackedTools.length > 0
-      ? trackedTools
-      : tools.filter((t) => t.relevant && t.detected);
-
-  const detectedInSet = scoringSet.filter((t) => t.detected);
-  const scoredTools = detectedInSet.filter((t) => t.countsTowardScore);
-
-  const coverage =
-    scoringSet.length > 0 ? detectedInSet.length / scoringSet.length : 0;
-  const adoption =
-    scoredTools.length > 0
-      ? scoredTools.reduce((sum, t) => sum + t.adoptionRate, 0) /
-        scoredTools.length
-      : 0;
-
-  const adoptionScore = Math.round(coverage * adoption * 100) / 100;
-
-  return {
+  return computeScore(tools, new Set(trackedMap.keys()), {
     repoId: repo.id,
     repoFullName: repo.fullName,
     scanId: scan.id,
     scanCompletedAt: scan.completed_at?.toISOString() ?? null,
-    adoptionScore,
-    coverage: Math.round(coverage * 10000) / 100,
-    adoption: Math.round(adoption * 100) / 100,
     languages: languagesToArray(languages),
-    toolsChecked: tools.length,
-    toolsRelevant: tools.filter((t) => t.relevant).length,
-    toolsTracked: scoringSet.length,
-    toolsDetected: detectedInSet.length,
-    tools,
-  };
+  });
 }
 
 export async function getRepoMetrics(repoId: string): Promise<RepoMetrics> {

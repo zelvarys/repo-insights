@@ -7,7 +7,7 @@ export function buildAuthorizeUrl(state: string): string {
   const params = new URLSearchParams({
     client_id: env.GITHUB_CLIENT_ID,
     redirect_uri: env.GITHUB_CALLBACK_URL,
-    scope: 'read:user user:email repo',
+    scope: 'read:user user:email public_repo read:org',
     state,
   });
   return `${GITHUB_AUTHORIZE}?${params.toString()}`;

@@ -209,6 +209,5 @@ Flattened the frontend from `src/src/` to `src/`, moved `index.html`,
 `public/`, `vite.config.ts`, `components.json`, and the frontend tsconfigs to
 the repo root, and merged the frontend dependencies/scripts into the root
 `package.json`. Migrations moved to `migrations/`, shared types to
-`shared/types.ts`, and stale `.gitkeep` files were removed. Tailwind now uses
-the root `tailwind.config.ts` and `postcss.config.js`; the production frontend
-build goes to `dist/frontend/`.
+`shared/types.ts`, and stale `.gitkeep` files were removed. Tailwind v4 uses CSS-first configuration with the root `postcss.config.js`;
+the production frontend build goes to `dist/frontend/`.

@@ -177,5 +177,4 @@ npx shadcn@latest add <component>
 ```
 
 The shared frontend/backend config lives at the root: `vite.config.ts`,
-`tailwind.config.ts`, `postcss.config.js`, `components.json`, and
-`tsconfig*.json`.
+`postcss.config.js`, `components.json`, and `tsconfig*.json`.

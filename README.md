@@ -1,7 +1,7 @@
 <h1 align="center">
-  <img src="public/favicon.png" alt="Repo Insights logo" width="96" height="96" />
+  <img src="public/favicon.png" alt="repo-insights logo" width="96" height="96" />
   <br />
-  Repo Insights
+  repo-insights
 </h1>
 
 An analytics platform for open-source maintainers and engineering teams that answers a question they've never had data for:

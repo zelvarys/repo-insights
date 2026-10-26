@@ -178,16 +178,36 @@ export async function requestScan(
   return { scan, cached: false };
 }
 
-export async function cacheCompletedScan(scan: ScanSummary): Promise<void> {
-  await cacheSet(
-    cacheKeys.scanResult(scan.repoId),
-    { scan, writtenAt: Date.now() },
-    FRESH_SCAN_TTL_SECONDS,
+type CachedScan = { scan: ScanSummary; writtenAt: number };
+
+export function shouldReplaceCachedScan(
+  cached: CachedScan | null,
+  incoming: Pick<ScanSummary, 'createdAt'>,
+): boolean {
+  if (!cached) return true;
+  return (
+    Date.parse(incoming.createdAt) >= Date.parse(cached.scan.createdAt)
   );
 }
 
-export async function invalidateScanCache(repoId: string): Promise<void> {
-  await cacheDel(cacheKeys.scanResult(repoId));
+export async function cacheCompletedScan(scan: ScanSummary): Promise<void> {
+  const key = cacheKeys.scanResult(scan.repoId);
+  const cached = await cacheGet<CachedScan>(key);
+  if (!shouldReplaceCachedScan(cached, scan)) return;
+
+  await cacheSet(key, { scan, writtenAt: Date.now() }, FRESH_SCAN_TTL_SECONDS);
+}
+
+export async function invalidateScanCache(
+  repoId: string,
+  failedScan?: Pick<ScanSummary, 'createdAt'>,
+): Promise<void> {
+  const key = cacheKeys.scanResult(repoId);
+  if (failedScan) {
+    const cached = await cacheGet<CachedScan>(key);
+    if (cached && !shouldReplaceCachedScan(cached, failedScan)) return;
+  }
+  await cacheDel(key);
 }
 
 export async function listScansForRepo(repoId: string): Promise<ScanSummary[]> {

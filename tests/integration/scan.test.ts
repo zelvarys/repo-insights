@@ -9,8 +9,13 @@ import { signJwt, parseExpiresIn } from '../../server/utils/jwt.js';
 import { env } from '../../server/config/env.js';
 import { encryptToken } from '../../server/utils/crypto.js';
 import { processScanJobForTests } from '../../server/modules/scans/scan.worker.js';
-import { requestScan } from '../../server/modules/scans/scan.service.js';
+import {
+  cacheCompletedScan,
+  requestScan,
+} from '../../server/modules/scans/scan.service.js';
 import { scanQueue } from '../../server/modules/scans/scan.queue.js';
+import { cacheSet, cacheGet, cacheDel, cacheKeys } from '../../server/utils/cache.js';
+import type { ScanSummary } from '../../shared/types.js';
 import { deleteScanContext } from '../../server/modules/scans/scan.context.js';
 
 let app: Express;
@@ -316,6 +321,32 @@ describe('scan pipeline', () => {
     expect(
       rows.rows.find((r) => r.id === post.body.scan.id)?.status,
     ).toBe('pending');
+  });
+
+  it('does not let an older retry overwrite a newer cached scan', async () => {
+    const key = cacheKeys.scanResult(repoId);
+    const newer: ScanSummary = {
+      id: '22222222-2222-2222-2222-222222222222',
+      repoId,
+      status: 'complete',
+      startedAt: null,
+      completedAt: null,
+      error: null,
+      summary: null,
+      createdAt: '2026-01-01T01:00:00.000Z',
+    };
+    const older: ScanSummary = {
+      ...newer,
+      id: '11111111-1111-1111-1111-111111111111',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    await cacheSet(key, { scan: newer, writtenAt: Date.now() }, 60);
+    await cacheCompletedScan(older);
+
+    const cached = await cacheGet<{ scan: ScanSummary }>(key);
+    expect(cached?.scan.id).toBe(newer.id);
+    await cacheDel(key);
   });
 
   it('creates only one scan and one job for concurrent requests', async () => {

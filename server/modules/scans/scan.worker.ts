@@ -189,7 +189,11 @@ async function persistToolUsage(
   }
 }
 
-async function processScanJob(job: { data: ScanJobData }): Promise<void> {
+async function processScanJob(job: {
+  data: ScanJobData;
+  attemptsMade?: number;
+  opts?: { attempts?: number };
+}): Promise<void> {
   const { scanId, repoId, requestedBy } = job.data;
   logger.info(`Worker picked up scan ${scanId} for repo ${repoId}`);
 
@@ -308,13 +312,36 @@ async function processScanJob(job: { data: ScanJobData }): Promise<void> {
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    const isFinalAttempt =
+      (job.attemptsMade ?? 0) + 1 >= (job.opts?.attempts ?? 1);
+
+    if (!isFinalAttempt) {
+      logger.warn(`Scan ${scanId} failed and will retry: ${message}`);
+      throw err;
+    }
+
     await pool.query(
       `UPDATE scans SET status = 'failed', completed_at = NOW(), error = $2
        WHERE id = $1`,
       [scanId, message],
     );
+
+    let failedScan: { createdAt: string } | undefined;
     try {
-      await invalidateScanCache(repoId);
+      const meta = await pool.query<{ created_at: Date }>(
+        `SELECT created_at FROM scans WHERE id = $1`,
+        [scanId],
+      );
+      const createdAt = meta.rows[0]?.created_at;
+      if (createdAt) failedScan = { createdAt: createdAt.toISOString() };
+    } catch (metaErr) {
+      logger.warn(
+        `Failed to read scan ${scanId} timestamp: ${(metaErr as Error).message}`,
+      );
+    }
+
+    try {
+      await invalidateScanCache(repoId, failedScan);
     } catch (cacheErr) {
       logger.warn(
         `Failed to invalidate cache for repo ${repoId}: ${(cacheErr as Error).message}`,

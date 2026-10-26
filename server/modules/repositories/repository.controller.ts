@@ -8,11 +8,28 @@ import {
 import { parseAddRepositoryBody, parseRepoIdParam } from './repository.schema.js';
 import { badRequest, unauthorized } from '../../utils/errors.js';
 
+function parsePageParam(
+  value: unknown,
+  name: string,
+  fallback: number,
+  max: number,
+): number {
+  if (value === undefined) return fallback;
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+    throw badRequest(`Invalid ${name}`);
+  }
+  const parsed = Number(value);
+  if (parsed < 1 || parsed > max) throw badRequest(`Invalid ${name}`);
+  return parsed;
+}
+
 export async function getGitHubRepos(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.userId) throw unauthorized();
-    const repos = await listUserGitHubRepos(req.userId);
-    res.json({ repos });
+    const page = parsePageParam(req.query.page, 'page', 1, 10_000);
+    const perPage = parsePageParam(req.query.perPage, 'perPage', 100, 100);
+    const result = await listUserGitHubRepos(req.userId, page, perPage);
+    res.json(result);
   } catch (err) {
     next(err);
   }

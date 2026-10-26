@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query"
 import type { TrackedRepository } from "@shared/types"
 import { api } from "@/lib/api"
 import { queryClient } from "@/lib/query-client"
@@ -12,10 +12,22 @@ export function useRepos() {
   })
 }
 
+export type GitHubReposPage = {
+  repos: GitHubRepo[]
+  hasMore: boolean
+  page: number
+}
+
 export function useGitHubRepos() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["repos", "github"],
-    queryFn: () => api.get<{ repos: GitHubRepo[] }>("/repos/github"),
+    queryFn: ({ pageParam }) =>
+      api.get<GitHubReposPage>(
+        `/repos/github?page=${pageParam}&perPage=100`,
+      ),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.page + 1 : undefined,
     staleTime: 5 * 60_000,
   })
 }

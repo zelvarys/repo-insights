@@ -193,23 +193,50 @@ async function fetchContributedRepoSet(
  *
  * This replaces the previous N+1 REST loop (one /commits call per org repo).
  */
+const MAX_REPO_PAGES = 10;
+
+export function shouldFetchNextRepoPage(
+  rawPageSize: number,
+  currentPage: number,
+  maxPages = MAX_REPO_PAGES,
+  perPage = 100,
+): boolean {
+  return rawPageSize === perPage && currentPage < maxPages;
+}
+
 export async function listAuthenticatedUserRepos(
   token: string,
   userLogin: string,
   page = 1,
   perPage = 100,
 ): Promise<GitHubRepo[]> {
-  const repos = await ghFetch<GitHubRepo[]>(
-    `/user/repos?per_page=${perPage}&page=${page}&sort=updated&affiliation=owner,collaborator,organization_member`,
-    token,
-  );
-
   const contributed = await fetchContributedRepoSet(token, userLogin);
+  const all: GitHubRepo[] = [];
 
-  return repos.filter((repo) => {
-    if (repo.owner.login === userLogin) return true;
-    return contributed.has(repo.full_name);
-  });
+  for (let currentPage = page; currentPage <= MAX_REPO_PAGES; currentPage++) {
+    const raw = await ghFetch<GitHubRepo[]>(
+      `/user/repos?per_page=${perPage}&page=${currentPage}&sort=updated&affiliation=owner,collaborator,organization_member`,
+      token,
+    );
+
+    all.push(
+      ...raw.filter((repo) => {
+        if (repo.owner.login === userLogin) return true;
+        return contributed.has(repo.full_name);
+      }),
+    );
+
+    if (!shouldFetchNextRepoPage(raw.length, currentPage, MAX_REPO_PAGES, perPage)) {
+      break;
+    }
+    if (currentPage === MAX_REPO_PAGES) {
+      logger.warn(
+        `GitHub repo listing reached the ${MAX_REPO_PAGES}-page cap; later repositories were not fetched`,
+      );
+    }
+  }
+
+  return all;
 }
 
 export async function getRepo(

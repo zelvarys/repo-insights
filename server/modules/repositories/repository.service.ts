@@ -49,7 +49,11 @@ async function getUsernameForUser(userId: string): Promise<string> {
   return username;
 }
 
-export async function listUserGitHubRepos(userId: string): Promise<GitHubRepo[]> {
+export async function listUserGitHubRepos(
+  userId: string,
+  page = 1,
+  perPage = 100,
+): Promise<{ repos: GitHubRepo[]; hasMore: boolean; page: number }> {
   const token = await getAccessTokenForUser(userId);
   if (!token) {
     throw new AppError(
@@ -59,7 +63,14 @@ export async function listUserGitHubRepos(userId: string): Promise<GitHubRepo[]>
     );
   }
   const userLogin = await getUsernameForUser(userId);
-  return listAuthenticatedUserRepos(token, userLogin);
+  const all = await listAuthenticatedUserRepos(token, userLogin);
+  const start = (page - 1) * perPage;
+
+  return {
+    repos: all.slice(start, start + perPage),
+    hasMore: start + perPage < all.length,
+    page,
+  };
 }
 
 export async function addTrackedRepository(
@@ -76,13 +87,8 @@ export async function addTrackedRepository(
   }
   const userLogin = await getUsernameForUser(userId);
 
-  let target: GitHubRepo | null = null;
-  for (let page = 1; page <= 3; page += 1) {
-    const repos = await listAuthenticatedUserRepos(token, userLogin, page);
-    target = repos.find((r) => r.id === githubId) ?? null;
-    if (target) break;
-    if (repos.length < 100) break;
-  }
+  const repos = await listAuthenticatedUserRepos(token, userLogin);
+  const target = repos.find((r) => r.id === githubId) ?? null;
 
   if (!target) {
     throw badRequest('Repository not found in your GitHub account');

@@ -85,9 +85,9 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
 
   const query = search.trim().toLowerCase()
   const repos =
-    githubRepos.data?.repos.filter((repo) =>
-      repo.full_name.toLowerCase().includes(query),
-    ) ?? []
+    githubRepos.data?.pages
+      .flatMap((page) => page.repos)
+      .filter((repo) => repo.full_name.toLowerCase().includes(query)) ?? []
 
   useEffect(() => {
     setActiveIndex(0)
@@ -214,6 +214,20 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
                   onHover={() => setActiveIndex(index)}
                 />
               ))}
+              {githubRepos.hasNextPage ? (
+                <div className="pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    disabled={githubRepos.isFetchingNextPage}
+                    onClick={() => githubRepos.fetchNextPage()}
+                  >
+                    {githubRepos.isFetchingNextPage ? "Loading..." : "Load more"}
+                  </Button>
+                </div>
+              ) : null}
             </div>
           )}
         </ScrollArea>

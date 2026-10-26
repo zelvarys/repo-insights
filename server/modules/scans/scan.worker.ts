@@ -87,20 +87,13 @@ async function buildScanContext(
   const detailTargets = commitsRaw.slice(0, MAX_COMMIT_DETAIL_LOOKUPS);
 
   for (const commit of detailTargets) {
-    let files: CommitFile[] = [];
-    try {
-      const detail = await fetchCommitDetail(token, owner, name, commit.sha);
-      files = (detail.files ?? []).map((f) => ({
-        filename: f.filename,
-        status: f.status,
-        additions: f.additions,
-        deletions: f.deletions,
-      }));
-    } catch (err) {
-      logger.debug(
-        `Skipping files for commit ${commit.sha.slice(0, 7)}: ${(err as Error).message}`,
-      );
-    }
+    const detail = await fetchCommitDetail(token, owner, name, commit.sha);
+    const files: CommitFile[] = (detail.files ?? []).map((f) => ({
+      filename: f.filename,
+      status: f.status,
+      additions: f.additions,
+      deletions: f.deletions,
+    }));
 
     commits.push({
       sha: commit.sha,

@@ -1,7 +1,22 @@
 import type { GitHubUser, GitHubEmail } from './github.types.js';
+import { logger } from '../../utils/logger.js';
 
 const API = 'https://api.github.com';
 const GRAPHQL = 'https://api.github.com/graphql';
+
+export class GitHubApiError extends Error {
+  public readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'GitHubApiError';
+    this.status = status;
+  }
+}
+
+function isNotFound(err: unknown): boolean {
+  return err instanceof GitHubApiError && err.status === 404;
+}
 
 async function ghFetch<T>(
   path: string,
@@ -20,7 +35,10 @@ async function ghFetch<T>(
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`GitHub API ${res.status} on ${path}: ${body.slice(0, 200)}`);
+    throw new GitHubApiError(
+      `GitHub API ${res.status} on ${path}: ${body.slice(0, 200)}`,
+      res.status,
+    );
   }
   return (await res.json()) as T;
 }
@@ -42,13 +60,19 @@ async function ghGraphql<T>(
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`GitHub GraphQL ${res.status}: ${body.slice(0, 200)}`);
+    throw new GitHubApiError(
+      `GitHub GraphQL ${res.status}: ${body.slice(0, 200)}`,
+      res.status,
+    );
   }
   const json = (await res.json()) as { data?: T; errors?: Array<{ message: string }> };
   if (json.errors && json.errors.length > 0) {
-    throw new Error(`GitHub GraphQL error: ${json.errors[0]!.message}`);
+    throw new GitHubApiError(
+      `GitHub GraphQL error: ${json.errors[0]!.message}`,
+      502,
+    );
   }
-  if (!json.data) throw new Error('GitHub GraphQL returned no data');
+  if (!json.data) throw new GitHubApiError('GitHub GraphQL returned no data', 502);
   return json.data;
 }
 
@@ -63,8 +87,10 @@ export async function getPrimaryEmail(token: string): Promise<string | null> {
     const emails = await ghFetch<GitHubEmail[]>('/user/emails', token);
     const primary = emails.find((e) => e.primary && e.verified);
     return primary?.email ?? emails[0]?.email ?? null;
-  } catch {
-    return null;
+  } catch (err) {
+    if (isNotFound(err)) return null;
+    logger.warn(`GitHub primary email lookup failed: ${(err as Error).message}`);
+    throw err;
   }
 }
 
@@ -125,10 +151,9 @@ async function fetchContributedRepoSet(
     );
     const nodes = data.user?.contributionsCollection?.commitContributionsByRepository ?? [];
     return new Set(nodes.map((n) => n.repository.nameWithOwner));
-  } catch {
-    // GraphQL may fail on brand-new accounts with no contribution data.
-    // Fall back to an empty set — the caller still shows owned + collaborator repos.
-    return new Set();
+  } catch (err) {
+    logger.warn(`GitHub contribution lookup failed: ${(err as Error).message}`);
+    throw err;
   }
 }
 
@@ -186,7 +211,14 @@ export async function getContributorCount(
         },
       },
     );
-    if (!res.ok) return 0;
+    if (!res.ok) {
+      if (res.status === 404) return 0;
+      const body = await res.text();
+      throw new GitHubApiError(
+        `GitHub API ${res.status} on ${owner}/${repo}/contributors: ${body.slice(0, 200)}`,
+        res.status,
+      );
+    }
 
     const link = res.headers.get('link');
     if (link) {
@@ -196,8 +228,12 @@ export async function getContributorCount(
 
     const data = (await res.json()) as unknown[];
     return Array.isArray(data) ? data.length : 0;
-  } catch {
-    return 0;
+  } catch (err) {
+    if (isNotFound(err)) return 0;
+    logger.warn(
+      `GitHub contributor count failed for ${owner}/${repo}: ${(err as Error).message}`,
+    );
+    throw err;
   }
 }
 
@@ -301,8 +337,12 @@ export async function listContents(
       token,
     );
     return Array.isArray(data) ? data : [data];
-  } catch {
-    return [];
+  } catch (err) {
+    if (isNotFound(err)) return [];
+    logger.warn(
+      `GitHub contents lookup failed for ${owner}/${repo}/${path}: ${(err as Error).message}`,
+    );
+    throw err;
   }
 }
 
@@ -325,7 +365,11 @@ export async function readFileText(
     if (data.type !== 'file') return null;
     if (data.encoding !== 'base64') return null;
     return Buffer.from(data.content, 'base64').toString('utf8');
-  } catch {
-    return null;
+  } catch (err) {
+    if (isNotFound(err)) return null;
+    logger.warn(
+      `GitHub file read failed for ${owner}/${repo}/${path}: ${(err as Error).message}`,
+    );
+    throw err;
   }
 }

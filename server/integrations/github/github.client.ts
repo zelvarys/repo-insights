@@ -134,7 +134,14 @@ export type GitHubRepo = {
 
 type ContributedRepoNode = {
   repository: {
+    databaseId: number | null;
+    name: string;
     nameWithOwner: string; // "owner/name"
+    owner: { login: string };
+    isPrivate: boolean;
+    defaultBranchRef: { name: string } | null;
+    stargazerCount: number;
+    forkCount: number;
   };
 };
 
@@ -142,18 +149,31 @@ type ContributionsQueryResult = {
   user: {
     contributionsCollection: {
       commitContributionsByRepository: ContributedRepoNode[];
+      pullRequestContributionsByRepository: ContributedRepoNode[];
     } | null;
   } | null;
 };
 
 const CONTRIBUTED_REPOS_QUERY = `
+  fragment ContributedRepository on Repository {
+    databaseId
+    name
+    nameWithOwner
+    owner { login }
+    isPrivate
+    defaultBranchRef { name }
+    stargazerCount
+    forkCount
+  }
+
   query ContributedRepos($login: String!) {
     user(login: $login) {
       contributionsCollection {
         commitContributionsByRepository(maxRepositories: 100) {
-          repository {
-            nameWithOwner
-          }
+          repository { ...ContributedRepository }
+        }
+        pullRequestContributionsByRepository(maxRepositories: 100) {
+          repository { ...ContributedRepository }
         }
       }
     }
@@ -161,21 +181,42 @@ const CONTRIBUTED_REPOS_QUERY = `
 `;
 
 /**
- * Fetch the set of "owner/name" strings the user has committed to in the
- * last year, in one GraphQL round-trip.
+ * Fetch repos the user committed to or opened a pull request in over the
+ * last 12 months. Contributions include repositories the user does not own,
+ * which may not appear in `/user/repos`.
  */
-async function fetchContributedRepoSet(
+async function fetchContributedRepos(
   token: string,
   userLogin: string,
-): Promise<Set<string>> {
+): Promise<GitHubRepo[]> {
   try {
     const data = await ghGraphql<ContributionsQueryResult>(
       CONTRIBUTED_REPOS_QUERY,
       { login: userLogin },
       token,
     );
-    const nodes = data.user?.contributionsCollection?.commitContributionsByRepository ?? [];
-    return new Set(nodes.map((n) => n.repository.nameWithOwner));
+    const collection = data.user?.contributionsCollection;
+    const nodes = [
+      ...(collection?.commitContributionsByRepository ?? []),
+      ...(collection?.pullRequestContributionsByRepository ?? []),
+    ];
+
+    const repos = new Map<string, GitHubRepo>();
+    for (const node of nodes) {
+      const repo = node.repository;
+      if (repo.databaseId === null || repos.has(repo.nameWithOwner)) continue;
+      repos.set(repo.nameWithOwner, {
+        id: repo.databaseId,
+        name: repo.name,
+        full_name: repo.nameWithOwner,
+        owner: { login: repo.owner.login },
+        private: repo.isPrivate,
+        default_branch: repo.defaultBranchRef?.name ?? 'main',
+        stargazers_count: repo.stargazerCount,
+        forks_count: repo.forkCount,
+      });
+    }
+    return [...repos.values()];
   } catch (err) {
     logger.warn(`GitHub contribution lookup failed: ${(err as Error).message}`);
     throw err;
@@ -183,13 +224,14 @@ async function fetchContributedRepoSet(
 }
 
 /**
- * Returns repos you own, are a collaborator on, or have contributed to
- * within an organisation you belong to.
+ * Returns repos the user owns, can access, or has contributed to in the last
+ * 12 months.
  *
  * - Owned repos: always kept.
- * - Collaborator repos: always kept.
- * - Org repos: kept only if they appear in the user's
- *   commitContributionsByRepository set (single GraphQL query).
+ * - Collaborator/org repos: kept only when they appear in the user's commit
+ *   or pull-request contribution sets.
+ * - External repos: included when the user committed to or opened a pull
+ *   request in them, even if `/user/repos` does not list them.
  *
  * This replaces the previous N+1 REST loop (one /commits call per org repo).
  */
@@ -210,8 +252,10 @@ export async function listAuthenticatedUserRepos(
   page = 1,
   perPage = 100,
 ): Promise<GitHubRepo[]> {
-  const contributed = await fetchContributedRepoSet(token, userLogin);
-  const all: GitHubRepo[] = [];
+  const contributed = await fetchContributedRepos(token, userLogin);
+  const contributedNames = new Set(contributed.map((repo) => repo.full_name));
+  const listed: GitHubRepo[] = [];
+  const seen = new Set<string>();
 
   for (let currentPage = page; currentPage <= MAX_REPO_PAGES; currentPage++) {
     const raw = await ghFetch<GitHubRepo[]>(
@@ -219,12 +263,14 @@ export async function listAuthenticatedUserRepos(
       token,
     );
 
-    all.push(
-      ...raw.filter((repo) => {
-        if (repo.owner.login === userLogin) return true;
-        return contributed.has(repo.full_name);
-      }),
-    );
+    for (const repo of raw) {
+      if (repo.owner.login !== userLogin && !contributedNames.has(repo.full_name)) {
+        continue;
+      }
+      if (seen.has(repo.full_name)) continue;
+      seen.add(repo.full_name);
+      listed.push(repo);
+    }
 
     if (!shouldFetchNextRepoPage(raw.length, currentPage, MAX_REPO_PAGES, perPage)) {
       break;
@@ -236,7 +282,11 @@ export async function listAuthenticatedUserRepos(
     }
   }
 
-  return all;
+  // Keep contributed repos that `/user/repos` does not return (for example a
+  // repository owned by someone else where the user only opened a PR) at the
+  // front so they are visible on the first page of results.
+  const external = contributed.filter((repo) => !seen.has(repo.full_name));
+  return [...external, ...listed];
 }
 
 export async function getRepo(

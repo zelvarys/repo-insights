@@ -15,7 +15,7 @@ Connect a GitHub repository and get clear, per-tool adoption metrics — who's u
 Backend MVP complete (Phases 0–10). Frontend MVP complete.
 
 - [x] GitHub OAuth
-- [x] Repository tracking
+- [x] Repository discovery across owned, collaborator, and contributed repos (last 12 months)
 - [x] Scan pipeline (BullMQ worker)
 - [x] 13 tool detectors (JS/TS, Python, Go, PHP + CI + dependency automation)
 - [x] Metrics aggregation with per-repo tool selection

@@ -39,6 +39,27 @@
 3. Cache miss → aggregate `tool_usage` + `tracked_tools`, read persisted `scans.languages` (Redis context fallback only when NULL) → compute `coverage × adoption` → write cache → return
 4. New scan → new scan id → new cache key; old key expires naturally
 
+## Repository discovery
+
+`listAuthenticatedUserRepos()` combines two sources:
+
+1. `GET /user/repos` (owned, collaborator, and organization-member repos), with
+   the existing 10-page safety cap.
+2. One GitHub GraphQL `contributionsCollection` query for repos where the user
+   committed or opened a pull request in the last 12 months.
+
+Owned repos are always kept. Other repos from `/user/repos` are kept only when
+they appear in the contribution sets. Contributed repos that `/user/repos`
+does not return are added explicitly, which makes external repos discoverable
+without an N+1 REST loop. Results are deduplicated by `full_name`, and
+external contributed repos are placed first so they appear on the first page.
+The contribution window is 12 months and each contribution type is capped by
+GitHub at 100 repositories.
+
+With the app's `public_repo` OAuth scope, only public external repos are
+readable; private external contributions are out of scope until the scope
+changes.
+
 ## Data model
 
 - **users** — GitHub identity + encrypted access token (AES-256-GCM)

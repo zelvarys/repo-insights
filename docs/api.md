@@ -97,7 +97,18 @@ by `requireAuth` even if the JWT itself has not expired.
 
 ### `GET /repos/github`
 
-Requires auth. Lists repos the user owns, collaborates on, or has contributed to in an org. Org repos where the user has never committed are excluded.
+Requires auth. Lists repos the user owns, can access, or has contributed to
+in the last 12 months. A contribution is a commit or an opened pull request.
+
+- Owned repos are always included.
+- Collaborator and organization repos are included only when the user has a
+  commit or pull-request contribution in the last 12 months.
+- Repos owned by others are included when the user contributed there, even if
+  `/user/repos` does not list them.
+- Discovery is limited to repos the token can read. The app requests
+  `public_repo`, so external private repos are not supported.
+- GitHub returns at most 100 contributed repos per contribution type for the
+  window.
 
 Query parameters:
 

@@ -39,6 +39,37 @@
 3. Cache miss → aggregate `tool_usage` + `tracked_tools`, read persisted `scans.languages` (Redis context fallback only when NULL) → compute `coverage × adoption` → write cache → return
 4. New scan → new scan id → new cache key; old key expires naturally
 
+## Repository discovery
+
+`listAuthenticatedUserRepos()` combines three sources:
+
+1. `GET /user/repos` (owned, collaborator, and organization-member repos), with
+   the existing 10-page safety cap.
+2. One GitHub GraphQL `contributionsCollection` query for repos where the user
+   committed in the last 12 months.
+3. A paginated GitHub GraphQL search for authored pull requests that were
+   merged in the last 12 months:
+   `author:<login> type:pr is:merged merged:>=<cutoff>`.
+
+The grouped PR contribution field does not expose merge state, so the search
+API is required to exclude opened-but-unmerged pull requests. Owned repos are
+always kept. Other repos from `/user/repos` are kept only when they appear in
+the commit or merged-PR contribution sets. Contributed repos that
+`/user/repos` does not return are added explicitly, which makes external repos
+discoverable without an N+1 REST loop. Results are deduplicated by
+`full_name`, and external contributed repos are placed first so they appear on
+the first page.
+
+The contribution window is 12 months. Commit contributions are capped at 100
+repositories. Merged-PR search paginates up to 10 pages (1,000 results) and is
+capped at 100 unique repositories. Search has separate GitHub rate limits, so
+this discovery path makes more requests than the old single contributions
+query.
+
+With the app's `public_repo` OAuth scope, only public external repos are
+readable; private external contributions are out of scope until the scope
+changes.
+
 ## Data model
 
 - **users** — GitHub identity + encrypted access token (AES-256-GCM)

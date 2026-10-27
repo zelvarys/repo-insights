@@ -122,7 +122,8 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
         <DialogHeader>
           <DialogTitle>Add repository</DialogTitle>
           <DialogDescription>
-            Choose a GitHub repository to track with repo-insights.
+            Choose one of your GitHub repositories or one where you committed
+            or had a pull request merged in the last 12 months.
           </DialogDescription>
         </DialogHeader>
 
@@ -199,7 +200,7 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
               <p className="mt-1 text-sm text-muted-foreground">
                 {query
                   ? "Try a different search term."
-                  : "You do not have any GitHub repositories available to track."}
+                  : "No owned, collaborative, or contributed repositories were found."}
               </p>
             </div>
           ) : (

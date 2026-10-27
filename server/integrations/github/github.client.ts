@@ -132,13 +132,22 @@ export type GitHubRepo = {
   forks_count: number;
 };
 
-type ContributedRepoNode = {
-  repository: {
-    nameWithOwner: string; // "owner/name"
-  };
+type ContributedRepository = {
+  databaseId: number | null;
+  name: string;
+  nameWithOwner: string; // "owner/name"
+  owner: { login: string };
+  isPrivate: boolean;
+  defaultBranchRef: { name: string } | null;
+  stargazerCount: number;
+  forkCount: number;
 };
 
-type ContributionsQueryResult = {
+type ContributedRepoNode = {
+  repository: ContributedRepository;
+};
+
+type CommitContributionsQueryResult = {
   user: {
     contributionsCollection: {
       commitContributionsByRepository: ContributedRepoNode[];
@@ -146,36 +155,159 @@ type ContributionsQueryResult = {
   } | null;
 };
 
-const CONTRIBUTED_REPOS_QUERY = `
-  query ContributedRepos($login: String!) {
+type MergedPullRequestsQueryResult = {
+  search: {
+    pageInfo: { hasNextPage: boolean; endCursor: string | null };
+    nodes: Array<ContributedRepoNode | null>;
+  };
+};
+
+const CONTRIBUTED_REPOSITORY_FRAGMENT = `
+  fragment ContributedRepository on Repository {
+    databaseId
+    name
+    nameWithOwner
+    owner { login }
+    isPrivate
+    defaultBranchRef { name }
+    stargazerCount
+    forkCount
+  }
+`;
+
+const COMMIT_CONTRIBUTIONS_QUERY = `
+  ${CONTRIBUTED_REPOSITORY_FRAGMENT}
+
+  query CommitContributedRepos($login: String!) {
     user(login: $login) {
       contributionsCollection {
         commitContributionsByRepository(maxRepositories: 100) {
-          repository {
-            nameWithOwner
-          }
+          repository { ...ContributedRepository }
         }
       }
     }
   }
 `;
 
+const MERGED_PULL_REQUESTS_QUERY = `
+  ${CONTRIBUTED_REPOSITORY_FRAGMENT}
+
+  query MergedPullRequests($q: String!, $after: String) {
+    search(query: $q, type: ISSUE, first: 100, after: $after) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        ... on PullRequest {
+          repository { ...ContributedRepository }
+        }
+      }
+    }
+  }
+`;
+
+const CONTRIBUTION_WINDOW_DAYS = 365;
+const MAX_CONTRIBUTED_REPOS = 100;
+const MAX_SEARCH_PAGES = 10;
+
+function contributionCutoffDate(now = Date.now()): string {
+  return new Date(now - CONTRIBUTION_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+function toGitHubRepo(repo: ContributedRepository): GitHubRepo | null {
+  if (repo.databaseId === null) return null;
+  return {
+    id: repo.databaseId,
+    name: repo.name,
+    full_name: repo.nameWithOwner,
+    owner: { login: repo.owner.login },
+    private: repo.isPrivate,
+    default_branch: repo.defaultBranchRef?.name ?? 'main',
+    stargazers_count: repo.stargazerCount,
+    forks_count: repo.forkCount,
+  };
+}
+
+function addContributedRepo(
+  repos: Map<string, GitHubRepo>,
+  repo: ContributedRepository,
+): void {
+  const mapped = toGitHubRepo(repo);
+  if (mapped && !repos.has(mapped.full_name)) {
+    repos.set(mapped.full_name, mapped);
+  }
+}
+
 /**
- * Fetch the set of "owner/name" strings the user has committed to in the
- * last year, in one GraphQL round-trip.
+ * Fetch repos where the user authored a pull request merged in the last 12
+ * months. The grouped contributions field does not expose merge state, so this
+ * uses the search API with `is:merged`.
  */
-async function fetchContributedRepoSet(
+async function fetchMergedPullRequestRepos(
   token: string,
   userLogin: string,
-): Promise<Set<string>> {
+): Promise<GitHubRepo[]> {
+  const repos = new Map<string, GitHubRepo>();
+  const query = `author:${userLogin} type:pr is:merged merged:>=${contributionCutoffDate()}`;
+  let after: string | null = null;
+
+  for (let page = 0; page < MAX_SEARCH_PAGES; page++) {
+    const data: MergedPullRequestsQueryResult =
+      await ghGraphql<MergedPullRequestsQueryResult>(
+        MERGED_PULL_REQUESTS_QUERY,
+        { q: query, after },
+        token,
+      );
+
+    for (const node of data.search.nodes) {
+      if (node) addContributedRepo(repos, node.repository);
+    }
+
+    if (repos.size >= MAX_CONTRIBUTED_REPOS) break;
+    if (!data.search.pageInfo.hasNextPage) break;
+
+    after = data.search.pageInfo.endCursor;
+    if (!after) break;
+    if (page === MAX_SEARCH_PAGES - 1) {
+      logger.warn(
+        `GitHub merged PR search reached the ${MAX_SEARCH_PAGES}-page cap; later contributions were not fetched`,
+      );
+    }
+  }
+
+  return [...repos.values()];
+}
+
+/**
+ * Fetch repos the user committed to or had a pull request merged in over the
+ * last 12 months. Contributions include repositories the user does not own,
+ * which may not appear in `/user/repos`.
+ */
+async function fetchContributedRepos(
+  token: string,
+  userLogin: string,
+): Promise<GitHubRepo[]> {
   try {
-    const data = await ghGraphql<ContributionsQueryResult>(
-      CONTRIBUTED_REPOS_QUERY,
-      { login: userLogin },
-      token,
-    );
-    const nodes = data.user?.contributionsCollection?.commitContributionsByRepository ?? [];
-    return new Set(nodes.map((n) => n.repository.nameWithOwner));
+    const [commits, mergedPullRequests] = await Promise.all([
+      ghGraphql<CommitContributionsQueryResult>(
+        COMMIT_CONTRIBUTIONS_QUERY,
+        { login: userLogin },
+        token,
+      ),
+      fetchMergedPullRequestRepos(token, userLogin),
+    ]);
+
+    const repos = new Map<string, GitHubRepo>();
+    const commitNodes =
+      commits.user?.contributionsCollection?.commitContributionsByRepository ?? [];
+    for (const node of commitNodes) {
+      addContributedRepo(repos, node.repository);
+    }
+    for (const repo of mergedPullRequests) {
+      if (!repos.has(repo.full_name)) repos.set(repo.full_name, repo);
+    }
+
+    return [...repos.values()];
   } catch (err) {
     logger.warn(`GitHub contribution lookup failed: ${(err as Error).message}`);
     throw err;
@@ -183,13 +315,14 @@ async function fetchContributedRepoSet(
 }
 
 /**
- * Returns repos you own, are a collaborator on, or have contributed to
- * within an organisation you belong to.
+ * Returns repos the user owns, can access, or has contributed to in the last
+ * 12 months.
  *
  * - Owned repos: always kept.
- * - Collaborator repos: always kept.
- * - Org repos: kept only if they appear in the user's
- *   commitContributionsByRepository set (single GraphQL query).
+ * - Collaborator/org repos: kept only when they appear in the user's commit
+ *   or merged pull-request contribution sets.
+ * - External repos: included when the user committed to or had a pull request
+ *   merged in them, even if `/user/repos` does not list them.
  *
  * This replaces the previous N+1 REST loop (one /commits call per org repo).
  */
@@ -210,8 +343,10 @@ export async function listAuthenticatedUserRepos(
   page = 1,
   perPage = 100,
 ): Promise<GitHubRepo[]> {
-  const contributed = await fetchContributedRepoSet(token, userLogin);
-  const all: GitHubRepo[] = [];
+  const contributed = await fetchContributedRepos(token, userLogin);
+  const contributedNames = new Set(contributed.map((repo) => repo.full_name));
+  const listed: GitHubRepo[] = [];
+  const seen = new Set<string>();
 
   for (let currentPage = page; currentPage <= MAX_REPO_PAGES; currentPage++) {
     const raw = await ghFetch<GitHubRepo[]>(
@@ -219,12 +354,14 @@ export async function listAuthenticatedUserRepos(
       token,
     );
 
-    all.push(
-      ...raw.filter((repo) => {
-        if (repo.owner.login === userLogin) return true;
-        return contributed.has(repo.full_name);
-      }),
-    );
+    for (const repo of raw) {
+      if (repo.owner.login !== userLogin && !contributedNames.has(repo.full_name)) {
+        continue;
+      }
+      if (seen.has(repo.full_name)) continue;
+      seen.add(repo.full_name);
+      listed.push(repo);
+    }
 
     if (!shouldFetchNextRepoPage(raw.length, currentPage, MAX_REPO_PAGES, perPage)) {
       break;
@@ -236,7 +373,11 @@ export async function listAuthenticatedUserRepos(
     }
   }
 
-  return all;
+  // Keep contributed repos that `/user/repos` does not return (for example a
+  // repository owned by someone else where the user only merged a PR) at the
+  // front so they are visible on the first page of results.
+  const external = contributed.filter((repo) => !seen.has(repo.full_name));
+  return [...external, ...listed];
 }
 
 export async function getRepo(

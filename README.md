@@ -10,21 +10,6 @@ An analytics platform for open-source maintainers and engineering teams that ans
 
 Connect a GitHub repository and get clear, per-tool adoption metrics — who's using ESLint, who's writing tests, who's bypassing CI — instead of guessing.
 
-## Status
-
-Backend MVP complete (Phases 0–10). Frontend MVP complete.
-
-- [x] GitHub OAuth
-- [x] Repository discovery across owned, collaborator, and contributed repos (commits or merged PRs, last 12 months)
-- [x] Scan pipeline (BullMQ worker)
-- [x] 13 tool detectors (JS/TS, Python, Go, PHP + CI + dependency automation)
-- [x] Metrics aggregation with per-repo tool selection
-- [x] Scan + metrics caching, rate limiting
-- [x] Unit + integration tests
-- [x] Frontend dashboard
-- [x] Remove tracked repositories (`DELETE /repos/:id`)
-- [ ] Benchmarking, Slack, API access
-
 ## Repository layout
 
 ```

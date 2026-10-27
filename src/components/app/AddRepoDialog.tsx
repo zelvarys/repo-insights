@@ -122,8 +122,8 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
         <DialogHeader>
           <DialogTitle>Add repository</DialogTitle>
           <DialogDescription>
-            Choose one of your GitHub repositories or one you have contributed
-            to in the last 12 months.
+            Choose one of your GitHub repositories or one where you committed
+            or had a pull request merged in the last 12 months.
           </DialogDescription>
         </DialogHeader>
 

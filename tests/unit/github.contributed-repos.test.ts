@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { listAuthenticatedUserRepos } from '../../server/integrations/github/github.client.js';
 
 type RestRepo = {
@@ -10,6 +10,11 @@ type RestRepo = {
   default_branch: string;
   stargazers_count: number;
   forks_count: number;
+};
+
+type GraphqlBody = {
+  query: string;
+  variables: Record<string, unknown>;
 };
 
 function restRepo(
@@ -59,17 +64,24 @@ function jsonResponse(body: unknown): Response {
   });
 }
 
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-10-27T12:00:00.000Z'));
+});
+
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 describe('listAuthenticatedUserRepos', () => {
-  it('includes external repos the user opened a PR in or committed to', async () => {
+  it('includes external repos with merged PRs or commits, not unmerged PRs', async () => {
     const restRepos = [
       restRepo(1, 'alice/owned', { stargazers_count: 10 }),
       restRepo(2, 'carol/not-contributed'),
     ];
-    let query = '';
+    const searchCalls: GraphqlBody[] = [];
+    let commitQuery = '';
 
     vi.stubGlobal(
       'fetch',
@@ -77,32 +89,59 @@ describe('listAuthenticatedUserRepos', () => {
         const url = typeof input === 'string' ? input : input.toString();
 
         if (url === 'https://api.github.com/graphql') {
-          query = String(init?.body);
-          return jsonResponse({
-            data: {
-              user: {
-                contributionsCollection: {
-                  commitContributionsByRepository: [
-                    contributionNode(1, 'alice/owned'),
-                    contributionNode(30, 'dave/external-commit', {
-                      defaultBranchRef: null,
-                      stargazerCount: 3,
-                    }),
-                    contributionNode(99, 'skip/no-rest-id', {
-                      databaseId: null,
-                    }),
-                  ],
-                  pullRequestContributionsByRepository: [
-                    contributionNode(20, 'bob/external-pr', {
-                      stargazerCount: 5,
-                      forkCount: 2,
-                    }),
-                    contributionNode(20, 'bob/external-pr'),
+          const body = JSON.parse(String(init?.body)) as GraphqlBody;
+
+          if (body.query.includes('CommitContributedRepos')) {
+            commitQuery = body.query;
+            return jsonResponse({
+              data: {
+                user: {
+                  contributionsCollection: {
+                    commitContributionsByRepository: [
+                      contributionNode(1, 'alice/owned'),
+                      contributionNode(30, 'dave/external-commit', {
+                        defaultBranchRef: null,
+                        stargazerCount: 3,
+                      }),
+                      contributionNode(99, 'skip/no-rest-id', {
+                        databaseId: null,
+                      }),
+                    ],
+                  },
+                },
+              },
+            });
+          }
+
+          if (body.query.includes('MergedPullRequests')) {
+            searchCalls.push(body);
+            if (body.variables.after === null) {
+              return jsonResponse({
+                data: {
+                  search: {
+                    pageInfo: { hasNextPage: true, endCursor: 'cursor-1' },
+                    nodes: [
+                      contributionNode(20, 'bob/external-merged', {
+                        stargazerCount: 5,
+                        forkCount: 2,
+                      }),
+                    ],
+                  },
+                },
+              });
+            }
+            return jsonResponse({
+              data: {
+                search: {
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                  nodes: [
+                    contributionNode(20, 'bob/external-merged'),
+                    contributionNode(40, 'erin/second-merged'),
                   ],
                 },
               },
-            },
-          });
+            });
+          }
         }
 
         if (url.includes('/user/repos?')) {
@@ -117,7 +156,8 @@ describe('listAuthenticatedUserRepos', () => {
 
     expect(repos.map((repo) => repo.full_name)).toEqual([
       'dave/external-commit',
-      'bob/external-pr',
+      'bob/external-merged',
+      'erin/second-merged',
       'alice/owned',
     ]);
     expect(repos[0]).toMatchObject({
@@ -127,17 +167,31 @@ describe('listAuthenticatedUserRepos', () => {
     });
     expect(repos[1]).toMatchObject({
       id: 20,
-      name: 'external-pr',
+      name: 'external-merged',
       owner: { login: 'bob' },
       stargazers_count: 5,
       forks_count: 2,
+      default_branch: 'main',
+    });
+    expect(repos[2]).toMatchObject({
+      id: 40,
+      full_name: 'erin/second-merged',
       default_branch: 'main',
     });
     expect(repos.some((repo) => repo.full_name === 'carol/not-contributed')).toBe(
       false,
     );
     expect(repos.some((repo) => repo.full_name === 'skip/no-rest-id')).toBe(false);
-    expect(query).toContain('pullRequestContributionsByRepository');
-    expect(query).toContain('commitContributionsByRepository');
+
+    expect(commitQuery).toContain('commitContributionsByRepository');
+    expect(commitQuery).not.toContain('pullRequestContributionsByRepository');
+    expect(searchCalls).toHaveLength(2);
+    for (const call of searchCalls) {
+      expect(call.variables.q).toBe(
+        'author:alice type:pr is:merged merged:>=2025-10-27',
+      );
+    }
+    expect(searchCalls[0]?.variables.after).toBeNull();
+    expect(searchCalls[1]?.variables.after).toBe('cursor-1');
   });
 });

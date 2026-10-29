@@ -130,6 +130,21 @@ describe('dependency parsers', () => {
     ]);
   });
 
+  it('parses go.sum checksums and ignores go.mod hash entries', () => {
+    const result = parseDependencies({
+      'go.sum': [
+        'github.com/gin-gonic/gin v1.9.1 h1:abc=',
+        'github.com/gin-gonic/gin v1.9.1/go.mod h1:def=',
+        'github.com/stretchr/testify v1.8.4 h1:ghi=',
+        'github.com/stretchr/testify v1.8.4/go.mod h1:jkl=',
+      ].join('\n'),
+    });
+    expect(result.dependencies).toEqual([
+      { ecosystem: 'go', name: 'github.com/gin-gonic/gin', version: '1.9.1' },
+      { ecosystem: 'go', name: 'github.com/stretchr/testify', version: '1.8.4' },
+    ]);
+  });
+
   it('deduplicates identical dependencies and flags malformed lockfiles', () => {
     const result = parseDependencies({
       'package-lock.json': '{not json',

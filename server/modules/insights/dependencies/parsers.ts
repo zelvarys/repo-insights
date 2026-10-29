@@ -175,6 +175,17 @@ function parseGoMod(content: string): ParsedDependency[] {
   return result;
 }
 
+function parseGoSum(content: string): ParsedDependency[] {
+  const result: ParsedDependency[] = [];
+  for (const line of content.split(/\r?\n/)) {
+    const [name, rawVersion] = line.trim().split(/\s+/);
+    if (!name || !rawVersion || rawVersion.endsWith('/go.mod')) continue;
+    const version = cleanVersion(rawVersion);
+    if (version) result.push({ ecosystem: 'go', name, version });
+  }
+  return result;
+}
+
 function parseGemfileLock(content: string): ParsedDependency[] {
   const result: ParsedDependency[] = [];
   let inGemSpecs = false;
@@ -261,6 +272,7 @@ export function parseDependencies(
     ['requirements.txt', parseRequirements],
     ['pyproject.toml', parsePyproject],
     ['go.mod', parseGoMod],
+    ['go.sum', parseGoSum],
     ['Gemfile.lock', parseGemfileLock],
     ['Gemfile', parseGemfile],
     ['composer.lock', parseComposerLock],

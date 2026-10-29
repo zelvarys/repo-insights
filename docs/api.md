@@ -481,7 +481,7 @@ Query parameters:
 ```
 
 Supported lockfiles: `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`,
-`requirements.txt`, `pyproject.toml`, `go.mod`, `Gemfile.lock`, `Gemfile`,
+`requirements.txt`, `pyproject.toml`, `go.mod`, `go.sum`, `Gemfile.lock`, `Gemfile`,
 `composer.lock`, and `composer.json`. Parsing is capped at 300 dependencies per
 scan; registry and OSV lookups use 24h Redis caches and a 90s budget. A failed
 or truncated lookup sets `summary.partial`.

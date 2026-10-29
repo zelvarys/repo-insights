@@ -33,7 +33,7 @@ export default function Dashboard() {
     <>
       <PageHeader
         title="Dashboard"
-        description="A quick view of adoption across your tracked repositories."
+        description="Tool adoption plus activity, dependencies, CI, structure, and commit quality."
         actions={
           <Button asChild>
             <Link to="/repos">
@@ -65,7 +65,7 @@ export default function Dashboard() {
           <CardTitle>No scans yet</CardTitle>
           <CardDescription>
             Connect a repository and run your first scan to see adoption
-            insights here.
+            and six repository insights here.
           </CardDescription>
         </CardHeader>
         <CardContent>

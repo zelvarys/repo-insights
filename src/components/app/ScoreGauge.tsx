@@ -11,6 +11,7 @@ import {
 
 type ScoreGaugeProps = {
   score: number
+  label?: string
 }
 
 function scoreColor(score: number, colors: ChartColors): string {
@@ -19,7 +20,7 @@ function scoreColor(score: number, colors: ChartColors): string {
   return colors.primary
 }
 
-export function ScoreGauge({ score }: ScoreGaugeProps) {
+export function ScoreGauge({ score, label = "Adoption score" }: ScoreGaugeProps) {
   const colors = useChartColors()
   const value = Math.min(100, Math.max(0, score))
   const color = scoreColor(value, colors)
@@ -29,7 +30,7 @@ export function ScoreGauge({ score }: ScoreGaugeProps) {
     <div
       className="relative size-56"
       role="img"
-      aria-label={`Adoption score ${value.toFixed(1)} out of 100`}
+      aria-label={`${label} ${value.toFixed(1)} out of 100`}
     >
       <ResponsiveContainer width="100%" height="100%">
         <RadialBarChart
@@ -59,7 +60,7 @@ export function ScoreGauge({ score }: ScoreGaugeProps) {
         <span className="text-4xl font-bold" style={{ color }}>
           {value.toFixed(1)}
         </span>
-        <span className="text-xs text-muted-foreground">Adoption score</span>
+        <span className="text-xs text-muted-foreground">{label}</span>
       </div>
     </div>
   )

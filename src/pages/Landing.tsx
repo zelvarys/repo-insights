@@ -317,9 +317,19 @@ export default function Landing() {
             </h1>
             <p className="mt-6 max-w-2xl text-lg text-balance text-muted-foreground">
               repo-insights scans your repositories, checks recent commits, and
-              shows you who is using the tools your team standardised on — and
-              who is not.
+              shows you who is using the tools your team standardised on — plus
+              activity, dependency health, CI stability, structure, and commit
+              quality.
             </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              {["Tool adoption", "Activity", "Dependencies", "CI", "Structure", "Commit quality"].map(
+                (feature) => (
+                  <Badge key={feature} variant="outline">
+                    {feature}
+                  </Badge>
+                )
+              )}
+            </div>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button size="lg" onClick={startGithubLogin}>
                 <Github className="size-4" />
@@ -333,7 +343,7 @@ export default function Landing() {
               </Button>
             </div>
             <p className="mt-4 text-xs text-muted-foreground">
-              Works with public and private repositories.
+              Works with public GitHub repositories.
             </p>
           </div>
         </section>
@@ -422,8 +432,8 @@ export default function Landing() {
                 A score your team can act on
               </h2>
               <p className="mt-3 text-muted-foreground">
-                See adoption at a glance, then drill into the tools and
-                contributors behind the number.
+                See adoption at a glance, then explore activity, dependencies,
+                CI stability, structure, and the contributors behind the number.
               </p>
             </div>
             <Card className="mx-auto mt-10 max-w-4xl overflow-hidden">

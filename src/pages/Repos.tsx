@@ -112,7 +112,7 @@ export default function Repos() {
                     })}
                   </span>
                   <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                    View report
+                    View 6 insights
                     <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                   </span>
                 </CardFooter>

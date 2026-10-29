@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import {
   Loader2,
@@ -13,9 +13,15 @@ import { EmptyState } from "@/components/app/EmptyState"
 import { ErrorState } from "@/components/app/ErrorState"
 import { RepoDetailSkeleton } from "@/components/app/LoadingSkeletons"
 import { MetricsPanel } from "@/components/app/MetricsPanel"
+import { ActivityTab } from "@/components/app/insights/ActivityTab"
+import { CiTab } from "@/components/app/insights/CiTab"
+import { DependenciesTab } from "@/components/app/insights/DependenciesTab"
+import { OverviewTab } from "@/components/app/insights/OverviewTab"
+import { StructureTab } from "@/components/app/insights/StructureTab"
 import { RemoveRepoDialog } from "@/components/app/RemoveRepoDialog"
 import { ScanHistory } from "@/components/app/ScanHistory"
 import { PageHeader } from "@/components/layout/PageHeader"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -29,6 +35,7 @@ import {
   useRepoMetrics,
   useRepoScans,
 } from "@/hooks/useRepoDetail"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRunScan, useScanPoll } from "@/hooks/useRunScan"
 
 function NoScanState({
@@ -63,11 +70,26 @@ function NoScanState({
   )
 }
 
+const REPO_TABS = ["tools", "overview", "activity", "structure", "dependencies", "ci"] as const
+type RepoTab = (typeof REPO_TABS)[number]
+
 export default function RepoDetail() {
   const { id } = useParams<{ id: string }>()
   const repoId = id ?? ""
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabParam = searchParams.get("tab")
+  const activeTab: RepoTab = REPO_TABS.includes(tabParam as RepoTab)
+    ? (tabParam as RepoTab)
+    : "tools"
+
+  function selectTab(tab: RepoTab) {
+    const next = new URLSearchParams(searchParams)
+    if (tab === "tools") next.delete("tab")
+    else next.set("tab", tab)
+    setSearchParams(next, { replace: true })
+  }
 
   const [pollingScanId, setPollingScanId] = useState<string | null>(null)
   const [autoPolledScanId, setAutoPolledScanId] = useState<string | null>(
@@ -179,8 +201,8 @@ export default function RepoDetail() {
         title={repo?.fullName ?? "Repository"}
         description={
           repo
-            ? `Adoption report for the ${repo.defaultBranch} branch.`
-            : "Adoption report for this repository."
+            ? `Tool adoption and repository insights for the ${repo.defaultBranch} branch.`
+            : "Tool adoption and repository insights for this repository."
         }
         backTo="/repos"
         backLabel="Repositories"
@@ -215,22 +237,78 @@ export default function RepoDetail() {
         />
       ) : (
         <>
-          {metricsQuery.isLoading ? (
-            <RepoDetailSkeleton />
-          ) : metricsQuery.isError ? (
-            <ErrorState
-              error={metricsQuery.error ?? new Error("Unknown error")}
-              onRetry={() => metricsQuery.refetch()}
-            />
-          ) : metrics && metrics.scanId !== null ? (
-            <MetricsPanel metrics={metrics} />
-          ) : (
-            <NoScanState
-              scanning={scanning}
-              onRunScan={handleRunScan}
-              disabled={runDisabled}
-            />
-          )}
+          <Tabs value={activeTab} onValueChange={(value) => selectTab(value as RepoTab)}>
+            <div className="sticky top-0 z-20 bg-background/95 py-2 backdrop-blur">
+              <TabsList className="w-full justify-start overflow-x-auto">
+                <TabsTrigger value="tools" className="flex-none px-3">
+                  Tools
+                  <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                    primary
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="overview" className="flex-none px-3">Overview</TabsTrigger>
+                <TabsTrigger value="activity" className="flex-none px-3">Activity</TabsTrigger>
+                <TabsTrigger value="structure" className="flex-none px-3">Structure</TabsTrigger>
+                <TabsTrigger value="dependencies" className="flex-none px-3">Dependencies</TabsTrigger>
+                <TabsTrigger value="ci" className="flex-none px-3">CI</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="tools" className="mt-6">
+              {metricsQuery.isLoading ? (
+                <RepoDetailSkeleton />
+              ) : metricsQuery.isError ? (
+                <ErrorState
+                  error={metricsQuery.error ?? new Error("Unknown error")}
+                  onRetry={() => metricsQuery.refetch()}
+                />
+              ) : metrics && metrics.scanId !== null ? (
+                <MetricsPanel metrics={metrics} />
+              ) : (
+                <NoScanState
+                  scanning={scanning}
+                  onRunScan={handleRunScan}
+                  disabled={runDisabled}
+                />
+              )}
+            </TabsContent>
+            <TabsContent value="overview" className="mt-6">
+              <OverviewTab
+                repoId={repoId}
+                scanning={scanning}
+                onRunScan={handleRunScan}
+                onSelectTab={selectTab}
+              />
+            </TabsContent>
+            <TabsContent value="activity" className="mt-6">
+              <ActivityTab
+                repoId={repoId}
+                scanning={scanning}
+                onRunScan={handleRunScan}
+              />
+            </TabsContent>
+            <TabsContent value="structure" className="mt-6">
+              <StructureTab
+                repoId={repoId}
+                scanning={scanning}
+                onRunScan={handleRunScan}
+              />
+            </TabsContent>
+            <TabsContent value="dependencies" className="mt-6">
+              <DependenciesTab
+                repoId={repoId}
+                scanning={scanning}
+                onRunScan={handleRunScan}
+              />
+            </TabsContent>
+            <TabsContent value="ci" className="mt-6">
+              <CiTab
+                repoId={repoId}
+                scanning={scanning}
+                onRunScan={handleRunScan}
+              />
+            </TabsContent>
+          </Tabs>
 
           <div className="mt-6">
             <ScanHistory repoId={repoId} />

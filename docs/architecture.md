@@ -167,7 +167,7 @@ there is still no way to share.
 
 When `tracked_tools` is empty (uncurated repo), scoring falls back to "everything detected and relevant" so a fresh repo doesn't score 0.
 
-## Repository health
+## Composite health score
 
 `GET /repos/:id/overview` computes a separate context score; it never replaces
 the adoption score.
@@ -183,6 +183,21 @@ the adoption score.
 Missing sources (no dependencies, no workflow runs, older scans) are removed
 and the remaining weights are renormalized. The activity component is always
 available for a completed scan, even when the repo had zero recent commits.
+
+Tool adoption is the flagship feature and the product's differentiator. The
+other features provide context.
+
+## Feature map
+
+| Feature | Endpoint | Data source | Scan field / storage |
+|---------|----------|-------------|----------------------|
+| Tool adoption | `GET /repos/:id/metrics` | Existing scanner output | `scans.summary.tool_usage`, `tracked_tools` |
+| Overview | `GET /repos/:id/overview` | Aggregates from the features below | `scans.summary`, `repo_tree` |
+| Structure | `GET /repos/:id/structure` | GitHub recursive tree | `scans.repo_tree` (`ctx.tree`, `ctx.treeTruncated`) |
+| Activity + commit quality | `GET /repos/:id/activity` | Up to 1,000 GitHub commits | `scans.summary.activity` (`ctx.commitHistory`) |
+| Concentration | `GET /repos/:id/concentration` | Commit author counts | `scans.summary.concentration` (`ctx.commitHistory`) |
+| Dependencies | `GET /repos/:id/dependencies`, `POST /repos/:id/dependencies/refresh` | Lockfiles, registries, OSV | `scan_dependencies`, `scans.summary.dependency_health` (`ctx.configFiles`) |
+| CI | `GET /repos/:id/ci` | GitHub Actions runs | `scan_ci_runs`, `scans.summary.ci_health` (`ctx.ciRuns`) |
 
 ## Repository insights
 

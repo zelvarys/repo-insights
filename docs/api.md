@@ -535,7 +535,7 @@ adoption remains the primary metric.
 Health weights are activity 25%, dependency freshness 25%, CI 20%, contributor
 spread 15%, and commit quality 15%. Missing components are removed and the
 remaining weights are renormalized. See
-[`docs/architecture.md#repository-health`](architecture.md#repository-health).
+[`docs/architecture.md#composite-health-score`](architecture.md#composite-health-score).
 
 ## Tracked tools
 

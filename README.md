@@ -4,7 +4,7 @@
   repo-insights
 </h1>
 
-An analytics platform for open-source maintainers and engineering teams that answers a question they've never had data for:
+repo-insights tells you whether your contributors are actually using the tools you set up — plus activity, dependency health, CI stability, and more, all in one dashboard.
 
 > **"Are our contributors actually using the tools we're asking them to use?"**
 

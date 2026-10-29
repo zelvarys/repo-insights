@@ -10,6 +10,20 @@ An analytics platform for open-source maintainers and engineering teams that ans
 
 Connect a GitHub repository and get clear, per-tool adoption metrics — who's using ESLint, who's writing tests, who's bypassing CI — instead of guessing.
 
+## Features
+
+- **Tool adoption** — one score plus per-tool, per-contributor adoption across 13 tools.
+- **Overview** — adoption and repository health side by side, with links into the detail tabs.
+- **Activity** — commit cadence, weekday/hour patterns, contributor mix, and Conventional Commits quality.
+- **Structure** — a bounded repository tree, file-type mix, and directory size totals.
+- **Dependencies** — lockfile parsing, latest-version checks, OSV advisories, and queued refresh.
+- **CI** — GitHub Actions success rates, durations, branches, and recent failures.
+- **Contributor concentration** — top-contributor share and bus-factor risk.
+
+Repository health is context, not a replacement for tool adoption: activity, dependency freshness, CI stability, contributor spread, and commit quality are weighted and renormalized when a source is unavailable.
+
+The app requests the read-only `public_repo` scope, so it analyzes public repositories. Some Actions data may still be unavailable to the token; the UI reports that source as not collected instead of failing the whole report.
+
 ## Repository layout
 
 ```

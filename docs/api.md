@@ -36,6 +36,8 @@ other's quota. Unauthenticated routes key by IP.
 | All API routes | 300/min |
 | `POST /repos/:id/scan` | 10/min |
 | `GET /repos/:id/metrics` | 120/min |
+| Repository insight reads (`GET /repos/:id/{structure,activity,concentration,ci,dependencies,overview}`) | 120/min |
+| `POST /repos/:id/dependencies/refresh` | 10/min |
 | Scan reads (`GET /repos/:id/scans`, `GET /scans/:scanId`) | 120/min |
 | Writes (`PUT /repos/:id/tracked-tools`, `DELETE /repos/:id`) | 20/min |
 | Auth routes | 300/min |
@@ -278,6 +280,262 @@ Requires auth. Rate-limited to 120/min. Cached for 60s per `(repoId, latest scan
 `coverage` and `adoption` are also 0–100. `adoptionScore = coverage × adoption / 100`. Coverage is the share of tracked tools that were detected; adoption is the mean per-contributor adoption of detected tracked tools, excluding commit-presence proxies (`github-actions`, `dependabot`, `renovate`). The same scoring module produces the metrics response and the cached scan summary, so both always report the same score. See `docs/architecture.md#scoring`.
 
 Repos with no completed scan return a well-shaped empty response (`scanId: null`, `tools: []`, `adoptionScore: 0`).
+
+## Repository insights
+
+Insight reads all use the latest **completed** scan and are cached for 60s per
+`(repoId, scanId, filters)`. Every response includes the availability envelope:
+
+```json
+{
+  "available": true,
+  "scanId": "uuid",
+  "completedAt": "2026-10-29T00:00:00.000Z"
+}
+```
+
+When a source was not collected, `available` is `false`, `reason` is set, and
+the source-specific payload is omitted. Reasons include `no_scan` (no completed
+scan), `not_collected` (older scan before this feature), `no_workflows` (no
+GitHub Actions workflow files), and `github_unavailable` (Actions data could
+not be read).
+
+### `GET /repos/:id/structure`
+
+Repository tree from the latest scan. Bounded to 500 entries, depth 4; test
+synthetic leaf nodes are excluded. `truncated` is true when GitHub or the cap
+cut the tree.
+
+```json
+{
+  "available": true,
+  "scanId": "uuid",
+  "completedAt": "2026-10-29T00:00:00.000Z",
+  "structure": {
+    "fileCount": 214,
+    "directoryCount": 31,
+    "totalSize": 1048576,
+    "truncated": false,
+    "fileTypes": [{ "extension": ".ts", "count": 120, "sizeBytes": 800000 }],
+    "tree": [
+      {
+        "name": "src",
+        "path": "src",
+        "type": "dir",
+        "size": 800000,
+        "lastModified": null,
+        "fileCount": 120,
+        "children": []
+      }
+    ]
+  }
+}
+```
+
+### `GET /repos/:id/activity?range=90|180|365`
+
+Commit activity and commit-quality stats. Default `range` is `365`. The scan
+stores 90-, 180-, and 365-day aggregates over up to 1,000 commits. Daily keys
+are UTC `YYYY-MM-DD`; weekly keys are UTC Monday week starts.
+
+```json
+{
+  "available": true,
+  "scanId": "uuid",
+  "completedAt": "2026-10-29T00:00:00.000Z",
+  "activity": {
+    "range": 90,
+    "daily": { "2026-10-28": 3 },
+    "weekly": [{ "weekStart": "2026-10-26", "count": 3 }],
+    "topContributors": [{ "login": "octocat", "commits": 3 }],
+    "weekday": [0, 1, 1, 0, 0, 1, 0],
+    "hourOfDay": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "quality": {
+      "totalCommits": 3,
+      "conventionalPercent": 66.67,
+      "bodyPercent": 33.33,
+      "averageMessageLength": 32,
+      "averageBodyLength": 40,
+      "mostCommonType": "feat",
+      "examples": ["update docs"],
+      "messageLengthBuckets": [{ "label": "1-20", "count": 1 }]
+    }
+  }
+}
+```
+
+Merge commits and invalid timestamps are ignored. Commit-quality examples are
+sanitized (emails and `@mentions` are redacted).
+
+### `GET /repos/:id/concentration`
+
+Contributor concentration over the same 365-day commit history.
+
+```json
+{
+  "available": true,
+  "scanId": "uuid",
+  "completedAt": "2026-10-29T00:00:00.000Z",
+  "concentration": {
+    "totalCommits": 100,
+    "contributorCount": 12,
+    "top1Share": 45,
+    "top3Share": 72,
+    "top10Share": 96,
+    "gini": 0.61,
+    "risk": "yellow",
+    "topContributors": [{ "login": "octocat", "commits": 45, "share": 45 }]
+  }
+}
+```
+
+Risk buckets: top-3 share `< 50%` is `green`, `50–75%` is `yellow`, and
+`> 75%` is `red`. Gini is computed over positive per-contributor commit counts.
+
+### `GET /repos/:id/ci?range=30|90|365&workflow=&branch=`
+
+Aggregates persisted GitHub Actions runs for the latest scan. Default `range`
+is `90`; `workflow` and `branch` are exact-match filters. Up to 300 runs are
+stored per scan.
+
+```json
+{
+  "available": true,
+  "scanId": "uuid",
+  "completedAt": "2026-10-29T00:00:00.000Z",
+  "ci": {
+    "successRate": 82.5,
+    "totalRuns": 40,
+    "workflows": [
+      {
+        "name": "CI",
+        "totalRuns": 30,
+        "successfulRuns": 25,
+        "failedRuns": 3,
+        "successRate": 83.33,
+        "averageDurationSeconds": 142
+      }
+    ],
+    "recentFailures": [
+      {
+        "runId": 123,
+        "workflowName": "CI",
+        "branch": "main",
+        "actor": "octocat",
+        "conclusion": "failure",
+        "completedAt": "2026-10-28T12:00:00.000Z",
+        "url": "https://github.com/octocat/hello-world/actions/runs/123"
+      }
+    ],
+    "partial": false,
+    "fetchedAt": "2026-10-29T00:00:00.000Z"
+  }
+}
+```
+
+Success rate counts completed runs only. A repo with no workflow files returns
+`available: false, reason: "no_workflows"`; Actions permission failures return
+`available: false, reason: "github_unavailable"`.
+
+### `GET /repos/:id/dependencies?page=1&perPage=50&outdated=&hasAdvisory=`
+
+Paginated dependency rows from lockfiles, with a scan-level summary.
+
+Query parameters:
+
+| Name | Default | Description |
+|------|---------|-------------|
+| `page` | `1` | 1-based page (max 10,000) |
+| `perPage` | `50` | Page size (max 100) |
+| `outdated` | unset | `true` or `false` |
+| `hasAdvisory` | unset | `true` or `false` |
+
+```json
+{
+  "available": true,
+  "scanId": "uuid",
+  "completedAt": "2026-10-29T00:00:00.000Z",
+  "summary": {
+    "total": 120,
+    "checked": 118,
+    "outdated": 14,
+    "advisoryCount": 2,
+    "severity": { "low": 0, "moderate": 1, "high": 0, "critical": 1 },
+    "partial": false,
+    "checkedAt": "2026-10-29T00:00:00.000Z"
+  },
+  "rows": [
+    {
+      "ecosystem": "npm",
+      "packageName": "lodash",
+      "currentVersion": "4.17.21",
+      "latestVersion": "4.17.21",
+      "outdated": false,
+      "advisoryCount": 0,
+      "maxSeverity": null,
+      "registryUrl": "https://www.npmjs.com/package/lodash"
+    }
+  ],
+  "pagination": { "page": 1, "perPage": 50, "total": 120, "hasMore": true }
+}
+```
+
+Supported lockfiles: `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`,
+`requirements.txt`, `pyproject.toml`, `go.mod`, `Gemfile.lock`, `Gemfile`,
+`composer.lock`, and `composer.json`. Parsing is capped at 300 dependencies per
+scan; registry and OSV lookups use 24h Redis caches and a 90s budget. A failed
+or truncated lookup sets `summary.partial`.
+
+### `POST /repos/:id/dependencies/refresh`
+
+Requires auth. Rate-limited to 10/min. Queues a dependency-only refresh against
+the latest completed scan; the existing scan rows are updated in place and the
+dependency/overview caches are invalidated.
+
+- **`202 Accepted`** — `{ "queued": true, "scanId": "uuid" }`
+- **`409 CONFLICT`** — no completed scan or no dependency data to refresh.
+- **`503 SERVICE_UNAVAILABLE`** — the queue is unavailable.
+
+Clients should poll `GET /repos/:id/dependencies` until `summary.checkedAt`
+advances.
+
+### `GET /repos/:id/overview`
+
+Composite card data plus a health score. The health score is context; tool
+adoption remains the primary metric.
+
+```json
+{
+  "available": true,
+  "scanId": "uuid",
+  "completedAt": "2026-10-29T00:00:00.000Z",
+  "health": {
+    "score": 74.25,
+    "components": [
+      { "key": "activity", "label": "Activity", "score": 80, "weight": 0.25, "available": true },
+      { "key": "dependencies", "label": "Dependency freshness", "score": 88.33, "weight": 0.25, "available": true },
+      { "key": "ci", "label": "CI stability", "score": 82.5, "weight": 0.2, "available": true },
+      { "key": "concentration", "label": "Contributor spread", "score": 56, "weight": 0.15, "available": true },
+      { "key": "commitQuality", "label": "Commit quality", "score": 70, "weight": 0.15, "available": true }
+    ]
+  },
+  "cards": {
+    "concentration": { "top3Share": 72, "risk": "yellow" },
+    "ci": { "available": true, "successRate": 82.5, "worstWorkflow": "CI" },
+    "dependencies": { "total": 120, "outdated": 14, "advisoryCount": 2, "partial": false },
+    "activity": {
+      "last90Commits": 40,
+      "sparkline": [{ "date": "2026-10-28", "count": 3 }]
+    },
+    "commitQuality": { "conventionalPercent": 70 }
+  }
+}
+```
+
+Health weights are activity 25%, dependency freshness 25%, CI 20%, contributor
+spread 15%, and commit quality 15%. Missing components are removed and the
+remaining weights are renormalized. See
+[`docs/architecture.md#repository-health`](architecture.md#repository-health).
 
 ## Tracked tools
 

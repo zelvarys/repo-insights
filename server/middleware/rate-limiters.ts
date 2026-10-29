@@ -23,3 +23,16 @@ export const writeLimiter = rateLimit({
   windowSeconds: 60,
   max: 20,
 });
+
+
+export const insightsLimiter = rateLimit({
+  name: 'insights',
+  windowSeconds: 60,
+  max: 120,
+});
+
+export const dependencyRefreshLimiter = rateLimit({
+  name: 'dependency-refresh',
+  windowSeconds: 60,
+  max: 10,
+});

@@ -1,13 +1,20 @@
 import { Worker, type Job } from 'bullmq';
 import { createRedisConnection } from '../../config/redis.js';
 import { pool } from '../../config/database.js';
-import { SCAN_QUEUE_NAME, type ScanJobData } from './scan.queue.js';
+import {
+  SCAN_QUEUE_NAME,
+  type DependencyRefreshJobData,
+  type ScanJobData,
+  type ScanQueueJobData,
+} from './scan.queue.js';
 import { logger } from '../../utils/logger.js';
 import { getAccessTokenForUser } from '../auth/auth.service.js';
 import {
   fetchRecentCommits,
   fetchCommitDetail,
   fetchContributors,
+  fetchRepoTree,
+  fetchWorkflowRuns,
   listContents,
   readFileText,
 } from '../../integrations/github/github.client.js';
@@ -31,10 +38,22 @@ import {
   languagesToArray,
 } from '../metrics/scoring.js';
 import type { ScanSummary, ToolMetric } from '../../../shared/types.js';
+import { buildCommitActivity } from '../insights/activity.js';
+import { computeConcentration } from '../insights/concentration.js';
+import { aggregateCiHealth } from '../insights/ci.js';
+import { persistCiRuns } from '../insights/ci.service.js';
+import { buildRepoStructure, type RawTreeEntry } from '../insights/structure.js';
+import {
+  collectDependencyHealth,
+  persistDependencyHealth,
+  refreshDependenciesForScan,
+} from '../insights/dependencies/service.js';
 
 const MAX_COMMIT_DETAIL_LOOKUPS = 30;
 const MAX_CONTRIBUTORS_PAGES = 2;
-const MAX_COMMITS_PAGES = 3;
+const MAX_COMMITS_PAGES = 10;
+const ACTIVITY_WINDOW_DAYS = 365;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const CONFIG_FILE_CANDIDATES = [
   'package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml',
@@ -51,7 +70,7 @@ const CONFIG_FILE_CANDIDATES = [
   'go.mod', 'go.sum',
   '.golangci.yml', '.golangci.yaml', '.golangci.toml', '.golangci.json',
   'composer.json', 'composer.lock', 'phpunit.xml', 'phpunit.xml.dist',
-  'Gemfile', '.rubocop.yml',
+  'Gemfile', 'Gemfile.lock', '.rubocop.yml',
   'mkdocs.yml', 'docusaurus.config.js', 'docusaurus.config.ts',
 ];
 
@@ -90,6 +109,13 @@ async function buildScanContext(
   );
 
   const commits: CommitInfo[] = [];
+  const commitHistory: CommitInfo[] = commitsRaw.map((commit) => ({
+    sha: commit.sha,
+    authorLogin: commit.author?.login ?? null,
+    message: commit.commit.message,
+    date: commit.commit.author?.date ?? new Date().toISOString(),
+    files: [],
+  }));
   const detailTargets = commitsRaw.slice(0, MAX_COMMIT_DETAIL_LOOKUPS);
 
   for (const commit of detailTargets) {
@@ -108,6 +134,23 @@ async function buildScanContext(
       date: commit.commit.author?.date ?? new Date().toISOString(),
       files,
     });
+  }
+
+  let tree: RawTreeEntry[] | undefined;
+  let treeTruncated = false;
+  try {
+    const treeResponse = await fetchRepoTree(token, owner, name, defaultBranch);
+    tree = treeResponse.tree.map((entry) => ({
+      path: entry.path,
+      type: entry.type,
+      size: entry.size,
+      sha: entry.sha,
+    }));
+    treeTruncated = treeResponse.truncated;
+  } catch (err) {
+    logger.warn(
+      `Tree fetch failed for ${owner}/${name}: ${(err as Error).message}`,
+    );
   }
 
   const root = await listContents(token, owner, name, '', defaultBranch);
@@ -137,10 +180,49 @@ async function buildScanContext(
     if (content !== null) configFiles[wf] = content;
   }
 
+  let ciRuns: import('../insights/ci.js').CiRun[] | undefined;
+  let ciPartial = false;
+  let ciError: string | undefined;
+  if (workflowFiles.length > 0) {
+    try {
+      const runs = await fetchWorkflowRuns(token, owner, name, 3);
+      ciRuns = runs.map((run) => {
+        const startedAt = run.run_started_at ?? run.created_at;
+        const completedAt = run.status === 'completed' ? run.updated_at : null;
+        const startMs = Date.parse(startedAt);
+        const endMs = completedAt ? Date.parse(completedAt) : NaN;
+        return {
+          runId: run.id,
+          workflowName: run.name ?? run.display_title ?? 'Workflow',
+          status: run.status,
+          conclusion: run.conclusion,
+          branch: run.head_branch,
+          actor: run.actor?.login ?? null,
+          startedAt,
+          completedAt,
+          durationSeconds:
+            Number.isFinite(startMs) && Number.isFinite(endMs)
+              ? Math.max(0, Math.round((endMs - startMs) / 1000))
+              : null,
+          url: run.html_url,
+        };
+      });
+      ciPartial = runs.length >= 300;
+    } catch (err) {
+      ciRuns = [];
+      ciPartial = true;
+      ciError = (err as Error).message;
+      logger.warn(
+        `Workflow runs fetch failed for ${owner}/${name}: ${ciError}`,
+      );
+    }
+  }
+
   return {
     scanId, repoId, owner, name, defaultBranch,
     fetchedAt: new Date().toISOString(),
-    commits, contributors, rootFiles, configFiles, workflowFiles,
+    commits, commitHistory, contributors, rootFiles, configFiles, workflowFiles,
+    tree, treeTruncated, ciRuns, ciPartial, ciError,
   };
 }
 
@@ -283,22 +365,91 @@ async function processScanJob(job: {
       })
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    const summary = computeScore(summaryTools, trackedNames, {
-      repoId,
-      repoFullName: `${repo.owner}/${repo.name}`,
-      scanId,
-      scanCompletedAt: null,
-      languages: languagesToArray(languages),
-    });
+    const now = new Date();
+    const cutoff = now.getTime() - ACTIVITY_WINDOW_DAYS * DAY_MS;
+    const activity = ctx.commitHistory
+      ? buildCommitActivity(
+          ctx.commitHistory.map((commit) => ({
+            sha: commit.sha,
+            authorLogin: commit.authorLogin,
+            message: commit.message,
+            date: commit.date,
+          })),
+          now,
+        )
+      : undefined;
+    const concentration = ctx.commitHistory
+      ? computeConcentration(
+          ctx.commitHistory
+            .filter((commit) => Date.parse(commit.date) >= cutoff)
+            .map((commit) => ({ authorLogin: commit.authorLogin })),
+        )
+      : undefined;
+    const lastModifiedByPath: Record<string, string> = {};
+    for (const commit of ctx.commits) {
+      for (const file of commit.files) {
+        if (!(file.filename in lastModifiedByPath)) {
+          lastModifiedByPath[file.filename] = commit.date;
+        }
+      }
+    }
+    const structure = ctx.tree
+      ? buildRepoStructure(ctx.tree, lastModifiedByPath, ctx.treeTruncated)
+      : undefined;
+    const ciHealth = ctx.ciRuns
+      ? aggregateCiHealth(ctx.ciRuns, ctx.ciPartial ?? false, now.toISOString())
+      : null;
+    let dependencyResult:
+      | Awaited<ReturnType<typeof collectDependencyHealth>>
+      | null = null;
+    try {
+      dependencyResult = await collectDependencyHealth(ctx.configFiles);
+    } catch (err) {
+      logger.warn(
+        `Dependency health failed for scan ${scanId}: ${(err as Error).message}`,
+      );
+    }
+
+    const summary: Record<string, unknown> = {
+      ...computeScore(summaryTools, trackedNames, {
+        repoId,
+        repoFullName: `${repo.owner}/${repo.name}`,
+        scanId,
+        scanCompletedAt: null,
+        languages: languagesToArray(languages),
+      }),
+      ciHealth,
+      ciError: ctx.ciError ?? null,
+      ...(activity ? { activity } : {}),
+      ...(concentration ? { concentration } : {}),
+      ...(dependencyResult
+        ? { dependencyHealth: dependencyResult.summary }
+        : {}),
+    };
+
+    if (ctx.ciRuns && ctx.ciRuns.length > 0) {
+      try {
+        await persistCiRuns(scanId, ctx.ciRuns);
+      } catch (err) {
+        logger.warn(
+          `CI run persistence failed for scan ${scanId}: ${(err as Error).message}`,
+        );
+      }
+    }
 
     const completed = await pool.query(
       `UPDATE scans
        SET status = 'complete', completed_at = NOW(), summary = $2,
-           languages = $3
+           languages = $3, repo_tree = $4
        WHERE id = $1
        RETURNING id, repo_id, status, started_at, completed_at, error,
                  summary, created_at`,
-      [scanId, JSON.stringify(summary), languagesToArray(languages)],
+      [
+        scanId,
+        JSON.stringify(summary),
+        languagesToArray(languages),
+        structure ? JSON.stringify(structure) : null,
+      ],
     );
 
     const row = completed.rows[0];
@@ -314,6 +465,16 @@ async function processScanJob(job: {
         await cacheCompletedScan(scanRow);
       } catch (err) {
         logger.warn(`Failed to cache scan ${scanId}: ${(err as Error).message}`);
+      }
+    }
+
+    if (dependencyResult) {
+      try {
+        await persistDependencyHealth(scanId, dependencyResult);
+      } catch (err) {
+        logger.warn(
+          `Dependency persistence failed for scan ${scanId}: ${(err as Error).message}`,
+        );
       }
     }
 
@@ -363,10 +524,26 @@ async function processScanJob(job: {
   }
 }
 
-export function startWorker(): Worker<ScanJobData> {
-  const worker = new Worker<ScanJobData>(
+export async function processDependencyRefreshJob(job: {
+  data: DependencyRefreshJobData;
+}): Promise<void> {
+  const { scanId, repoId } = job.data;
+  logger.info(`Worker picked up dependency refresh for scan ${scanId}`);
+  await refreshDependenciesForScan(scanId, repoId);
+}
+
+export function startWorker(): Worker<ScanQueueJobData> {
+  const worker = new Worker<ScanQueueJobData>(
     SCAN_QUEUE_NAME,
-    async (job: Job<ScanJobData>) => processScanJob(job),
+    async (job: Job<ScanQueueJobData>) => {
+      if (job.name === 'dependencies-refresh') {
+        await processDependencyRefreshJob({
+          data: job.data as DependencyRefreshJobData,
+        });
+        return;
+      }
+      await processScanJob({ data: job.data as ScanJobData });
+    },
     { connection: createRedisConnection(), concurrency: 2 },
   );
   worker.on('ready', () =>

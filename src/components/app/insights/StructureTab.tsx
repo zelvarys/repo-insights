@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState } from "react";
 import {
   Bar,
   BarChart,
@@ -7,49 +7,62 @@ import {
   Tooltip as ChartTooltip,
   XAxis,
   YAxis,
-} from "recharts"
-import { ChevronDown, ChevronRight, File, Folder, FolderTree } from "lucide-react"
-import type { RepoTreeNode } from "@shared/types"
+} from "recharts";
+import {
+  ChevronDown,
+  ChevronRight,
+  File,
+  Folder,
+  FolderTree,
+} from "lucide-react";
+import type { RepoTreeNode } from "@shared/types";
 import {
   InsightError,
   InsightLoading,
   InsightUnavailable,
-} from "@/components/app/insights/InsightState"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+} from "@/components/app/insights/InsightState";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { useRepoStructure } from "@/hooks/useRepoInsights"
-import { formatBytes } from "@/lib/format"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/card";
+import { useRepoStructure } from "@/hooks/useRepoInsights";
+import { formatBytes } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 function TreeRow({
   node,
   depth,
   expanded,
   toggle,
+  selectedPath,
+  onSelectFile,
 }: {
-  node: RepoTreeNode
-  depth: number
-  expanded: Set<string>
-  toggle: (path: string) => void
+  node: RepoTreeNode;
+  depth: number;
+  expanded: Set<string>;
+  toggle: (path: string) => void;
+  selectedPath: string | null;
+  onSelectFile: (node: RepoTreeNode) => void;
 }) {
-  const isOpen = expanded.has(node.path)
-  const isDirectory = node.type === "dir"
+  const isOpen = expanded.has(node.path);
+  const isDirectory = node.type === "dir";
   return (
     <div>
       <button
         type="button"
-        onClick={() => (isDirectory ? toggle(node.path) : undefined)}
+        onClick={() => (isDirectory ? toggle(node.path) : onSelectFile(node))}
         aria-expanded={isDirectory ? isOpen : undefined}
+        aria-pressed={!isDirectory ? selectedPath === node.path : undefined}
         className={cn(
           "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent/50",
-          !isDirectory && "cursor-default"
+          !isDirectory &&
+            selectedPath === node.path &&
+            "bg-accent text-accent-foreground",
         )}
         style={{ paddingLeft: `${depth * 18 + 8}px` }}
         title={node.path}
@@ -92,11 +105,13 @@ function TreeRow({
               depth={depth + 1}
               expanded={expanded}
               toggle={toggle}
+              selectedPath={selectedPath}
+              onSelectFile={onSelectFile}
             />
           ))
         : null}
     </div>
-  )
+  );
 }
 
 export function StructureTab({
@@ -104,21 +119,22 @@ export function StructureTab({
   scanning,
   onRunScan,
 }: {
-  repoId: string
-  scanning: boolean
-  onRunScan: () => void
+  repoId: string;
+  scanning: boolean;
+  onRunScan: () => void;
 }) {
-  const query = useRepoStructure(repoId)
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const query = useRepoStructure(repoId);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [selectedFile, setSelectedFile] = useState<RepoTreeNode | null>(null);
 
-  if (query.isLoading) return <InsightLoading />
+  if (query.isLoading) return <InsightLoading />;
   if (query.isError) {
     return (
       <InsightError
         error={query.error ?? new Error("Unknown error")}
         onRetry={() => query.refetch()}
       />
-    )
+    );
   }
   if (!query.data?.available || !query.data.structure) {
     return (
@@ -128,18 +144,18 @@ export function StructureTab({
         scanning={scanning}
         onRunScan={onRunScan}
       />
-    )
+    );
   }
 
-  const structure = query.data.structure
+  const structure = query.data.structure;
 
   function toggle(path: string) {
     setExpanded((current) => {
-      const next = new Set(current)
-      if (next.has(path)) next.delete(path)
-      else next.add(path)
-      return next
-    })
+      const next = new Set(current);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
   }
 
   return (
@@ -176,7 +192,9 @@ export function StructureTab({
             <CardDescription>File types</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-semibold">{structure.fileTypes.length}</p>
+            <p className="text-3xl font-semibold">
+              {structure.fileTypes.length}
+            </p>
             {structure.truncated ? (
               <Badge variant="secondary" className="mt-2">
                 Truncated
@@ -214,7 +232,11 @@ export function StructureTab({
                   borderRadius: 8,
                 }}
               />
-              <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="var(--chart-2)" />
+              <Bar
+                dataKey="count"
+                radius={[0, 4, 4, 0]}
+                fill="var(--chart-2)"
+              />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -228,7 +250,8 @@ export function StructureTab({
               Repository tree
             </CardTitle>
             <CardDescription>
-              Up to depth 4 and 500 entries. Click a directory to expand it.
+              Up to depth 4 and 500 entries. Click a directory to expand it;
+              select a file for its full path and metadata.
             </CardDescription>
           </div>
           <Button
@@ -237,8 +260,10 @@ export function StructureTab({
             onClick={() =>
               setExpanded(
                 new Set(
-                  structure.tree.filter((node) => node.type === "dir").map((node) => node.path)
-                )
+                  structure.tree
+                    .filter((node) => node.type === "dir")
+                    .map((node) => node.path),
+                ),
               )
             }
           >
@@ -259,12 +284,50 @@ export function StructureTab({
                   depth={0}
                   expanded={expanded}
                   toggle={toggle}
+                  selectedPath={selectedFile?.path ?? null}
+                  onSelectFile={setSelectedFile}
                 />
               ))
             )}
           </div>
+          {selectedFile ? (
+            <div className="mt-4 rounded-lg border bg-muted/30 p-4">
+              <p className="text-xs font-medium text-muted-foreground">
+                Selected file
+              </p>
+              <dl className="mt-3 grid gap-3 sm:grid-cols-3">
+                <div className="sm:col-span-3">
+                  <dt className="text-xs text-muted-foreground">Path</dt>
+                  <dd className="mt-1 break-all font-mono text-sm">
+                    {selectedFile.path}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Size</dt>
+                  <dd className="mt-1 text-sm">
+                    {formatBytes(selectedFile.size)}
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-xs text-muted-foreground">
+                    Last modified
+                  </dt>
+                  <dd className="mt-1 text-sm">
+                    {selectedFile.lastModified
+                      ? new Date(selectedFile.lastModified).toLocaleString()
+                      : "Not available"}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Select a file in the tree to see its full path, size, and last
+              modified date.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

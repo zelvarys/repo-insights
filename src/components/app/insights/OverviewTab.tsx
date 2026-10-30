@@ -6,6 +6,7 @@ import {
 } from "recharts"
 import {
   Activity,
+  Gauge,
   GitBranch,
   Info,
   ShieldAlert,
@@ -13,7 +14,6 @@ import {
   Users,
   Workflow,
 } from "lucide-react"
-import { ScoreGauge } from "@/components/app/ScoreGauge"
 import {
   InsightError,
   InsightLoading,
@@ -27,6 +27,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 import { useRepoMetrics } from "@/hooks/useRepoDetail"
 import { useRepoOverview } from "@/hooks/useRepoInsights"
 import { formatPercent } from "@/lib/format"
@@ -104,7 +105,7 @@ export function OverviewTab({
     return (
       <InsightUnavailable
         title="No overview yet"
-        description="Run a scan to see adoption alongside activity, dependencies, CI stability, and contributor concentration."
+        description="Run a scan to see repository health alongside activity, dependencies, workflows, contributor concentration, and tool adoption."
         scanning={scanning}
         onRunScan={onRunScan}
       />
@@ -117,59 +118,64 @@ export function OverviewTab({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center gap-2 py-6">
-            <ScoreGauge score={adoption} label="Tool adoption" />
-            <Badge>Primary metric</Badge>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="size-4" />
-              Repository health
-            </CardTitle>
-            <CardDescription>
-              Context from activity, dependencies, CI, contributors, and commit
-              quality. Tool adoption remains the headline metric.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap items-end gap-3">
-              <p className="text-5xl font-bold">
-                {health?.score === null || health?.score === undefined
-                  ? "—"
-                  : health.score.toFixed(1)}
-              </p>
-              <p className="pb-2 text-sm text-muted-foreground">out of 100</p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {health?.components.map((component) => (
-                <div
-                  key={component.key}
-                  className="flex items-center justify-between rounded-md border px-3 py-2 text-xs"
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="size-4" />
+            Repository health
+          </CardTitle>
+          <CardDescription>
+            A combined view of activity, dependencies, workflows, contributors,
+            and commit quality.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
+          <div className="flex items-end gap-2">
+            <p className="text-5xl font-bold">
+              {health?.score === null || health?.score === undefined
+                ? "—"
+                : health.score.toFixed(1)}
+            </p>
+            <p className="pb-2 text-sm text-muted-foreground">out of 100</p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {health?.components.map((component) => (
+              <div
+                key={component.key}
+                className="flex items-center justify-between rounded-md border px-3 py-2 text-xs"
+              >
+                <span
+                  className={component.available ? "" : "text-muted-foreground"}
                 >
-                  <span
-                    className={
-                      component.available ? "" : "text-muted-foreground"
-                    }
-                  >
-                    {component.label}
-                  </span>
-                  <span className="font-medium">
-                    {component.available
-                      ? component.score.toFixed(1)
-                      : "Not collected"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                  {component.label}
+                </span>
+                <span className="font-medium">
+                  {component.available
+                    ? component.score.toFixed(1)
+                    : "Not collected"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <GlanceCard
+          title="Tool adoption"
+          description="How consistently contributors use tracked tools."
+          icon={<Gauge className="size-4" />}
+          onOpen={() => onSelectTab("tools")}
+        >
+          <p className="text-2xl font-semibold">
+            {adoption.toFixed(1)}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">
+              / 100
+            </span>
+          </p>
+          <Progress value={adoption} className="mt-3" />
+        </GlanceCard>
+
         {cards.concentration ? (
           <GlanceCard
             title="Contributor concentration"
@@ -210,16 +216,13 @@ export function OverviewTab({
                     </div>
                   ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Gini {cards.concentration.gini.toFixed(2)}
-              </p>
             </div>
           </GlanceCard>
         ) : null}
 
         {cards.ci ? (
           <GlanceCard
-            title="CI stability"
+            title="Workflow stability"
             description="Recent GitHub Actions success rate."
             icon={<Workflow className="size-4" />}
             onOpen={() => onSelectTab("workflows")}
@@ -262,11 +265,6 @@ export function OverviewTab({
                 <p className="text-[10px] text-muted-foreground">advisories</p>
               </div>
             </div>
-            {cards.dependencies.partial ? (
-              <Badge variant="secondary" className="mt-3">
-                Partial
-              </Badge>
-            ) : null}
           </GlanceCard>
         ) : null}
 

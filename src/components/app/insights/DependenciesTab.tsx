@@ -30,12 +30,21 @@ import {
   type DependencyFilters,
 } from "@/hooks/useRepoInsights"
 
-const SEVERITIES: DependencySeverity[] = [
-  "low",
-  "moderate",
-  "high",
+const SEVERITY_ORDER: DependencySeverity[] = [
   "critical",
+  "high",
+  "moderate",
+  "low",
 ]
+
+function severitySummary(severity: Record<DependencySeverity, number>): string {
+  const present = SEVERITY_ORDER.filter((level) => severity[level] > 0).slice(
+    0,
+    2,
+  )
+  if (present.length === 0) return "No known advisories"
+  return present.map((level) => `${severity[level]} ${level}`).join(", ")
+}
 
 function dependencyStatus(row: DependencyRow) {
   if (row.advisoryCount > 0) {
@@ -133,7 +142,8 @@ export function DependenciesTab({
         <div>
           <h2 className="text-lg font-semibold">Dependency health</h2>
           <p className="text-sm text-muted-foreground">
-            Latest registry versions and known OSV advisories.
+            Direct dependencies from manifests, latest registry versions, and
+            known OSV advisories.
           </p>
         </div>
         <Button
@@ -152,51 +162,48 @@ export function DependenciesTab({
 
       {summary.partial ? (
         <Badge variant="secondary">
-          Partial results — some registries were unavailable or the dependency cap was reached
+          Partial results — some registries were unavailable or the dependency
+          cap was reached
         </Badge>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card className="gap-1 py-3">
+          <CardHeader className="px-4 pb-0">
             <CardDescription>Total dependencies</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-semibold">{summary.total}</p>
+          <CardContent className="px-4">
+            <p className="text-2xl font-semibold">{summary.total}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {summary.checked} checked against registries
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="gap-1 py-3">
+          <CardHeader className="px-4 pb-0">
             <CardDescription>Outdated</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-semibold">{summary.outdated}</p>
+          <CardContent className="px-4">
+            <p className="text-2xl font-semibold">{summary.outdated}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               Newer stable version available
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="gap-1 py-3">
+          <CardHeader className="px-4 pb-0">
             <CardDescription>Advisories</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="flex items-center gap-2 text-3xl font-semibold">
+          <CardContent className="px-4">
+            <p className="flex items-center gap-2 text-2xl font-semibold">
               {summary.advisoryCount}
               {summary.advisoryCount > 0 ? (
-                <ShieldAlert className="size-5 text-destructive" />
+                <ShieldAlert className="size-4 text-destructive" />
               ) : null}
             </p>
-            <div className="mt-2 flex flex-wrap gap-1">
-              {SEVERITIES.map((severity) => (
-                <Badge key={severity} variant="outline" className="capitalize">
-                  {severity}: {summary.severity[severity]}
-                </Badge>
-              ))}
-            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {severitySummary(summary.severity)}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -238,7 +245,10 @@ export function DependenciesTab({
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    <TableCell
+                      colSpan={5}
+                      className="py-8 text-center text-muted-foreground"
+                    >
                       No dependencies match this filter.
                     </TableCell>
                   </TableRow>
@@ -246,10 +256,14 @@ export function DependenciesTab({
                   rows.map((row) => {
                     const status = dependencyStatus(row)
                     return (
-                      <TableRow key={`${row.ecosystem}-${row.packageName}-${row.currentVersion}`}>
+                      <TableRow
+                        key={`${row.ecosystem}-${row.packageName}-${row.currentVersion}`}
+                      >
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="font-medium">{row.packageName}</span>
+                            <span className="font-medium">
+                              {row.packageName}
+                            </span>
                             <span className="text-xs text-muted-foreground">
                               {row.ecosystem}
                             </span>
@@ -263,11 +277,15 @@ export function DependenciesTab({
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
-                            <Badge variant={status.variant}>{status.label}</Badge>
+                            <Badge variant={status.variant}>
+                              {status.label}
+                            </Badge>
                             {row.advisoryCount > 0 ? (
                               <Badge variant="outline">
                                 {row.advisoryCount}{" "}
-                                {row.advisoryCount === 1 ? "advisory" : "advisories"}
+                                {row.advisoryCount === 1
+                                  ? "advisory"
+                                  : "advisories"}
                                 {row.maxSeverity ? ` · ${row.maxSeverity}` : ""}
                               </Badge>
                             ) : null}

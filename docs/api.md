@@ -480,9 +480,11 @@ Query parameters:
 }
 ```
 
-Supported lockfiles: `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`,
-`requirements.txt`, `pyproject.toml`, `go.mod`, `go.sum`, `Gemfile.lock`, `Gemfile`,
-`composer.lock`, and `composer.json`. Parsing is capped at 300 dependencies per
+Direct manifests are preferred: `package.json`, `requirements.txt`,
+`pyproject.toml`, `go.mod`, `Gemfile`, and `composer.json`. Lockfiles
+(`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `go.sum`, `Gemfile.lock`,
+`composer.lock`) are per-ecosystem fallbacks when no direct manifest is
+available. Parsing is capped at 300 dependencies per
 scan; registry and OSV lookups use 24h Redis caches and a 90s budget. A failed
 or truncated lookup sets `summary.partial`.
 
@@ -501,8 +503,8 @@ advances.
 
 ### `GET /repos/:id/overview`
 
-Composite card data plus a health score. The health score is context; tool
-adoption remains the primary metric.
+Composite card data plus a health score. Tool adoption is one card alongside
+activity, dependencies, workflows, concentration, and commit quality.
 
 ```json
 {
@@ -514,7 +516,7 @@ adoption remains the primary metric.
     "components": [
       { "key": "activity", "label": "Activity", "score": 80, "weight": 0.25, "available": true },
       { "key": "dependencies", "label": "Dependency freshness", "score": 88.33, "weight": 0.25, "available": true },
-      { "key": "ci", "label": "CI stability", "score": 82.5, "weight": 0.2, "available": true },
+      { "key": "ci", "label": "Workflow stability", "score": 82.5, "weight": 0.2, "available": true },
       { "key": "concentration", "label": "Contributor spread", "score": 56, "weight": 0.15, "available": true },
       { "key": "commitQuality", "label": "Commit quality", "score": 70, "weight": 0.15, "available": true }
     ]
@@ -532,7 +534,7 @@ adoption remains the primary metric.
 }
 ```
 
-Health weights are activity 25%, dependency freshness 25%, CI 20%, contributor
+Health weights are activity 25%, dependency freshness 25%, workflow stability 20%, contributor
 spread 15%, and commit quality 15%. Missing components are removed and the
 remaining weights are renormalized. See
 [`docs/architecture.md#composite-health-score`](architecture.md#composite-health-score).

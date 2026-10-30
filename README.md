@@ -4,7 +4,7 @@
   repo-insights
 </h1>
 
-repo-insights tells you whether your contributors are actually using the tools you set up — plus activity, dependency health, CI stability, and more, all in one dashboard.
+repo-insights tells you whether your contributors are actually using the tools you set up — plus activity, dependency health, workflow stability, and more, all in one dashboard.
 
 > **"Are our contributors actually using the tools we're asking them to use?"**
 
@@ -12,15 +12,15 @@ Connect a GitHub repository and get clear, per-tool adoption metrics — who's u
 
 ## Features
 
-- **Tool adoption** — one score plus per-tool, per-contributor adoption across 13 tools.
-- **Overview** — adoption and repository health side by side, with links into the detail tabs.
+- **Overview** — repository health first, with activity, dependency, workflow, structure, adoption, and commit-quality cards.
 - **Activity** — commit cadence, weekday/hour patterns, contributor mix, and Conventional Commits quality.
 - **Structure** — a bounded repository tree, file-type mix, and directory size totals.
-- **Dependencies** — lockfile parsing, latest-version checks, OSV advisories, and queued refresh.
-- **CI** — GitHub Actions success rates, durations, branches, and recent failures.
+- **Dependencies** — direct manifest parsing, latest-version checks, OSV advisories, and queued refresh.
+- **Workflows** — GitHub Actions success rates, durations, branches, and recent failures.
+- **Tools** — one adoption score plus per-tool, per-contributor adoption across 13 tools.
 - **Contributor concentration** — top-contributor share and bus-factor risk.
 
-Repository health is context, not a replacement for tool adoption: activity, dependency freshness, CI stability, contributor spread, and commit quality are weighted and renormalized when a source is unavailable.
+Tool adoption is one signal alongside activity, dependency freshness, workflow stability, contributor spread, and commit quality. All repository views are first-class, and missing sources are removed and renormalized rather than presented as a primary workflow.
 
 The app requests the read-only `public_repo` scope, so it analyzes public repositories. Some Actions data may still be unavailable to the token; the UI reports that source as not collected instead of failing the whole report.
 

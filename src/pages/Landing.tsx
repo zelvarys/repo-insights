@@ -318,7 +318,7 @@ export default function Landing() {
             <p className="mt-6 max-w-2xl text-lg text-balance text-muted-foreground">
               repo-insights scans your repositories, checks recent commits, and
               shows you who is using the tools your team standardised on — plus
-              activity, dependency health, CI stability, structure, and commit
+              activity, dependency health, workflow stability, structure, and commit
               quality.
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-2">
@@ -433,7 +433,7 @@ export default function Landing() {
               </h2>
               <p className="mt-3 text-muted-foreground">
                 See adoption at a glance, then explore activity, dependencies,
-                CI stability, structure, and the contributors behind the number.
+                workflow stability, structure, and the contributors behind the number.
               </p>
             </div>
             <Card className="mx-auto mt-10 max-w-4xl overflow-hidden">

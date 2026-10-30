@@ -94,6 +94,49 @@ describe('dependency parsers', () => {
       { ecosystem: 'pypi', name: 'click', version: '8.1.7' },
       { ecosystem: 'pypi', name: 'django', version: '4.2.1' },
       { ecosystem: 'pypi', name: 'requests', version: '2.31.0' },
+      { ecosystem: 'pypi', name: 'unpinned', version: '1.0' },
+    ]);
+  });
+
+  it('prefers direct package manifests over transitive lockfile entries', () => {
+    const result = parseDependencies({
+      'package.json': JSON.stringify({
+        dependencies: {
+          lodash: '^4.17.21',
+          react: '~18.2.0',
+          linked: 'file:../linked',
+        },
+        devDependencies: { vitest: '>=2.0.0 <3' },
+      }),
+      'package-lock.json': JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          'node_modules/lodash': { version: '4.17.21' },
+          'node_modules/transitive': { version: '1.0.0' },
+        },
+      }),
+    });
+    expect(result.dependencies).toEqual([
+      { ecosystem: 'npm', name: 'lodash', version: '4.17.21' },
+      { ecosystem: 'npm', name: 'react', version: '18.2.0' },
+      { ecosystem: 'npm', name: 'vitest', version: '2.0.0' },
+    ]);
+  });
+
+  it('parses PEP 621 project dependencies from pyproject.toml', () => {
+    const result = parseDependencies({
+      'pyproject.toml': [
+        '[project]',
+        'dependencies = [',
+        '  "requests>=2.31.0",',
+        '  "django[argon2]~=4.2.1",',
+        '  "unpinned",',
+        ']',
+      ].join('\n'),
+    });
+    expect(result.dependencies).toEqual([
+      { ecosystem: 'pypi', name: 'django', version: '4.2.1' },
+      { ecosystem: 'pypi', name: 'requests', version: '2.31.0' },
     ]);
   });
 
@@ -123,7 +166,11 @@ describe('dependency parsers', () => {
     });
     expect(result.dependencies).toEqual([
       { ecosystem: 'go', name: 'github.com/gin-gonic/gin', version: '1.9.1' },
-      { ecosystem: 'go', name: 'github.com/stretchr/testify', version: '1.8.4' },
+      {
+        ecosystem: 'go',
+        name: 'github.com/stretchr/testify',
+        version: '1.8.4',
+      },
       { ecosystem: 'packagist', name: 'monolog/monolog', version: '3.5.0' },
       { ecosystem: 'packagist', name: 'phpunit/phpunit', version: '10.4.0' },
       { ecosystem: 'rubygems', name: 'rails', version: '7.0.8' },
@@ -141,7 +188,11 @@ describe('dependency parsers', () => {
     });
     expect(result.dependencies).toEqual([
       { ecosystem: 'go', name: 'github.com/gin-gonic/gin', version: '1.9.1' },
-      { ecosystem: 'go', name: 'github.com/stretchr/testify', version: '1.8.4' },
+      {
+        ecosystem: 'go',
+        name: 'github.com/stretchr/testify',
+        version: '1.8.4',
+      },
     ]);
   });
 
@@ -164,7 +215,11 @@ describe('dependency parsers', () => {
       registryUrl({ ecosystem: 'pypi', name: 'requests', version: '1.0.0' }),
     ).toBe('https://pypi.org/project/requests/');
     expect(
-      registryUrl({ ecosystem: 'go', name: 'github.com/a/b', version: '1.0.0' }),
+      registryUrl({
+        ecosystem: 'go',
+        name: 'github.com/a/b',
+        version: '1.0.0',
+      }),
     ).toBe('https://pkg.go.dev/github.com/a/b');
     expect(
       registryUrl({ ecosystem: 'rubygems', name: 'rails', version: '1.0.0' }),
@@ -230,9 +285,7 @@ describe('OSV advisories', () => {
       { force: true },
     );
     expect(result.partial).toBe(false);
-    expect(
-      result.advisories.get('npm:unique-osv-pkg@1.0.0'),
-    ).toEqual([
+    expect(result.advisories.get('npm:unique-osv-pkg@1.0.0')).toEqual([
       { id: 'OSV-1', severity: 'high' },
       { id: 'OSV-2', severity: 'moderate' },
     ]);
@@ -240,7 +293,10 @@ describe('OSV advisories', () => {
   });
 
   it('marks lookups partial when OSV fails', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 503 }),
+    );
     const result = await lookupAdvisories(
       [{ ecosystem: 'pypi', name: 'unique-osv-fail', version: '1.0.0' }],
       { force: true },

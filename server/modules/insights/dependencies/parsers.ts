@@ -11,16 +11,58 @@ export type ParseResult = {
   partial: boolean;
 };
 
-const DIFFICULT_VERSIONS = /^(workspace|link|file|git|https?):/i;
+const DIFFICULT_VERSIONS =
+  /^(workspace|link|file|git|https?|npm|catalog|portal):/i;
 
 function cleanVersion(value: string): string | null {
-  const version = value.trim().replace(/^["']|["']$/g, '').replace(/^v/, '');
+  const version = value
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/^v/, '');
   if (!version || DIFFICULT_VERSIONS.test(version)) return null;
   return version;
 }
 
+function declaredVersion(value: string): string | null {
+  const raw = value.trim().replace(/^["']|["']$/g, '');
+  if (
+    !raw ||
+    DIFFICULT_VERSIONS.test(raw) ||
+    raw === '*' ||
+    raw.toLowerCase() === 'latest' ||
+    raw.includes('://')
+  ) {
+    return null;
+  }
+  const match = /\d+(?:\.\d+){0,2}(?:[-+][0-9A-Za-z.-]+)?/.exec(raw);
+  return match ? cleanVersion(match[0]) : null;
+}
+
+function parsePackageJson(content: string): ParsedDependency[] {
+  const data = JSON.parse(content) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+    optionalDependencies?: Record<string, string>;
+  };
+  const result: ParsedDependency[] = [];
+  for (const section of [
+    data.dependencies,
+    data.devDependencies,
+    data.optionalDependencies,
+  ]) {
+    for (const [name, rawVersion] of Object.entries(section ?? {})) {
+      const version = declaredVersion(rawVersion);
+      if (version) result.push({ ecosystem: 'npm', name, version });
+    }
+  }
+  return result;
+}
+
 function npmNameFromSelector(selector: string): string | null {
-  const first = selector.replace(/^["']|["']$/g, '').split(',')[0]!.trim();
+  const first = selector
+    .replace(/^["']|["']$/g, '')
+    .split(',')[0]!
+    .trim();
   if (!first || first.startsWith('__metadata')) return null;
   const at = first.lastIndexOf('@');
   if (at <= 0) return null;
@@ -57,11 +99,18 @@ function parsePackageLock(content: string): ParsedDependency[] {
   }
 
   if (result.length === 0 && data.dependencies) {
-    function walk(deps: Record<string, { version?: string; dependencies?: unknown }>): void {
+    function walk(
+      deps: Record<string, { version?: string; dependencies?: unknown }>,
+    ): void {
       for (const [name, entry] of Object.entries(deps)) {
         add(name, entry.version);
         if (entry.dependencies) {
-          walk(entry.dependencies as Record<string, { version?: string; dependencies?: unknown }>);
+          walk(
+            entry.dependencies as Record<
+              string,
+              { version?: string; dependencies?: unknown }
+            >,
+          );
         }
       }
     }
@@ -76,7 +125,8 @@ function parseYarnLock(content: string): ParsedDependency[] {
   for (const block of content.split(/\n\s*\n/)) {
     const lines = block.split(/\r?\n/);
     const header = lines[0]?.trim();
-    if (!header || header.startsWith('#') || header.startsWith('__metadata')) continue;
+    if (!header || header.startsWith('#') || header.startsWith('__metadata'))
+      continue;
     const selector = header.replace(/:$/, '');
     const name = npmNameFromSelector(selector);
     if (!name) continue;
@@ -117,9 +167,9 @@ function parseRequirements(content: string): ParsedDependency[] {
   for (const line of content.split(/\r?\n/)) {
     const cleaned = line.replace(/#.*$/, '').trim();
     if (!cleaned || cleaned.startsWith('-')) continue;
-    const match = /^([A-Za-z0-9_.-]+)\s*(?:\[[^\]]+\])?\s*==\s*([^\s;]+)/.exec(cleaned);
+    const match = /^([A-Za-z0-9_.-]+)(?:\[[^\]]+\])?\s*(.*)$/.exec(cleaned);
     if (!match) continue;
-    const version = cleanVersion(match[2]!);
+    const version = declaredVersion(match[2]!);
     if (version) result.push({ ecosystem: 'pypi', name: match[1]!, version });
   }
   return result;
@@ -133,6 +183,29 @@ function parsePyproject(content: string): ParsedDependency[] {
     if (version) result.push({ ecosystem: 'pypi', name: match[1]!, version });
   }
 
+  const lines = content.split(/\r?\n/);
+  const dependenciesStart = lines.findIndex((line) =>
+    /^\s*dependencies\s*=\s*\[/.test(line),
+  );
+  if (dependenciesStart !== -1) {
+    for (let index = dependenciesStart; index < lines.length; index += 1) {
+      const line = lines[index]!;
+      const itemText =
+        index === dependenciesStart ? line.slice(line.indexOf('[') + 1) : line;
+      if (/^\s*\]/.test(itemText)) break;
+      for (const item of itemText.matchAll(/["']([^"']+)["']/g)) {
+        const match = /^([A-Za-z0-9_.-]+)(?:\[[^\]]+\])?\s*(.*)$/.exec(
+          item[1]!,
+        );
+        if (!match) continue;
+        const version = declaredVersion(match[2]!);
+        if (version) {
+          result.push({ ecosystem: 'pypi', name: match[1]!, version });
+        }
+      }
+    }
+  }
+
   let inPoetry = false;
   for (const line of content.split(/\r?\n/)) {
     if (/^\s*\[tool\.poetry\.dependencies\]\s*$/.test(line)) {
@@ -144,9 +217,11 @@ function parsePyproject(content: string): ParsedDependency[] {
       continue;
     }
     if (!inPoetry) continue;
-    const match = /^\s*([A-Za-z0-9_.-]+)\s*=\s*["']([0-9][^"']*)["']/.exec(line);
+    const match = /^\s*([A-Za-z0-9_.-]+)\s*=\s*["']([0-9][^"']*)["']/.exec(
+      line,
+    );
     if (!match || match[1]!.toLowerCase() === 'python') continue;
-    const version = cleanVersion(match[2]!);
+    const version = declaredVersion(match[2]!);
     if (version) result.push({ ecosystem: 'pypi', name: match[1]!, version });
   }
   return result;
@@ -206,7 +281,8 @@ function parseGemfileLock(content: string): ParsedDependency[] {
     const match = /^\s{4}([A-Za-z0-9_.-]+)\s+\(([^)]+)\)/.exec(line);
     if (!match) continue;
     const version = cleanVersion(match[2]!);
-    if (version) result.push({ ecosystem: 'rubygems', name: match[1]!, version });
+    if (version)
+      result.push({ ecosystem: 'rubygems', name: match[1]!, version });
   }
   return result;
 }
@@ -214,10 +290,12 @@ function parseGemfileLock(content: string): ParsedDependency[] {
 function parseGemfile(content: string): ParsedDependency[] {
   const result: ParsedDependency[] = [];
   for (const line of content.split(/\r?\n/)) {
-    const match = /^\s*gem\s+["']([^"']+)["']\s*,\s*["']([0-9][^"']*)["']/.exec(line);
+    const match = /^\s*gem\s+["']([^"']+)["']\s*,\s*["']([^"']+)["']/.exec(
+      line,
+    );
     if (!match) continue;
-    const version = cleanVersion(match[2]!);
-    if (version && /^\d/.test(version)) {
+    const version = declaredVersion(match[2]!);
+    if (version) {
       result.push({ ecosystem: 'rubygems', name: match[1]!, version });
     }
   }
@@ -230,7 +308,10 @@ function parseComposerLock(content: string): ParsedDependency[] {
     'packages-dev'?: Array<{ name?: string; version?: string }>;
   };
   const result: ParsedDependency[] = [];
-  for (const entry of [...(data.packages ?? []), ...(data['packages-dev'] ?? [])]) {
+  for (const entry of [
+    ...(data.packages ?? []),
+    ...(data['packages-dev'] ?? []),
+  ]) {
     if (!entry.name || !entry.version) continue;
     const version = cleanVersion(entry.version);
     if (version) {
@@ -251,8 +332,8 @@ function parseComposerJson(content: string): ParsedDependency[] {
     ...(data['require-dev'] ?? {}),
   })) {
     if (name.toLowerCase() === 'php') continue;
-    const version = cleanVersion(rawVersion);
-    if (version && /^\d/.test(version)) {
+    const version = declaredVersion(rawVersion);
+    if (version) {
       result.push({ ecosystem: 'packagist', name, version });
     }
   }
@@ -265,21 +346,49 @@ export function parseDependencies(
   const dependencies: ParsedDependency[] = [];
   let partial = false;
 
-  const parsers: Array<[string, (content: string) => ParsedDependency[]]> = [
-    ['package-lock.json', parsePackageLock],
-    ['yarn.lock', parseYarnLock],
-    ['pnpm-lock.yaml', parsePnpmLock],
-    ['requirements.txt', parseRequirements],
-    ['pyproject.toml', parsePyproject],
-    ['go.mod', parseGoMod],
-    ['go.sum', parseGoSum],
-    ['Gemfile.lock', parseGemfileLock],
-    ['Gemfile', parseGemfile],
-    ['composer.lock', parseComposerLock],
-    ['composer.json', parseComposerJson],
+  const manifestParsers: Array<
+    [
+      string,
+      (content: string) => ParsedDependency[],
+      'npm' | 'pypi' | 'go' | 'rubygems' | 'packagist',
+    ]
+  > = [
+    ['package.json', parsePackageJson, 'npm'],
+    ['requirements.txt', parseRequirements, 'pypi'],
+    ['pyproject.toml', parsePyproject, 'pypi'],
+    ['go.mod', parseGoMod, 'go'],
+    ['Gemfile', parseGemfile, 'rubygems'],
+    ['composer.json', parseComposerJson, 'packagist'],
+  ];
+  const fallbackParsers: Array<
+    [
+      string,
+      (content: string) => ParsedDependency[],
+      'npm' | 'pypi' | 'go' | 'rubygems' | 'packagist',
+    ]
+  > = [
+    ['package-lock.json', parsePackageLock, 'npm'],
+    ['yarn.lock', parseYarnLock, 'npm'],
+    ['pnpm-lock.yaml', parsePnpmLock, 'npm'],
+    ['go.sum', parseGoSum, 'go'],
+    ['Gemfile.lock', parseGemfileLock, 'rubygems'],
+    ['composer.lock', parseComposerLock, 'packagist'],
   ];
 
-  for (const [path, parser] of parsers) {
+  const manifestEcosystems = new Set<string>();
+  for (const [path, parser, ecosystem] of manifestParsers) {
+    const content = configFiles[path];
+    if (content === undefined) continue;
+    try {
+      dependencies.push(...parser(content));
+      manifestEcosystems.add(ecosystem);
+    } catch {
+      partial = true;
+    }
+  }
+
+  for (const [path, parser, ecosystem] of fallbackParsers) {
+    if (manifestEcosystems.has(ecosystem)) continue;
     const content = configFiles[path];
     if (content === undefined) continue;
     try {

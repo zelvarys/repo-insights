@@ -32,10 +32,7 @@ import { useRepoOverview } from "@/hooks/useRepoInsights"
 import { formatPercent } from "@/lib/format"
 
 type RepoTab =
-  | "activity"
-  | "structure"
-  | "dependencies"
-  | "ci"
+  "overview" | "activity" | "structure" | "dependencies" | "workflows" | "tools"
 
 function riskVariant(risk: "green" | "yellow" | "red") {
   if (risk === "green") return "default" as const
@@ -153,7 +150,11 @@ export function OverviewTab({
                   key={component.key}
                   className="flex items-center justify-between rounded-md border px-3 py-2 text-xs"
                 >
-                  <span className={component.available ? "" : "text-muted-foreground"}>
+                  <span
+                    className={
+                      component.available ? "" : "text-muted-foreground"
+                    }
+                  >
                     {component.label}
                   </span>
                   <span className="font-medium">
@@ -195,17 +196,19 @@ export function OverviewTab({
                 </span>
               </div>
               <div className="space-y-1">
-                {cards.concentration.topContributors.slice(0, 3).map((person) => (
-                  <div
-                    key={person.login}
-                    className="flex items-center justify-between text-xs"
-                  >
-                    <span className="truncate">{person.login}</span>
-                    <span className="text-muted-foreground">
-                      {formatPercent(person.share)}
-                    </span>
-                  </div>
-                ))}
+                {cards.concentration.topContributors
+                  .slice(0, 3)
+                  .map((person) => (
+                    <div
+                      key={person.login}
+                      className="flex items-center justify-between text-xs"
+                    >
+                      <span className="truncate">{person.login}</span>
+                      <span className="text-muted-foreground">
+                        {formatPercent(person.share)}
+                      </span>
+                    </div>
+                  ))}
               </div>
               <p className="text-xs text-muted-foreground">
                 Gini {cards.concentration.gini.toFixed(2)}
@@ -219,7 +222,7 @@ export function OverviewTab({
             title="CI stability"
             description="Recent GitHub Actions success rate."
             icon={<Workflow className="size-4" />}
-            onOpen={() => onSelectTab("ci")}
+            onOpen={() => onSelectTab("workflows")}
           >
             <p className="text-2xl font-semibold">
               {formatPercent(cards.ci.successRate)}

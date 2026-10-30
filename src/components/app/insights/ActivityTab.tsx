@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react"
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -32,6 +34,16 @@ import { cn } from "@/lib/utils"
 const DAY_MS = 24 * 60 * 60 * 1000
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
+function formatWeek(value: string): string {
+  const date = new Date(`${value}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  })
+}
+
 function heatClass(count: number): string {
   if (count <= 0) return "bg-muted"
   if (count <= 2) return "bg-primary/20"
@@ -44,12 +56,10 @@ function Heatmap({ daily }: { daily: Record<string, number> }) {
   const { cells, monthLabels } = useMemo(() => {
     const today = new Date()
     const todayDay = new Date(
-      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
     )
     const start = new Date(todayDay)
-    start.setUTCDate(
-      start.getUTCDate() - todayDay.getUTCDay() - 51 * 7
-    )
+    start.setUTCDate(start.getUTCDate() - todayDay.getUTCDay() - 51 * 7)
 
     const result: Array<{
       key: string
@@ -110,15 +120,13 @@ function Heatmap({ daily }: { daily: Record<string, number> }) {
           {cells.map((cell) => (
             <div
               key={cell.key}
-              title={
-                cell.future ? "" : `${cell.date}: ${cell.count} commits`
-              }
+              title={cell.future ? "" : `${cell.date}: ${cell.count} commits`}
               aria-label={
                 cell.future ? undefined : `${cell.date}: ${cell.count} commits`
               }
               className={cn(
                 "size-3 rounded-[2px]",
-                cell.future ? "bg-transparent" : heatClass(cell.count)
+                cell.future ? "bg-transparent" : heatClass(cell.count),
               )}
             />
           ))}
@@ -150,7 +158,9 @@ function QualityCard({ quality }: { quality: CommitQuality }) {
       <CardContent className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <p className="text-xs text-muted-foreground">Conventional Commits</p>
+            <p className="text-xs text-muted-foreground">
+              Conventional Commits
+            </p>
             <p className="text-2xl font-semibold">
               {quality.conventionalPercent.toFixed(1)}%
             </p>
@@ -165,7 +175,7 @@ function QualityCard({ quality }: { quality: CommitQuality }) {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Most common type</p>
-            <p className="mt-1 text-2xl font-semibold capitalize">
+            <p className="mt-1 text-2xl font-semibold">
               {quality.mostCommonType ?? "—"}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
@@ -187,7 +197,11 @@ function QualityCard({ quality }: { quality: CommitQuality }) {
                   borderRadius: 8,
                 }}
               />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="var(--chart-2)" />
+              <Bar
+                dataKey="count"
+                radius={[4, 4, 0, 0]}
+                fill="var(--chart-2)"
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -199,7 +213,10 @@ function QualityCard({ quality }: { quality: CommitQuality }) {
             </summary>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
               {quality.examples.map((example) => (
-                <li key={example} className="rounded bg-muted/40 px-2 py-1 font-mono text-xs">
+                <li
+                  key={example}
+                  className="rounded bg-muted/40 px-2 py-1 font-mono text-xs"
+                >
                   {example}
                 </li>
               ))}
@@ -245,7 +262,10 @@ export function ActivityTab({
   }
 
   const activity = query.data.activity
-  const maxWeekly = Math.max(1, ...activity.weekly.map((week) => week.count))
+  const maxContributorCommits = Math.max(
+    1,
+    ...activity.topContributors.map((person) => person.commits),
+  )
 
   return (
     <div className="space-y-6">
@@ -275,36 +295,59 @@ export function ActivityTab({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="size-4" />
-            {activity.daily ? Object.values(activity.daily).reduce((a, b) => a + b, 0) : 0}{" "}
+            {activity.daily
+              ? Object.values(activity.daily).reduce((a, b) => a + b, 0)
+              : 0}{" "}
             commits
           </CardTitle>
           <CardDescription>
-            Last {range} days · {activity.topContributors.length} active contributors
+            Last {range} days · {activity.topContributors.length} active
+            contributors
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Heatmap daily={activity.daily} />
-          <div className="mt-5 h-32">
+          <div className="mt-6 h-40">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={activity.weekly}>
+              <AreaChart
+                data={activity.weekly}
+                margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="weekStart" hide />
-                <YAxis
-                  allowDecimals={false}
-                  domain={[0, Math.ceil(maxWeekly * 1.2)]}
+                <XAxis
+                  dataKey="weekStart"
+                  tickFormatter={formatWeek}
+                  minTickGap={28}
                   tickLine={false}
                   axisLine={false}
+                  fontSize={11}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={11}
+                  width={32}
                 />
                 <ChartTooltip
-                  labelFormatter={(label) => `Week of ${label}`}
+                  labelFormatter={(label) =>
+                    `Week of ${formatWeek(String(label))}`
+                  }
                   contentStyle={{
                     background: "var(--popover)",
                     border: "1px solid var(--border)",
                     borderRadius: 8,
                   }}
                 />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]} fill={colors.primary} />
-              </BarChart>
+                <Area
+                  type="monotone"
+                  dataKey="count"
+                  stroke={colors.primary}
+                  fill={colors.primary}
+                  fillOpacity={0.18}
+                  strokeWidth={2}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </CardContent>
@@ -319,46 +362,51 @@ export function ActivityTab({
             </CardTitle>
             <CardDescription>Commits in the selected window.</CardDescription>
           </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={activity.topContributors.slice(0, 10)}
-                layout="vertical"
-                margin={{ left: 8, right: 16 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} hide />
-                <YAxis
-                  type="category"
-                  dataKey="login"
-                  width={110}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <ChartTooltip
-                  contentStyle={{
-                    background: "var(--popover)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                  }}
-                />
-                <Bar dataKey="commits" radius={[0, 4, 4, 0]} fill={colors.primary} />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="space-y-3">
+            {activity.topContributors.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No contributor activity in this window.
+              </p>
+            ) : (
+              activity.topContributors.slice(0, 10).map((person, index) => (
+                <div key={person.login} className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate">
+                      <span className="mr-2 text-xs text-muted-foreground">
+                        {index + 1}.
+                      </span>
+                      {person.login}
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {person.commits}{" "}
+                      {person.commits === 1 ? "commit" : "commits"}
+                    </span>
+                  </div>
+                  <Progress
+                    value={(person.commits / maxContributorCommits) * 100}
+                    aria-label={`${person.login} commits`}
+                  />
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle>When contributors commit</CardTitle>
-            <CardDescription>UTC weekday and hour distribution.</CardDescription>
+            <CardDescription>
+              UTC weekday and hour distribution.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-7 gap-1 text-center text-xs">
               {WEEKDAYS.map((day, index) => (
                 <div key={day} className="rounded-md bg-muted/50 p-2">
                   <p className="text-muted-foreground">{day}</p>
-                  <p className="mt-1 font-semibold">{activity.weekday[index]}</p>
+                  <p className="mt-1 font-semibold">
+                    {activity.weekday[index]}
+                  </p>
                 </div>
               ))}
             </div>

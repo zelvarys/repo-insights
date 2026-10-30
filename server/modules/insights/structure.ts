@@ -13,6 +13,20 @@ export type RawTreeEntry = {
 
 const MAX_DEPTH = 4;
 const MAX_ENTRIES = 500;
+const IGNORED_FILE_TYPES = new Set([
+  '(none)',
+  '.example',
+  '.sample',
+  '.template',
+  '.tmpl',
+  '.dist',
+  '.bak',
+  '.tmp',
+  '.temp',
+  '.log',
+  '.lock',
+  '.map',
+]);
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
@@ -122,6 +136,7 @@ export function buildRepoStructure(
   for (const node of nodes.values()) {
     if (node.type !== 'file') continue;
     const ext = extension(node.path);
+    if (IGNORED_FILE_TYPES.has(ext)) continue;
     const current = typeTotals.get(ext) ?? { count: 0, sizeBytes: 0 };
     current.count += 1;
     current.sizeBytes += node.size;

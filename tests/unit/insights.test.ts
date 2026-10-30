@@ -16,15 +16,24 @@ describe('repo structure', () => {
         { path: 'src/lib', type: 'tree' },
         { path: 'src/lib/a.ts', type: 'blob', size: 50 },
         { path: 'README.md', type: 'blob', size: 20 },
+        { path: 'config.example', type: 'blob', size: 10 },
+        { path: 'debug.log', type: 'blob', size: 5 },
+        { path: 'LICENSE', type: 'blob', size: 1 },
         { path: 'src/index.ts', type: 'commit' },
       ],
       { 'src/lib/a.ts': '2026-01-01T00:00:00.000Z' },
     );
 
-    expect(structure.fileCount).toBe(3);
+    expect(structure.fileCount).toBe(6);
     expect(structure.directoryCount).toBe(2);
-    expect(structure.totalSize).toBe(170);
-    expect(structure.tree.map((node) => node.name)).toEqual(['src', 'README.md']);
+    expect(structure.totalSize).toBe(186);
+    expect(structure.tree.map((node) => node.name)).toEqual([
+      'src',
+      'config.example',
+      'debug.log',
+      'LICENSE',
+      'README.md',
+    ]);
     const src = structure.tree[0]!;
     expect(src.fileCount).toBe(2);
     expect(src.size).toBe(150);

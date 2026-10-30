@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from "react"
 import {
   Bar,
   BarChart,
@@ -7,32 +7,59 @@ import {
   Tooltip as ChartTooltip,
   XAxis,
   YAxis,
-} from "recharts";
+} from "recharts"
 import {
   ChevronDown,
   ChevronRight,
+  Copy,
   File,
   Folder,
   FolderTree,
-} from "lucide-react";
-import type { RepoTreeNode } from "@shared/types";
+} from "lucide-react"
+import { toast } from "sonner"
+import type { RepoTreeNode } from "@shared/types"
 import {
   InsightError,
   InsightLoading,
   InsightUnavailable,
-} from "@/components/app/insights/InsightState";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+} from "@/components/app/insights/InsightState"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { useRepoStructure } from "@/hooks/useRepoInsights";
-import { formatBytes } from "@/lib/format";
-import { cn } from "@/lib/utils";
+} from "@/components/ui/card"
+import { useRepoStructure } from "@/hooks/useRepoInsights"
+import { formatBytes } from "@/lib/format"
+import { cn } from "@/lib/utils"
+
+const IGNORED_FILE_TYPES = new Set([
+  "(none)",
+  ".example",
+  ".sample",
+  ".template",
+  ".tmpl",
+  ".dist",
+  ".bak",
+  ".tmp",
+  ".temp",
+  ".log",
+  ".lock",
+  ".map",
+])
+
+function treeToText(nodes: RepoTreeNode[], depth = 0): string {
+  return nodes
+    .map((node) => {
+      const line = `${"  ".repeat(depth)}${node.name}${node.type === "dir" ? "/" : ""}`
+      if (node.type !== "dir" || !node.children?.length) return line
+      return `${line}\n${treeToText(node.children, depth + 1)}`
+    })
+    .join("\n")
+}
 
 function TreeRow({
   node,
@@ -42,15 +69,15 @@ function TreeRow({
   selectedPath,
   onSelectFile,
 }: {
-  node: RepoTreeNode;
-  depth: number;
-  expanded: Set<string>;
-  toggle: (path: string) => void;
-  selectedPath: string | null;
-  onSelectFile: (node: RepoTreeNode) => void;
+  node: RepoTreeNode
+  depth: number
+  expanded: Set<string>
+  toggle: (path: string) => void
+  selectedPath: string | null
+  onSelectFile: (node: RepoTreeNode) => void
 }) {
-  const isOpen = expanded.has(node.path);
-  const isDirectory = node.type === "dir";
+  const isOpen = expanded.has(node.path)
+  const isDirectory = node.type === "dir"
   return (
     <div>
       <button
@@ -91,9 +118,6 @@ function TreeRow({
         ) : (
           <span className="shrink-0 text-[10px] text-muted-foreground">
             {formatBytes(node.size)}
-            {node.lastModified
-              ? ` · ${new Date(node.lastModified).toLocaleDateString()}`
-              : ""}
           </span>
         )}
       </button>
@@ -111,7 +135,7 @@ function TreeRow({
           ))
         : null}
     </div>
-  );
+  )
 }
 
 export function StructureTab({
@@ -119,22 +143,22 @@ export function StructureTab({
   scanning,
   onRunScan,
 }: {
-  repoId: string;
-  scanning: boolean;
-  onRunScan: () => void;
+  repoId: string
+  scanning: boolean
+  onRunScan: () => void
 }) {
-  const query = useRepoStructure(repoId);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [selectedFile, setSelectedFile] = useState<RepoTreeNode | null>(null);
+  const query = useRepoStructure(repoId)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [selectedFile, setSelectedFile] = useState<RepoTreeNode | null>(null)
 
-  if (query.isLoading) return <InsightLoading />;
+  if (query.isLoading) return <InsightLoading />
   if (query.isError) {
     return (
       <InsightError
         error={query.error ?? new Error("Unknown error")}
         onRetry={() => query.refetch()}
       />
-    );
+    )
   }
   if (!query.data?.available || !query.data.structure) {
     return (
@@ -144,59 +168,80 @@ export function StructureTab({
         scanning={scanning}
         onRunScan={onRunScan}
       />
-    );
+    )
   }
 
-  const structure = query.data.structure;
+  const structure = query.data.structure
+  const visibleFileTypes = structure.fileTypes.filter(
+    (stat) => !IGNORED_FILE_TYPES.has(stat.extension),
+  )
+  const rootDirs = structure.tree.filter((node) => node.type === "dir")
+  const allRootsExpanded =
+    rootDirs.length > 0 && rootDirs.every((node) => expanded.has(node.path))
 
   function toggle(path: string) {
     setExpanded((current) => {
-      const next = new Set(current);
-      if (next.has(path)) next.delete(path);
-      else next.add(path);
-      return next;
-    });
+      const next = new Set(current)
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return next
+    })
+  }
+
+  function toggleRoots() {
+    if (allRootsExpanded) {
+      setExpanded(new Set())
+      return
+    }
+    setExpanded(new Set(rootDirs.map((node) => node.path)))
+  }
+
+  async function copyStructure() {
+    try {
+      await navigator.clipboard.writeText(treeToText(structure.tree))
+      toast.success("File structure copied")
+    } catch {
+      toast.error("Could not copy the file structure")
+    }
   }
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Card className="gap-1 py-3">
+          <CardHeader className="px-4 pb-0">
             <CardDescription>Files</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-semibold">{structure.fileCount}</p>
+          <CardContent className="px-4">
+            <p className="text-2xl font-semibold">{structure.fileCount}</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="gap-1 py-3">
+          <CardHeader className="px-4 pb-0">
             <CardDescription>Directories</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-semibold">{structure.directoryCount}</p>
+          <CardContent className="px-4">
+            <p className="text-2xl font-semibold">{structure.directoryCount}</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="gap-1 py-3">
+          <CardHeader className="px-4 pb-0">
             <CardDescription>Repository size</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-semibold">
+          <CardContent className="px-4">
+            <p className="text-2xl font-semibold">
               {formatBytes(structure.totalSize)}
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="gap-1 py-3">
+          <CardHeader className="px-4 pb-0">
             <CardDescription>File types</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-semibold">
-              {structure.fileTypes.length}
-            </p>
+          <CardContent className="px-4">
+            <p className="text-2xl font-semibold">{visibleFileTypes.length}</p>
             {structure.truncated ? (
-              <Badge variant="secondary" className="mt-2">
+              <Badge variant="secondary" className="mt-1">
                 Truncated
               </Badge>
             ) : null}
@@ -212,7 +257,7 @@ export function StructureTab({
         <CardContent className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={structure.fileTypes.slice(0, 10)}
+              data={visibleFileTypes.slice(0, 10)}
               layout="vertical"
               margin={{ left: 8, right: 16 }}
             >
@@ -254,21 +299,20 @@ export function StructureTab({
               select a file for its full path and metadata.
             </CardDescription>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              setExpanded(
-                new Set(
-                  structure.tree
-                    .filter((node) => node.type === "dir")
-                    .map((node) => node.path),
-                ),
-              )
-            }
-          >
-            Expand roots
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={toggleRoots}>
+              {allRootsExpanded ? "Collapse roots" : "Expand roots"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copyStructure}
+              disabled={structure.tree.length === 0}
+            >
+              <Copy className="size-4" />
+              Copy tree
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="max-h-[32rem] overflow-auto rounded-lg border p-2">
@@ -329,5 +373,5 @@ export function StructureTab({
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

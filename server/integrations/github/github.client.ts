@@ -567,3 +567,67 @@ export async function readFileText(
     throw err;
   }
 }
+export type GitHubTreeEntry = {
+  path: string;
+  mode: string;
+  type: 'blob' | 'tree' | 'commit';
+  sha: string;
+  size?: number;
+  url: string;
+};
+
+export type GitHubTreeResponse = {
+  sha: string;
+  url: string;
+  truncated: boolean;
+  tree: GitHubTreeEntry[];
+};
+
+export type GitHubWorkflowRun = {
+  id: number;
+  name: string | null;
+  display_title?: string;
+  status: string;
+  conclusion: string | null;
+  head_branch: string | null;
+  actor: { login: string } | null;
+  run_started_at: string | null;
+  created_at: string;
+  updated_at: string;
+  html_url: string;
+};
+
+export async function fetchRepoTree(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string,
+): Promise<GitHubTreeResponse> {
+  const data = await ghFetch<GitHubTreeResponse>(
+    `/repos/${owner}/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
+    token,
+  );
+  return {
+    ...data,
+    tree: Array.isArray(data.tree) ? data.tree : [],
+  };
+}
+
+export async function fetchWorkflowRuns(
+  token: string,
+  owner: string,
+  repo: string,
+  maxPages = 3,
+): Promise<GitHubWorkflowRun[]> {
+  const all: GitHubWorkflowRun[] = [];
+  for (let page = 1; page <= maxPages; page += 1) {
+    const batch = await ghFetch<{ workflow_runs?: GitHubWorkflowRun[] }>(
+      `/repos/${owner}/${repo}/actions/runs?per_page=100&page=${page}`,
+      token,
+    );
+    const runs = batch.workflow_runs ?? [];
+    all.push(...runs);
+    if (runs.length < 100) break;
+  }
+  return all;
+}

@@ -9,7 +9,14 @@ export type ScanJobData = {
   requestedBy: string;
 };
 
-export const scanQueue = new Queue<ScanJobData>(SCAN_QUEUE_NAME, {
+export type DependencyRefreshJobData = {
+  scanId: string;
+  repoId: string;
+};
+
+export type ScanQueueJobData = ScanJobData | DependencyRefreshJobData;
+
+export const scanQueue = new Queue<ScanQueueJobData>(SCAN_QUEUE_NAME, {
   connection: createRedisConnection(),
   defaultJobOptions: {
     attempts: 3,

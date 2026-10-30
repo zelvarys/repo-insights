@@ -29,7 +29,7 @@
 2. Cache check: `cache:scan-result:<repoId>` (1h TTL). Fresh → return `200 { scan, cached: true }` unless a newer scan row exists.
 3. In-flight check: `scans` row with `status IN ('pending','running')` for this repo → return that row, `cached: true`. Pending scans older than 10 minutes and running scans older than 30 minutes are considered stale and failed during boot reconciliation.
 4. Insert `scans` row (`status = 'pending'`) → enqueue BullMQ job keyed by scan id → return `202 { scan, cached: false }`. The check, stale update, and insert run in one transaction guarded by `pg_advisory_xact_lock` on the repo id, backed by a partial unique index for active scans.
-5. Worker picks up job → marks `status = 'running'` → fetches GitHub data → builds `ScanContext` → saves to `scan:context:<scanId>` (1h TTL) → runs 13 detectors → persists `tool_usage` rows → backfills `tracked_tools` → writes `scans.languages` and the scored `scans.summary` → caches completed scan.
+5. Worker picks up job → marks `status = 'running'` → fetches GitHub data (config files, up to 1,000 commits, recursive tree, recent Actions runs) → builds `ScanContext` → saves to `scan:context:<scanId>` (1h TTL) → runs 13 detectors → persists `tool_usage` rows → backfills `tracked_tools` → computes activity/commit quality, contributor concentration, structure, workflow health, and dependency health → writes `scans.languages`, `scans.repo_tree`, `scan_ci_runs`, `scan_dependencies`, and the scored `scans.summary` → caches completed scan.
 6. On failure → final attempt writes `status = 'failed'` and error text, invalidates matching caches; earlier attempts log and leave the row for BullMQ retry (up to 3 attempts with exponential backoff). Stale retries cannot overwrite a newer scan's cached result.
 
 ## Request lifecycle — metrics
@@ -38,6 +38,18 @@
 2. Latest completed scan for repo → cache key `cache:metrics:<repoId>:<scanId>` (60s TTL)
 3. Cache miss → aggregate `tool_usage` + `tracked_tools`, read persisted `scans.languages` (Redis context fallback only when NULL) → compute `coverage × adoption` → write cache → return
 4. New scan → new scan id → new cache key; old key expires naturally
+
+## Request lifecycle — repository insights
+
+1. `GET /repos/:id/{structure,activity,concentration,ci,dependencies,overview}` → latest **completed** scan for the repo.
+2. No completed scan → `available: false, reason: "no_scan"` with an empty, well-shaped payload where needed.
+3. Else read the relevant persisted data (`scans.repo_tree`, `scans.summary`, `scan_ci_runs`, `scan_dependencies`) with a 60s cache key that includes `repoId`, `scanId`, and filters.
+4. Workflow responses re-aggregate persisted runs after applying workflow/branch/range filters; they do not re-fetch GitHub.
+5. `POST /repos/:id/dependencies/refresh` enqueues a `dependencies-refresh` job against the latest scan. The worker re-parses persisted rows, forces registry/OSV lookups, replaces `scan_dependencies`, updates `summary.dependencyHealth`, and invalidates dependency + overview caches.
+
+Insight data is additive to the adoption scan. If tree, Actions, or dependency
+collection fails, the scan still completes and the corresponding endpoint
+reports `available: false` instead of failing the whole report.
 
 ## Repository discovery
 
@@ -74,7 +86,9 @@ changes.
 
 - **users** — GitHub identity + encrypted access token (AES-256-GCM)
 - **repositories** — tracked repos; metadata synced from GitHub at add time
-- **scans** — one row per scan request; status, timestamps, detected `languages` (`TEXT[]`), summary JSON
+- **scans** — one row per scan request; status, timestamps, detected `languages` (`TEXT[]`), `repo_tree` JSONB, summary JSON
+- **scan_ci_runs** — up to 300 GitHub Actions runs per scan; workflow, branch, actor, conclusion, duration, URL
+- **scan_dependencies** — parsed dependency rows per scan; current/latest version, outdated flag, advisory count/severity, registry URL
 - **tool_usage** — one repo-level row per tool per scan (`contributor_login IS NULL`), plus one per-contributor row per tool per scan
 - **tracked_tools** — user's curated set of tools per repo (`enabled` flag); scan worker backfills newly detected + relevant tools with `ON CONFLICT DO NOTHING` so user choices win
 - **migrations** — applied migration ledger
@@ -93,6 +107,9 @@ surviving scan row if present, and exits without throwing.
 | `scan:context:<scanId>` | 1h | Full scan context for detectors (commits, contributors, config files, workflows) |
 | `cache:scan-result:<repoId>` | 1h from scan completion | Last completed scan; short-circuits `POST /repos/:id/scan` |
 | `cache:metrics:<repoId>:<scanId>` | 60s | Latest computed metrics for a repo |
+| `cache:insight:*:<repoId>:<scanId>:*` | 60s | Structure, activity, concentration, workflow, dependency, and overview reads |
+| `cache:registry:<ecosystem>:<name>` | 24h | Latest package version from npm/PyPI/Go/RubyGems/Packagist |
+| `cache:osv:<ecosystem>:<name>:<version>` | 24h | OSV advisories for a resolved dependency |
 | `revoked:<jti>` | remaining JWT lifetime | Revoked session ids; checked by `requireAuth` |
 | `ratelimit:<name>:<identity>:<window>` | window + 1s | Fixed-window rate counter |
 | `oauth:state:<state>` | 10m | OAuth CSRF state |
@@ -149,3 +166,45 @@ there is still no way to share.
 - Commit-presence proxies (`github-actions`, `dependabot`, `renovate`) are always reported but never count toward `adoption` — their per-contributor signal is "made a commit," which would inflate the score to 100 on any active repo.
 
 When `tracked_tools` is empty (uncurated repo), scoring falls back to "everything detected and relevant" so a fresh repo doesn't score 0.
+
+## Composite health score
+
+`GET /repos/:id/overview` computes a separate context score; it never replaces
+the adoption score.
+
+| Component | Weight | Score |
+|-----------|--------|-------|
+| Activity | 25% | `min(100, commitsLast90 / 50 × 100)` |
+| Dependency freshness | 25% | `(1 - outdated / total) × 100` |
+| Workflow stability | 20% | completed-run success rate |
+| Contributor spread | 15% | `100 - max(0, top3Share - 50) × 2`, clamped 0–100 |
+| Commit quality | 15% | Conventional Commits percentage |
+
+Missing sources (no dependencies, no workflow runs, older scans) are removed
+and the remaining weights are renormalized. The activity component is always
+available for a completed scan, even when the repo had zero recent commits.
+
+Tool adoption is one of several first-class repository views. Overview,
+activity, structure, dependencies, workflows, and concentration are weighted
+and displayed alongside it.
+
+## Feature map
+
+| Feature | Endpoint | Data source | Scan field / storage |
+|---------|----------|-------------|----------------------|
+| Overview | `GET /repos/:id/overview` | Aggregates from the features below | `scans.summary`, `repo_tree` |
+| Activity + commit quality | `GET /repos/:id/activity` | Up to 1,000 GitHub commits | `scans.summary.activity` (`ctx.commitHistory`) |
+| Structure | `GET /repos/:id/structure` | GitHub recursive tree | `scans.repo_tree` (`ctx.tree`, `ctx.treeTruncated`) |
+| Dependencies | `GET /repos/:id/dependencies`, `POST /repos/:id/dependencies/refresh` | Direct manifests, registries, OSV; lockfiles as fallback | `scan_dependencies`, `scans.summary.dependency_health` (`ctx.configFiles`) |
+| Workflows | `GET /repos/:id/ci` | GitHub Actions runs | `scan_ci_runs`, `scans.summary.ci_health` (`ctx.ciRuns`) |
+| Concentration | `GET /repos/:id/concentration` | Commit author counts | `scans.summary.concentration` (`ctx.commitHistory`) |
+| Tool adoption | `GET /repos/:id/metrics` | Existing scanner output | `scans.summary.tool_usage`, `tracked_tools` |
+
+## Repository insights
+
+- **Structure** — recursive tree from GitHub, capped at 500 entries and depth 4. Directory sizes/counts are rolled up; `.git` internals and submodule `commit` nodes are excluded. Last-modified timestamps come from the 365-day commit history.
+- **Activity** — 90/180/365-day aggregates from up to 1,000 commits. Daily buckets use UTC; weekly buckets start Monday UTC. Commit quality ignores merge commits and sanitizes examples.
+- **Concentration** — top-1/top-3/top-10 share and Gini over positive contributor commit counts. Risk is green `<50%`, yellow `50–75%`, red `>75%` top-3 share.
+- **Workflows** — up to 300 workflow runs per scan. Workflow/branch/range filters are applied to persisted rows. Public repos use `public_repo`; if Actions read access is unavailable, workflows are reported unavailable rather than failing the scan.
+- **Dependencies** — parsers prefer direct manifests (`package.json`, `requirements.txt`, `pyproject.toml`, `go.mod`, `Gemfile`, `composer.json`) so lockfile-only transitive packages are not reported; lockfiles are per-ecosystem fallbacks. Lookups are capped at 300 dependencies, concurrency 8, 90s budget, with 24h registry/OSV caches. Refresh is queued and updates the latest completed scan in place.
+- **GitHub budget** — insight collection adds roughly 11 GitHub calls per scan beyond the old pipeline (up to 10 commit pages in total, one tree, and up to 3 Actions pages), keeping the normal total near 87.

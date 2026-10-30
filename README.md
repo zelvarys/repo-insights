@@ -4,11 +4,25 @@
   repo-insights
 </h1>
 
-An analytics platform for open-source maintainers and engineering teams that answers a question they've never had data for:
+repo-insights tells you whether your contributors are actually using the tools you set up — plus activity, dependency health, workflow stability, and more, all in one dashboard.
 
 > **"Are our contributors actually using the tools we're asking them to use?"**
 
 Connect a GitHub repository and get clear, per-tool adoption metrics — who's using ESLint, who's writing tests, who's bypassing CI — instead of guessing.
+
+## Features
+
+- **Overview** — repository health first, with activity, dependency, workflow, structure, adoption, and commit-quality cards.
+- **Activity** — commit cadence, weekday/hour patterns, contributor mix, and Conventional Commits quality.
+- **Structure** — a bounded repository tree, file-type mix, and directory size totals.
+- **Dependencies** — direct manifest parsing, latest-version checks, OSV advisories, and queued refresh.
+- **Workflows** — GitHub Actions success rates, durations, branches, and recent failures.
+- **Tools** — one adoption score plus per-tool, per-contributor adoption across 13 tools.
+- **Contributor concentration** — top-contributor share and bus-factor risk.
+
+Tool adoption is one signal alongside activity, dependency freshness, workflow stability, contributor spread, and commit quality. All repository views are first-class, and missing sources are removed and renormalized rather than presented as a primary workflow.
+
+The app requests the read-only `public_repo` scope, so it analyzes public repositories. Some Actions data may still be unavailable to the token; the UI reports that source as not collected instead of failing the whole report.
 
 ## Repository layout
 

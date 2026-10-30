@@ -211,3 +211,51 @@ the repo root, and merged the frontend dependencies/scripts into the root
 `package.json`. Migrations moved to `migrations/`, shared types to
 `shared/types.ts`, and stale `.gitkeep` files were removed. Tailwind v4 uses CSS-first configuration with the root `postcss.config.js`;
 the production frontend build goes to `dist/frontend/`.
+
+---
+
+## Repo insights (2026-10-29)
+
+Added six context views alongside tool adoption: activity/commit quality,
+repository structure, dependency health, CI stability, contributor
+concentration, and a composite overview. Tool adoption remains the primary
+metric; repository health is a secondary, renormalized score.
+
+Backend:
+
+- Migrations `005_repo_tree.sql`, `006_scan_ci_runs.sql`, and
+  `007_scan_dependencies.sql`.
+- Scan worker fetches up to 1,000 commits, a recursive tree, and recent
+  Actions runs; persists `scans.repo_tree`, CI rows, and dependency rows.
+- Dependency parsing covers npm, PyPI, Go, RubyGems, and Packagist lockfiles.
+  Lookups are capped at 300 dependencies, concurrency 8, 90s budget, and 24h
+  registry/OSV caches. Refresh is a BullMQ job that updates the latest scan in
+  place.
+- Read APIs under `/repos/:id/{structure,activity,concentration,ci,dependencies,overview}`,
+  plus `POST /repos/:id/dependencies/refresh`. Insight reads are cached for 60s;
+  the refresh enqueue is rate-limited to 10/min.
+- CI data is persisted so workflow/branch/range filters do not re-fetch GitHub.
+  Actions/tree/dependency failures degrade individual insights, not the scan.
+
+Frontend:
+
+- Tabbed repo detail (Tools, Overview, Activity, Structure, Dependencies, CI)
+  with URL-backed tab selection.
+- Overview combines adoption, health, contributor concentration, CI,
+  dependencies, activity sparkline, and commit quality.
+- Dependency refresh queues and polls until `summary.checkedAt` advances.
+
+Decisions:
+
+- Keep the `public_repo` OAuth scope; expose unavailable states for private
+  repos and Actions data that cannot be read.
+- Keep the README Status section removed and document features instead.
+- Refresh dependencies via the queue, not a synchronous request.
+
+Verification:
+
+- Unit coverage for structure, activity, commit quality, concentration, CI
+  aggregation, health scoring, dependency parsers/semver/OSV, and GitHub
+  tree/workflow fetchers.
+- Integration coverage for every insight endpoint, availability shapes,
+  validation, refresh queueing, and the refresh worker.

@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
-import {
-  Loader2,
-  RefreshCw,
-  ScanLine,
-  Settings,
-  Trash2,
-} from "lucide-react"
+import { Loader2, RefreshCw, ScanLine, Settings, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { EmptyState } from "@/components/app/EmptyState"
 import { ErrorState } from "@/components/app/ErrorState"
 import { RepoDetailSkeleton } from "@/components/app/LoadingSkeletons"
 import { MetricsPanel } from "@/components/app/MetricsPanel"
+import { ActivityTab } from "@/components/app/insights/ActivityTab"
+import { CiTab } from "@/components/app/insights/CiTab"
+import { DependenciesTab } from "@/components/app/insights/DependenciesTab"
+import { OverviewTab } from "@/components/app/insights/OverviewTab"
+import { StructureTab } from "@/components/app/insights/StructureTab"
 import { RemoveRepoDialog } from "@/components/app/RemoveRepoDialog"
 import { ScanHistory } from "@/components/app/ScanHistory"
 import { PageHeader } from "@/components/layout/PageHeader"
@@ -24,11 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  useRepo,
-  useRepoMetrics,
-  useRepoScans,
-} from "@/hooks/useRepoDetail"
+import { useRepo, useRepoMetrics, useRepoScans } from "@/hooks/useRepoDetail"
 import { useRunScan, useScanPoll } from "@/hooks/useRunScan"
 
 function NoScanState({
@@ -63,16 +58,36 @@ function NoScanState({
   )
 }
 
+const REPO_TABS = [
+  "overview",
+  "activity",
+  "structure",
+  "dependencies",
+  "workflows",
+  "tools",
+] as const
+type RepoTab = (typeof REPO_TABS)[number]
+
 export default function RepoDetail() {
   const { id } = useParams<{ id: string }>()
   const repoId = id ?? ""
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabParam = searchParams.get("tab")
+  const normalizedTab = tabParam === "ci" ? "workflows" : tabParam
+  const activeTab: RepoTab = REPO_TABS.includes(normalizedTab as RepoTab)
+    ? (normalizedTab as RepoTab)
+    : "overview"
+
+  function selectTab(tab: RepoTab) {
+    const next = new URLSearchParams(searchParams)
+    next.set("tab", tab)
+    setSearchParams(next, { replace: true })
+  }
 
   const [pollingScanId, setPollingScanId] = useState<string | null>(null)
-  const [autoPolledScanId, setAutoPolledScanId] = useState<string | null>(
-    null
-  )
+  const [autoPolledScanId, setAutoPolledScanId] = useState<string | null>(null)
   const [removeOpen, setRemoveOpen] = useState(false)
 
   const repoQuery = useRepo(repoId)
@@ -84,7 +99,7 @@ export default function RepoDetail() {
   const repo = repoQuery.data?.repository
   const metrics = metricsQuery.data
   const activeScan = scansQuery.data?.scans.find(
-    (scan) => scan.status === "pending" || scan.status === "running"
+    (scan) => scan.status === "pending" || scan.status === "running",
   )
 
   useEffect(() => {
@@ -141,7 +156,10 @@ export default function RepoDetail() {
 
     runScan.mutate(undefined, {
       onSuccess: ({ scan, cached }) => {
-        if (cached && (scan.status === "pending" || scan.status === "running")) {
+        if (
+          cached &&
+          (scan.status === "pending" || scan.status === "running")
+        ) {
           toast.info("Scan already in progress")
           setPollingScanId(scan.id)
           return
@@ -179,11 +197,9 @@ export default function RepoDetail() {
         title={repo?.fullName ?? "Repository"}
         description={
           repo
-            ? `Adoption report for the ${repo.defaultBranch} branch.`
-            : "Adoption report for this repository."
+            ? `Repository health and tool adoption for the ${repo.defaultBranch} branch.`
+            : "Repository health and tool adoption for this repository."
         }
-        backTo="/repos"
-        backLabel="Repositories"
         actions={
           <>
             <Button onClick={handleRunScan} disabled={runDisabled}>
@@ -215,22 +231,62 @@ export default function RepoDetail() {
         />
       ) : (
         <>
-          {metricsQuery.isLoading ? (
-            <RepoDetailSkeleton />
-          ) : metricsQuery.isError ? (
-            <ErrorState
-              error={metricsQuery.error ?? new Error("Unknown error")}
-              onRetry={() => metricsQuery.refetch()}
-            />
-          ) : metrics && metrics.scanId !== null ? (
-            <MetricsPanel metrics={metrics} />
-          ) : (
-            <NoScanState
-              scanning={scanning}
-              onRunScan={handleRunScan}
-              disabled={runDisabled}
-            />
-          )}
+          <div className="mt-6">
+            {activeTab === "overview" ? (
+              <OverviewTab
+                repoId={repoId}
+                scanning={scanning}
+                onRunScan={handleRunScan}
+                onSelectTab={selectTab}
+              />
+            ) : null}
+            {activeTab === "activity" ? (
+              <ActivityTab
+                repoId={repoId}
+                scanning={scanning}
+                onRunScan={handleRunScan}
+              />
+            ) : null}
+            {activeTab === "structure" ? (
+              <StructureTab
+                repoId={repoId}
+                scanning={scanning}
+                onRunScan={handleRunScan}
+              />
+            ) : null}
+            {activeTab === "dependencies" ? (
+              <DependenciesTab
+                repoId={repoId}
+                scanning={scanning}
+                onRunScan={handleRunScan}
+              />
+            ) : null}
+            {activeTab === "workflows" ? (
+              <CiTab
+                repoId={repoId}
+                scanning={scanning}
+                onRunScan={handleRunScan}
+              />
+            ) : null}
+            {activeTab === "tools" ? (
+              metricsQuery.isLoading ? (
+                <RepoDetailSkeleton />
+              ) : metricsQuery.isError ? (
+                <ErrorState
+                  error={metricsQuery.error ?? new Error("Unknown error")}
+                  onRetry={() => metricsQuery.refetch()}
+                />
+              ) : metrics && metrics.scanId !== null ? (
+                <MetricsPanel metrics={metrics} />
+              ) : (
+                <NoScanState
+                  scanning={scanning}
+                  onRunScan={handleRunScan}
+                  disabled={runDisabled}
+                />
+              )
+            ) : null}
+          </div>
 
           <div className="mt-6">
             <ScanHistory repoId={repoId} />
@@ -266,7 +322,7 @@ export default function RepoDetail() {
         repoName={repo?.fullName}
         onRemoved={() => {
           void queryClient.invalidateQueries({ queryKey: ["repos"] })
-          navigate("/repos", { replace: true })
+          navigate("/dashboard", { replace: true })
         }}
       />
     </>

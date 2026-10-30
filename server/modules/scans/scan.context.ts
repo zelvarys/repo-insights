@@ -1,4 +1,6 @@
 import { redis } from '../../config/redis.js';
+import type { RawTreeEntry } from '../insights/structure.js';
+import type { CiRun } from '../insights/ci.js';
 
 export type CommitFile = {
   filename: string;
@@ -34,8 +36,14 @@ export type ScanContext = {
   fetchedAt: string;
 
   commits: CommitInfo[];
+  commitHistory?: CommitInfo[];
   contributors: ContributorInfo[];
   rootFiles: string[];
+  tree?: RawTreeEntry[];
+  treeTruncated?: boolean;
+  ciRuns?: CiRun[];
+  ciPartial?: boolean;
+  ciError?: string;
 
   /**
    * Selected config files, keyed by path, with their text contents.

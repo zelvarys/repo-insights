@@ -35,6 +35,15 @@ function stubGithubFetch(options: {
   rootFiles?: string[];
   fileContents?: Record<string, string>;
   workflows?: string[];
+  tree?: Array<{ path: string; type: 'blob' | 'tree'; size?: number }>;
+  workflowRuns?: Array<{
+    id: number;
+    name: string;
+    conclusion: string;
+    branch: string;
+    actor: string;
+    startedAt: string;
+  }>;
 }): void {
   const contributors = options.contributors ?? [];
   const commits = options.commits ?? [];
@@ -42,6 +51,8 @@ function stubGithubFetch(options: {
   const rootFiles = options.rootFiles ?? [];
   const fileContents = options.fileContents ?? {};
   const workflows = options.workflows ?? [];
+  const tree = options.tree ?? [];
+  const workflowRuns = options.workflowRuns ?? [];
 
   const originalFetch = globalThis.fetch;
 
@@ -98,6 +109,39 @@ function stubGithubFetch(options: {
             additions: 1,
             deletions: 0,
             changes: 1,
+          })),
+        });
+      }
+
+      // Recursive tree
+      if (/\/git\/trees\//.test(url)) {
+        return jsonResponse({
+          sha: 'tree-sha',
+          url,
+          truncated: false,
+          tree: tree.map((entry) => ({
+            ...entry,
+            mode: entry.type === 'tree' ? '040000' : '100644',
+            sha: `sha-${entry.path}`,
+            url: '',
+          })),
+        });
+      }
+
+      // Workflow runs
+      if (/\/actions\/runs\?/.test(url)) {
+        return jsonResponse({
+          workflow_runs: workflowRuns.map((run) => ({
+            id: run.id,
+            name: run.name,
+            status: 'completed',
+            conclusion: run.conclusion,
+            head_branch: run.branch,
+            actor: { login: run.actor },
+            run_started_at: run.startedAt,
+            created_at: run.startedAt,
+            updated_at: run.startedAt,
+            html_url: `https://github.com/test/repo/actions/runs/${run.id}`,
           })),
         });
       }
@@ -216,6 +260,31 @@ describe('scan pipeline', () => {
         'jest.config.js': 'module.exports = {};',
       },
       workflows: ['ci.yml'],
+      tree: [
+        { path: 'src', type: 'tree' },
+        { path: 'src/foo.test.ts', type: 'blob', size: 20 },
+        { path: 'src/bar.ts', type: 'blob', size: 10 },
+        { path: 'package.json', type: 'blob', size: 30 },
+        { path: 'jest.config.js', type: 'blob', size: 5 },
+      ],
+      workflowRuns: [
+        {
+          id: 10,
+          name: 'CI',
+          conclusion: 'success',
+          branch: 'main',
+          actor: 'alice',
+          startedAt: '2026-09-01T00:00:00Z',
+        },
+        {
+          id: 11,
+          name: 'CI',
+          conclusion: 'failure',
+          branch: 'main',
+          actor: 'bob',
+          startedAt: '2026-09-02T00:00:00Z',
+        },
+      ],
     });
 
     // POST scan (mounted)
@@ -235,12 +304,23 @@ describe('scan pipeline', () => {
       status: string;
       summary: Record<string, unknown>;
       languages: string[] | null;
+      repo_tree: Record<string, unknown> | null;
     }>(
-      'SELECT status, summary, languages FROM scans WHERE id = $1',
+      'SELECT status, summary, languages, repo_tree FROM scans WHERE id = $1',
       [scanId],
     );
     expect(scanRow.rows[0]?.status).toBe('complete');
     expect(scanRow.rows[0]?.languages).toEqual(['js']);
+    expect(scanRow.rows[0]?.repo_tree).toMatchObject({
+      fileCount: 4,
+      directoryCount: 1,
+    });
+
+    const ciRows = await pool.query<{ workflow_name: string }>(
+      'SELECT workflow_name FROM scan_ci_runs WHERE scan_id = $1 ORDER BY run_id',
+      [scanId],
+    );
+    expect(ciRows.rows.map((row) => row.workflow_name)).toEqual(['CI', 'CI']);
 
     // Simulate the Redis context expiring before metrics are read.
     await deleteScanContext(scanId);
@@ -278,6 +358,17 @@ describe('scan pipeline', () => {
     expect(summary.toolsChecked).toBe(metrics.body.toolsChecked);
     expect(summary.toolsTracked).toBe(metrics.body.toolsTracked);
     expect(summary.toolsDetected).toBe(metrics.body.toolsDetected);
+    expect(summary.activity).toBeDefined();
+    expect(summary.concentration).toMatchObject({
+      totalCommits: 2,
+      contributorCount: 2,
+    });
+    const ciHealth = summary.ciHealth as {
+      totalRuns: number;
+      successRate: number;
+    };
+    expect(ciHealth.totalRuns).toBe(2);
+    expect(ciHealth.successRate).toBe(50);
 
     const trackedTools = await request(app)
       .get(`/repos/${repoId}/tracked-tools`)

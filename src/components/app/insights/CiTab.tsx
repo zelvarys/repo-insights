@@ -49,7 +49,7 @@ export function CiTab({
     const names = query.data?.ci?.workflows.map((item) => item.name) ?? []
     if (names.length === 0) return
     setKnownWorkflows((current) =>
-      [...new Set([...current, ...names])].sort((a, b) => a.localeCompare(b))
+      [...new Set([...current, ...names])].sort((a, b) => a.localeCompare(b)),
     )
   }, [query.data?.ci?.workflows])
 
@@ -86,7 +86,7 @@ export function CiTab({
     }
     return (
       <InsightUnavailable
-        title="No CI data yet"
+        title="No workflow data yet"
         description="Run a scan to analyze recent GitHub Actions workflow runs. Public repositories need Actions read access."
         scanning={scanning}
         onRunScan={onRunScan}
@@ -100,9 +100,10 @@ export function CiTab({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">CI health</h2>
+          <h2 className="text-lg font-semibold">Workflows</h2>
           <p className="text-sm text-muted-foreground">
-            Success rate and duration for recent GitHub Actions runs.
+            Success rates, durations, and failures for recent GitHub Actions
+            runs.
           </p>
         </div>
         <Badge variant={ci.partial ? "secondary" : "outline"}>
@@ -113,7 +114,9 @@ export function CiTab({
       <Card>
         <CardContent className="grid gap-4 py-6 sm:grid-cols-3">
           <div>
-            <p className="text-xs text-muted-foreground">Overall success rate</p>
+            <p className="text-xs text-muted-foreground">
+              Overall success rate
+            </p>
             <p className="mt-1 text-3xl font-semibold">
               {formatPercent(ci.successRate)}
             </p>
@@ -207,7 +210,10 @@ export function CiTab({
               </p>
             ) : (
               ci.workflows.map((item) => (
-                <div key={item.name} className="space-y-2 rounded-lg border p-3">
+                <div
+                  key={item.name}
+                  className="space-y-2 rounded-lg border p-3"
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium">{item.name}</span>
                     <span className="text-sm text-muted-foreground">
@@ -229,7 +235,9 @@ export function CiTab({
                       {item.successfulRuns} passed · {item.failedRuns} failed ·{" "}
                       {item.totalRuns} runs
                     </span>
-                    <span>Avg {formatDuration(item.averageDurationSeconds)}</span>
+                    <span>
+                      Avg {formatDuration(item.averageDurationSeconds)}
+                    </span>
                   </div>
                 </div>
               ))
@@ -240,7 +248,9 @@ export function CiTab({
         <Card>
           <CardHeader>
             <CardTitle>Recent failures</CardTitle>
-            <CardDescription>Last 10 failed runs in the window.</CardDescription>
+            <CardDescription>
+              Last 10 failed runs in the window.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {ci.recentFailures.length === 0 ? (

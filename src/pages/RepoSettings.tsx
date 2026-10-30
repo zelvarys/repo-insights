@@ -167,7 +167,7 @@ export default function RepoSettings() {
     (trackedTools.data?.tools ?? []).map((tool) => [tool.toolName, tool]),
   )
 
-  const backTo = repoId ? `/repos/${repoId}` : "/repos"
+  const backTo = repoId ? `/repos/${repoId}` : "/dashboard"
 
   function handleSave() {
     window.clearTimeout(saveTimerRef.current)
@@ -180,8 +180,8 @@ export default function RepoSettings() {
         <PageHeader
           title="Tracked tools"
           description="Choose which tools count toward this repo's adoption score."
-          backTo="/repos"
-          backLabel="Repositories"
+          backTo="/dashboard"
+          backLabel="Dashboard"
         />
         <ErrorState error={new Error("Repository id is required.")} />
       </>

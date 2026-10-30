@@ -32,6 +32,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useTrackedTools, useUpdateTrackedTools } from "@/hooks/useTrackedTools"
+import { cn } from "@/lib/utils"
 
 type FormTool = {
   name: string
@@ -293,7 +294,12 @@ export default function RepoSettings() {
                             control={control}
                             name={`tools.${index}.enabled`}
                             render={({ field: switchField }) => (
-                              <FormItem className="flex flex-row items-center justify-between gap-4 rounded-lg border p-4">
+                              <FormItem
+                                className={cn(
+                                  "flex flex-row items-center justify-between gap-4 rounded-lg border p-4",
+                                  !tool.relevant && "opacity-50",
+                                )}
+                              >
                                 <div className="min-w-0 space-y-1.5">
                                   <div className="flex flex-wrap items-center gap-2">
                                     <FormLabel className="text-sm font-medium">
@@ -320,33 +326,20 @@ export default function RepoSettings() {
                                           : "This tool was not found in the latest scan."}
                                       </TooltipContent>
                                     </Tooltip>
-                                    {!tool.relevant ? (
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Badge
-                                            variant="outline"
-                                            className="cursor-help"
-                                          >
-                                            Not applicable
-                                          </Badge>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          This tool does not apply to the
-                                          repository&apos;s languages.
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    ) : null}
                                   </div>
                                   <p className="text-xs text-muted-foreground">
-                                    {tool.detected
-                                      ? "Included when enabled in the adoption score."
-                                      : "Enable to include it once detected."}
+                                    {!tool.relevant
+                                      ? "Not applicable to this repository's languages."
+                                      : tool.detected
+                                        ? "Included when enabled in the adoption score."
+                                        : "Enable to include it once detected."}
                                   </p>
                                 </div>
                                 <FormControl>
                                   <Switch
                                     checked={switchField.value}
                                     onCheckedChange={switchField.onChange}
+                                    disabled={!tool.relevant}
                                     aria-label={`Track ${tool.toolName}`}
                                   />
                                 </FormControl>

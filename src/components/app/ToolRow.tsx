@@ -1,6 +1,5 @@
 import { Users } from "lucide-react"
 import type { ToolCategory, ToolMetric } from "@shared/types"
-import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import {
   Tooltip,
@@ -25,23 +24,11 @@ type ToolRowProps = {
 export function ToolRow({ tool }: ToolRowProps) {
   const row = (
     <div
-      className={cn(
-        "rounded-lg border p-4",
-        !tool.relevant && "opacity-50"
-      )}
+      className={cn("rounded-lg border p-4", !tool.relevant && "opacity-50")}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="font-medium">{tool.name}</p>
-            <Badge variant={tool.detected ? "default" : "secondary"}>
-              {tool.detected ? "Detected" : "Not detected"}
-            </Badge>
-            <Badge variant="outline">
-              {TOOL_CATEGORY_LABELS[tool.category]}
-            </Badge>
-            {tool.tracked ? <Badge variant="outline">Tracked</Badge> : null}
-          </div>
+          <p className="font-medium">{tool.name}</p>
           <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Users className="size-3" />

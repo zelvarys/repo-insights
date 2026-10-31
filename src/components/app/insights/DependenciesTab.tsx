@@ -7,6 +7,7 @@ import {
   InsightLoading,
   InsightUnavailable,
 } from "@/components/app/insights/InsightState"
+import { StatCard } from "@/components/app/StatCard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -48,7 +49,10 @@ function severitySummary(severity: Record<DependencySeverity, number>): string {
 
 function dependencyStatus(row: DependencyRow) {
   if (row.advisoryCount > 0) {
-    return { label: "Advisory", variant: "destructive" as const }
+    return {
+      label: `Advisory ${row.advisoryCount}`,
+      variant: "destructive" as const,
+    }
   }
   if (row.outdated) {
     return { label: "Outdated", variant: "secondary" as const }
@@ -107,7 +111,7 @@ export function DependenciesTab({
     return (
       <InsightUnavailable
         title="No dependency data yet"
-        description="Run a scan to parse lockfiles, check latest versions, and look up known advisories."
+        description="Run a scan to parse manifest files, check latest versions, and look up known advisories."
         scanning={scanning}
         onRunScan={onRunScan}
       />
@@ -168,44 +172,28 @@ export function DependenciesTab({
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <Card className="gap-1 py-3">
-          <CardHeader className="px-4 pb-0">
-            <CardDescription>Total dependencies</CardDescription>
-          </CardHeader>
-          <CardContent className="px-4">
-            <p className="text-2xl font-semibold">{summary.total}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {summary.checked} checked against registries
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="gap-1 py-3">
-          <CardHeader className="px-4 pb-0">
-            <CardDescription>Outdated</CardDescription>
-          </CardHeader>
-          <CardContent className="px-4">
-            <p className="text-2xl font-semibold">{summary.outdated}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Newer stable version available
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="gap-1 py-3">
-          <CardHeader className="px-4 pb-0">
-            <CardDescription>Advisories</CardDescription>
-          </CardHeader>
-          <CardContent className="px-4">
-            <p className="flex items-center gap-2 text-2xl font-semibold">
+        <StatCard
+          label="Total dependencies"
+          value={summary.total}
+          detail={`${summary.checked} checked against registries`}
+        />
+        <StatCard
+          label="Outdated"
+          value={summary.outdated}
+          detail="Newer stable version available"
+        />
+        <StatCard
+          label="Advisories"
+          value={
+            <span className="flex items-center gap-2">
               {summary.advisoryCount}
               {summary.advisoryCount > 0 ? (
                 <ShieldAlert className="size-4 text-destructive" />
               ) : null}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {severitySummary(summary.severity)}
-            </p>
-          </CardContent>
-        </Card>
+            </span>
+          }
+          detail={severitySummary(summary.severity)}
+        />
       </div>
 
       <Card>
@@ -235,10 +223,10 @@ export function DependenciesTab({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Package</TableHead>
-                  <TableHead>Current</TableHead>
-                  <TableHead>Latest</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="border-r">Package</TableHead>
+                  <TableHead className="border-r">Current</TableHead>
+                  <TableHead className="border-r">Latest</TableHead>
+                  <TableHead className="border-r">Status</TableHead>
                   <TableHead>Registry</TableHead>
                 </TableRow>
               </TableHeader>
@@ -259,7 +247,7 @@ export function DependenciesTab({
                       <TableRow
                         key={`${row.ecosystem}-${row.packageName}-${row.currentVersion}`}
                       >
-                        <TableCell>
+                        <TableCell className="border-r">
                           <div className="flex flex-col">
                             <span className="font-medium">
                               {row.packageName}
@@ -269,27 +257,25 @@ export function DependenciesTab({
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {row.currentVersion}
+                        <TableCell className="border-r font-mono text-xs">
+                          {row.currentVersion === "*"
+                            ? "unpinned"
+                            : row.currentVersion}
                         </TableCell>
-                        <TableCell className="font-mono text-xs">
+                        <TableCell className="border-r font-mono text-xs">
                           {row.latestVersion ?? "—"}
                         </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            <Badge variant={status.variant}>
-                              {status.label}
-                            </Badge>
-                            {row.advisoryCount > 0 ? (
-                              <Badge variant="outline">
-                                {row.advisoryCount}{" "}
-                                {row.advisoryCount === 1
-                                  ? "advisory"
-                                  : "advisories"}
-                                {row.maxSeverity ? ` · ${row.maxSeverity}` : ""}
-                              </Badge>
-                            ) : null}
-                          </div>
+                        <TableCell className="border-r last:border-r-0">
+                          <Badge
+                            variant={status.variant}
+                            title={
+                              row.maxSeverity
+                                ? `Highest severity: ${row.maxSeverity}`
+                                : undefined
+                            }
+                          >
+                            {status.label}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="sm" asChild>

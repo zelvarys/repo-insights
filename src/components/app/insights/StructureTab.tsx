@@ -1,14 +1,5 @@
 import { useState } from "react"
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip as ChartTooltip,
-  XAxis,
-  YAxis,
-} from "recharts"
-import {
   ChevronDown,
   ChevronRight,
   Copy,
@@ -23,6 +14,7 @@ import {
   InsightLoading,
   InsightUnavailable,
 } from "@/components/app/insights/InsightState"
+import { StatCard } from "@/components/app/StatCard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -32,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 import { useRepoStructure } from "@/hooks/useRepoInsights"
 import { formatBytes } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -208,82 +201,59 @@ export function StructureTab({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Card className="gap-1 py-3">
-          <CardHeader className="px-4 pb-0">
-            <CardDescription>Files</CardDescription>
-          </CardHeader>
-          <CardContent className="px-4">
-            <p className="text-2xl font-semibold">{structure.fileCount}</p>
-          </CardContent>
-        </Card>
-        <Card className="gap-1 py-3">
-          <CardHeader className="px-4 pb-0">
-            <CardDescription>Directories</CardDescription>
-          </CardHeader>
-          <CardContent className="px-4">
-            <p className="text-2xl font-semibold">{structure.directoryCount}</p>
-          </CardContent>
-        </Card>
-        <Card className="gap-1 py-3">
-          <CardHeader className="px-4 pb-0">
-            <CardDescription>Repository size</CardDescription>
-          </CardHeader>
-          <CardContent className="px-4">
-            <p className="text-2xl font-semibold">
-              {formatBytes(structure.totalSize)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="gap-1 py-3">
-          <CardHeader className="px-4 pb-0">
-            <CardDescription>File types</CardDescription>
-          </CardHeader>
-          <CardContent className="px-4">
-            <p className="text-2xl font-semibold">{visibleFileTypes.length}</p>
-            {structure.truncated ? (
-              <Badge variant="secondary" className="mt-1">
-                Truncated
-              </Badge>
-            ) : null}
-          </CardContent>
-        </Card>
+        <StatCard label="Files" value={structure.fileCount} />
+        <StatCard label="Directories" value={structure.directoryCount} />
+        <StatCard
+          label="Repository size"
+          value={formatBytes(structure.totalSize)}
+        />
+        <StatCard
+          label="File types"
+          value={visibleFileTypes.length}
+          detail={
+            structure.truncated ? (
+              <Badge variant="secondary">Truncated</Badge>
+            ) : undefined
+          }
+        />
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>File-type breakdown</CardTitle>
-          <CardDescription>Top file extensions by file count.</CardDescription>
+          <CardDescription>
+            All {visibleFileTypes.length} file types by file count.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={visibleFileTypes.slice(0, 10)}
-              layout="vertical"
-              margin={{ left: 8, right: 16 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" allowDecimals={false} hide />
-              <YAxis
-                type="category"
-                dataKey="extension"
-                width={80}
-                tickLine={false}
-                axisLine={false}
-              />
-              <ChartTooltip
-                contentStyle={{
-                  background: "var(--popover)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 8,
-                }}
-              />
-              <Bar
-                dataKey="count"
-                radius={[0, 4, 4, 0]}
-                fill="var(--chart-2)"
-              />
-            </BarChart>
-          </ResponsiveContainer>
+        <CardContent>
+          {visibleFileTypes.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No file types were returned for this scan.
+            </p>
+          ) : (
+            <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+              {visibleFileTypes.map((stat) => {
+                const share =
+                  structure.fileCount > 0
+                    ? (stat.count / structure.fileCount) * 100
+                    : 0
+                return (
+                  <div key={stat.extension}>
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="font-mono text-xs">
+                        {stat.extension}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {stat.count} {stat.count === 1 ? "file" : "files"} ·{" "}
+                        {share.toFixed(1)}%
+                      </span>
+                    </div>
+                    <Progress value={share} className="mt-2 h-2" />
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -305,12 +275,13 @@ export function StructureTab({
             </Button>
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={copyStructure}
               disabled={structure.tree.length === 0}
+              aria-label="Copy file structure"
+              title="Copy file structure"
             >
               <Copy className="size-4" />
-              Copy tree
             </Button>
           </div>
         </CardHeader>

@@ -112,8 +112,8 @@ export function CiTab({
       </div>
 
       <Card>
-        <CardContent className="grid gap-4 py-6 sm:grid-cols-3">
-          <div>
+        <CardContent className="grid gap-0 p-0 sm:grid-cols-[2fr_1.5fr_1.5fr]">
+          <div className="border-t px-4 py-3 first:border-t-0 sm:border-t-0 sm:border-l sm:px-5 sm:first:border-l-0">
             <p className="text-xs text-muted-foreground">
               Overall success rate
             </p>
@@ -122,11 +122,11 @@ export function CiTab({
             </p>
             <Progress value={ci.successRate ?? 0} className="mt-3" />
           </div>
-          <div>
+          <div className="border-t px-4 py-3 sm:border-t-0 sm:border-l sm:px-5">
             <p className="text-xs text-muted-foreground">Completed runs</p>
             <p className="mt-1 text-3xl font-semibold">{ci.totalRuns}</p>
           </div>
-          <div>
+          <div className="border-t px-4 py-3 sm:border-t-0 sm:border-l sm:px-5">
             <p className="text-xs text-muted-foreground">Workflows</p>
             <p className="mt-1 text-3xl font-semibold">{ci.workflows.length}</p>
           </div>

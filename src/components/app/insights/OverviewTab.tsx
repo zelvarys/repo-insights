@@ -136,7 +136,7 @@ export function OverviewTab({
                 ? "—"
                 : health.score.toFixed(1)}
             </p>
-            <p className="pb-2 text-sm text-muted-foreground">out of 100</p>
+            <p className="pb-2 text-sm text-muted-foreground">/ 100</p>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {health?.components.map((component) => (
@@ -161,20 +161,39 @@ export function OverviewTab({
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <GlanceCard
-          title="Tool adoption"
-          description="How consistently contributors use tracked tools."
-          icon={<Gauge className="size-4" />}
-          onOpen={() => onSelectTab("tools")}
-        >
-          <p className="text-2xl font-semibold">
-            {adoption.toFixed(1)}
-            <span className="ml-1 text-xs font-normal text-muted-foreground">
-              / 100
-            </span>
-          </p>
-          <Progress value={adoption} className="mt-3" />
-        </GlanceCard>
+        {cards.activity ? (
+          <GlanceCard
+            title="Activity"
+            description="Commits in the last 90 days."
+            icon={<Activity className="size-4" />}
+            onOpen={() => onSelectTab("activity")}
+          >
+            <p className="text-2xl font-semibold">
+              {cards.activity.last90Commits}
+            </p>
+            <div className="mt-2 h-16">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={cards.activity.sparkline}>
+                  <ChartTooltip
+                    contentStyle={{
+                      background: "var(--popover)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="var(--chart-2)"
+                    fill="var(--chart-2)"
+                    fillOpacity={0.2}
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </GlanceCard>
+        ) : null}
 
         {cards.concentration ? (
           <GlanceCard
@@ -246,19 +265,19 @@ export function OverviewTab({
             onOpen={() => onSelectTab("dependencies")}
           >
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div>
+              <div className="rounded-md border px-2 py-2">
                 <p className="text-2xl font-semibold">
                   {cards.dependencies.total}
                 </p>
                 <p className="text-[10px] text-muted-foreground">total</p>
               </div>
-              <div>
+              <div className="rounded-md border px-2 py-2">
                 <p className="text-2xl font-semibold">
                   {cards.dependencies.outdated}
                 </p>
                 <p className="text-[10px] text-muted-foreground">outdated</p>
               </div>
-              <div>
+              <div className="rounded-md border px-2 py-2">
                 <p className="text-2xl font-semibold">
                   {cards.dependencies.advisoryCount}
                 </p>
@@ -268,39 +287,20 @@ export function OverviewTab({
           </GlanceCard>
         ) : null}
 
-        {cards.activity ? (
-          <GlanceCard
-            title="Activity"
-            description="Commits in the last 90 days."
-            icon={<Activity className="size-4" />}
-            onOpen={() => onSelectTab("activity")}
-          >
-            <p className="text-2xl font-semibold">
-              {cards.activity.last90Commits}
-            </p>
-            <div className="mt-2 h-16">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={cards.activity.sparkline}>
-                  <ChartTooltip
-                    contentStyle={{
-                      background: "var(--popover)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 8,
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke="var(--chart-2)"
-                    fill="var(--chart-2)"
-                    fillOpacity={0.2}
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </GlanceCard>
-        ) : null}
+        <GlanceCard
+          title="Tool adoption"
+          description="How consistently contributors use tracked tools."
+          icon={<Gauge className="size-4" />}
+          onOpen={() => onSelectTab("tools")}
+        >
+          <p className="text-2xl font-semibold">
+            {adoption.toFixed(1)}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">
+              / 100
+            </span>
+          </p>
+          <Progress value={adoption} className="mt-3" />
+        </GlanceCard>
 
         {cards.commitQuality ? (
           <GlanceCard

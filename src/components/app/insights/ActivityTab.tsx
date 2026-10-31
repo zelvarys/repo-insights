@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import { Activity, Users } from "lucide-react"
+import { Activity, ChevronDown, Users } from "lucide-react"
 import type { CommitQuality } from "@shared/types"
 import {
   InsightError,
@@ -207,8 +207,9 @@ function QualityCard({ quality }: { quality: CommitQuality }) {
         </div>
 
         {quality.examples.length > 0 ? (
-          <details className="rounded-lg border p-3">
-            <summary className="cursor-pointer text-sm font-medium">
+          <details className="group rounded-lg border p-3">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium [&::-webkit-details-marker]:hidden">
+              <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
               Examples that could be improved
             </summary>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">

@@ -191,6 +191,21 @@ export function StructureTab({
   const visibleFileTypes = structure.fileTypes.filter(
     (stat) => !IGNORED_FILE_TYPES.has(stat.extension),
   )
+  const chartFileTypes =
+    visibleFileTypes.length > 9
+      ? [
+          ...visibleFileTypes.slice(0, 9),
+          {
+            extension: "others",
+            count: visibleFileTypes
+              .slice(9)
+              .reduce((sum, stat) => sum + stat.count, 0),
+            sizeBytes: visibleFileTypes
+              .slice(9)
+              .reduce((sum, stat) => sum + stat.sizeBytes, 0),
+          },
+        ]
+      : visibleFileTypes
   const rootDirs = structure.tree.filter((node) => node.type === "dir")
   const allRootsExpanded =
     rootDirs.length > 0 && rootDirs.every((node) => expanded.has(node.path))
@@ -227,7 +242,7 @@ export function StructureTab({
         <CardHeader>
           <CardTitle>File-type breakdown</CardTitle>
           <CardDescription>
-            All {visibleFileTypes.length} file types by file count.
+            Top {chartFileTypes.length} file types by file count.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -236,12 +251,12 @@ export function StructureTab({
               No file types were returned for this scan.
             </p>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-center">
+            <div className="grid gap-6 lg:grid-cols-[60%_40%] lg:items-center lg:gap-0">
               <div className="relative h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={visibleFileTypes}
+                      data={chartFileTypes}
                       dataKey="count"
                       nameKey="extension"
                       innerRadius="55%"
@@ -249,8 +264,15 @@ export function StructureTab({
                       paddingAngle={2}
                       stroke="none"
                     >
-                      {visibleFileTypes.map((stat, index) => (
-                        <Cell key={stat.extension} fill={chartColor(index)} />
+                      {chartFileTypes.map((stat, index) => (
+                        <Cell
+                          key={stat.extension}
+                          fill={
+                            stat.extension === "others"
+                              ? "#ffffff"
+                              : chartColor(index)
+                          }
+                        />
                       ))}
                     </Pie>
                     <ChartTooltip
@@ -273,8 +295,8 @@ export function StructureTab({
                   <span className="text-xs text-muted-foreground">files</span>
                 </div>
               </div>
-              <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
-                {visibleFileTypes.map((stat, index) => {
+              <div className="max-h-64 space-y-2 overflow-y-auto pr-1 lg:pl-6">
+                {chartFileTypes.map((stat, index) => {
                   const share =
                     structure.fileCount > 0
                       ? (stat.count / structure.fileCount) * 100
@@ -287,7 +309,12 @@ export function StructureTab({
                       <span className="flex min-w-0 items-center gap-2">
                         <span
                           className="size-2.5 shrink-0 rounded-sm"
-                          style={{ backgroundColor: chartColor(index) }}
+                          style={{
+                            backgroundColor:
+                              stat.extension === "others"
+                                ? "#ffffff"
+                                : chartColor(index),
+                          }}
                         />
                         <span className="truncate font-mono text-xs">
                           {stat.extension}

@@ -4,12 +4,18 @@ import { Link } from "react-router-dom"
 import { formatDistanceToNow } from "date-fns"
 import type { RepoMetrics } from "@shared/types"
 import {
+  Activity,
   ArrowRight,
   FolderGit2,
+  FolderTree,
   Gauge,
   Github,
+  Package,
   Plus,
   ScanLine,
+  ShieldCheck,
+  Users,
+  Workflow,
   Wrench,
 } from "lucide-react"
 import { AddRepoDialog } from "@/components/app/AddRepoDialog"
@@ -34,36 +40,141 @@ import { useRepos } from "@/hooks/useRepos"
 import { api } from "@/lib/api"
 import { recentRepoIds } from "@/lib/recent-repos"
 
+const introFeatures = [
+  {
+    title: "Repository health",
+    description:
+      "Activity, dependencies, workflows, and commit quality combined into one score.",
+    icon: ShieldCheck,
+  },
+  {
+    title: "Commit activity",
+    description:
+      "See release cadence, contributor mix, and the commit messages that need work.",
+    icon: Activity,
+  },
+  {
+    title: "Dependencies",
+    description:
+      "Manifest dependencies with outdated versions and known advisories.",
+    icon: Package,
+  },
+  {
+    title: "Workflows and tools",
+    description:
+      "GitHub Actions reliability alongside contributor adoption of your tools.",
+    icon: Workflow,
+  },
+  {
+    title: "Repository structure",
+    description:
+      "File-type breakdowns, repository size, and an explorable source tree.",
+    icon: FolderTree,
+  },
+  {
+    title: "Contributor spread",
+    description:
+      "Understand bus factor and whether knowledge is concentrated in a few people.",
+    icon: Users,
+  },
+]
+
+const landingSteps = [
+  "Connect your GitHub account with read-only access.",
+  "Add the public repositories you want to track.",
+  "Run a scan and review health, activity, dependencies, and tool adoption.",
+]
+
 function signIn() {
   window.location.href = "/auth/github"
 }
 
 function PublicDashboard() {
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-2xl items-center justify-center py-10 sm:py-16">
-      <div className="text-center">
-        <Badge variant="secondary" className="mb-5 gap-1.5">
-          <Wrench className="size-3" />
-          Repository insights for maintainers
-        </Badge>
-        <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-5xl">
-          See how healthy your repositories really are.
-        </h1>
-        <p className="mx-auto mt-4 max-w-xl text-base text-balance text-muted-foreground sm:text-lg">
-          Connect GitHub to scan repository health, activity, dependencies,
-          workflows, structure, and contributor tool adoption.
-        </p>
-        <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
-          <Button size="lg" onClick={signIn}>
-            <Github className="size-4" />
-            Sign in with GitHub
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            Read-only access. Public repositories only.
-          </p>
+    <>
+      <PageHeader
+        title="Dashboard"
+        description="Repository health and tool adoption at a glance."
+      />
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <Badge variant="secondary" className="mb-2 w-fit gap-1.5">
+                <Wrench className="size-3" />
+                Repository insights for maintainers
+              </Badge>
+              <CardTitle className="text-2xl text-balance sm:text-3xl">
+                See how healthy your repositories really are.
+              </CardTitle>
+              <CardDescription className="max-w-2xl text-base">
+                Connect GitHub to scan repository health, activity,
+                dependencies, workflows, structure, and how consistently
+                contributors use your tools.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center gap-3">
+              <Button size="lg" onClick={signIn}>
+                <Github className="size-4" />
+                Connect GitHub
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Read-only access. Public repositories only.
+              </p>
+            </CardContent>
+          </Card>
+
+          <div>
+            <div className="mb-3">
+              <h2 className="text-lg font-semibold">What you get</h2>
+              <p className="text-sm text-muted-foreground">
+                A complete picture of repository health in one place.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {introFeatures.map((feature) => (
+                <Card key={feature.title}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <feature.icon className="size-4 text-primary" />
+                      {feature.title}
+                    </CardTitle>
+                    <CardDescription>{feature.description}</CardDescription>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          </div>
         </div>
+
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>How it works</CardTitle>
+            <CardDescription>
+              Start in a few minutes with read-only GitHub access.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <ol className="space-y-4">
+              {landingSteps.map((step, index) => (
+                <li key={step} className="flex gap-3">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    {index + 1}
+                  </span>
+                  <span className="text-sm text-muted-foreground">{step}</span>
+                </li>
+              ))}
+            </ol>
+            <Separator />
+            <Button className="w-full" onClick={signIn}>
+              <Github className="size-4" />
+              Connect GitHub
+            </Button>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </>
   )
 }
 

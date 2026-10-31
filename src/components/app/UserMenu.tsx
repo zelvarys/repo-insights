@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import { LogOut, Settings } from "lucide-react"
+import { Github, LogOut, Settings } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -25,7 +25,8 @@ export function UserMenu() {
           window.location.href = "/auth/github"
         }}
       >
-        Sign in
+        <Github className="size-4" />
+        Connect GitHub
       </Button>
     )
   }

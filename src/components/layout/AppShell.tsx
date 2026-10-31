@@ -57,7 +57,13 @@ function navClass(active: boolean) {
   )
 }
 
-function NavItems({ onNavigate }: { onNavigate?: () => void }) {
+function NavItems({
+  onNavigate,
+  signedIn,
+}: {
+  onNavigate?: () => void
+  signedIn: boolean
+}) {
   const location = useLocation()
   const context = repoContext(location.pathname)
   const activeTab =
@@ -71,18 +77,20 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
           Dashboard
         </Link>
       ) : (
-        navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            onClick={onNavigate}
-            className={({ isActive }) => navClass(isActive)}
-          >
-            <item.icon className="size-4" />
-            {item.label}
-          </NavLink>
-        ))
+        navItems
+          .filter((item) => signedIn || item.to === "/dashboard")
+          .map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              onClick={onNavigate}
+              className={({ isActive }) => navClass(isActive)}
+            >
+              <item.icon className="size-4" />
+              {item.label}
+            </NavLink>
+          ))
       )}
 
       {context ? (
@@ -127,28 +135,7 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { user } = useAuth()
-
-  if (!user) {
-    return (
-      <div className="flex min-h-svh flex-col bg-background">
-        <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-          <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 md:px-6">
-            <Link
-              to="/dashboard"
-              className="flex items-center gap-2 font-semibold"
-            >
-              <GitBranch className="size-5" />
-              repo-insights
-            </Link>
-            <UserMenu />
-          </div>
-        </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 p-4 md:p-6 lg:p-8">
-          <Outlet />
-        </main>
-      </div>
-    )
-  }
+  const signedIn = Boolean(user)
 
   return (
     <div className="flex min-h-svh bg-background">
@@ -163,7 +150,7 @@ export function AppShell() {
           </Link>
         </div>
         <div className="flex-1 p-4">
-          <NavItems />
+          <NavItems signedIn={signedIn} />
         </div>
         <div className="border-t p-4">
           <Button variant="outline" className="w-full justify-start" asChild>
@@ -206,7 +193,10 @@ export function AppShell() {
                 </SheetTitle>
               </SheetHeader>
               <div className="p-4">
-                <NavItems onNavigate={() => setMobileOpen(false)} />
+                <NavItems
+                  signedIn={signedIn}
+                  onNavigate={() => setMobileOpen(false)}
+                />
               </div>
             </SheetContent>
           </Sheet>

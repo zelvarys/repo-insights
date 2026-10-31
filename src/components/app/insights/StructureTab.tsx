@@ -1,13 +1,10 @@
 import { useState } from "react"
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  LabelList,
+  Cell,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip as ChartTooltip,
-  XAxis,
-  YAxis,
 } from "recharts"
 import {
   ChevronDown,
@@ -53,6 +50,10 @@ const IGNORED_FILE_TYPES = new Set([
   ".lock",
   ".map",
 ])
+
+function chartColor(index: number): string {
+  return `var(--chart-${(index % 5) + 1})`
+}
 
 function treeToText(nodes: RepoTreeNode[]): string {
   const lines = ["."]
@@ -190,7 +191,6 @@ export function StructureTab({
   const rootDirs = structure.tree.filter((node) => node.type === "dir")
   const allRootsExpanded =
     rootDirs.length > 0 && rootDirs.every((node) => expanded.has(node.path))
-  const chartHeight = Math.max(220, visibleFileTypes.length * 28 + 24)
 
   function toggle(path: string) {
     setExpanded((current) => {
@@ -251,26 +251,25 @@ export function StructureTab({
               No file types were returned for this scan.
             </p>
           ) : (
-            <div className="max-h-[28rem] overflow-y-auto">
-              <div style={{ height: chartHeight }}>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
+              <div className="relative h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={visibleFileTypes}
-                    layout="vertical"
-                    margin={{ top: 4, right: 36, left: 4, bottom: 4 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" hide allowDecimals={false} />
-                    <YAxis
-                      dataKey="extension"
-                      type="category"
-                      width={72}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fontSize: 12, fontFamily: "monospace" }}
-                    />
+                  <PieChart>
+                    <Pie
+                      data={visibleFileTypes}
+                      dataKey="count"
+                      nameKey="extension"
+                      innerRadius="55%"
+                      outerRadius="85%"
+                      paddingAngle={2}
+                      stroke="var(--background)"
+                      strokeWidth={2}
+                    >
+                      {visibleFileTypes.map((stat, index) => (
+                        <Cell key={stat.extension} fill={chartColor(index)} />
+                      ))}
+                    </Pie>
                     <ChartTooltip
-                      cursor={{ fill: "var(--muted)" }}
                       contentStyle={{
                         background: "var(--popover)",
                         border: "1px solid var(--border)",
@@ -281,21 +280,41 @@ export function StructureTab({
                         "Count",
                       ]}
                     />
-                    <Bar
-                      dataKey="count"
-                      fill="var(--chart-2)"
-                      radius={[0, 4, 4, 0]}
-                      barSize={14}
-                    >
-                      <LabelList
-                        dataKey="count"
-                        position="right"
-                        fill="var(--muted-foreground)"
-                        fontSize={11}
-                      />
-                    </Bar>
-                  </BarChart>
+                  </PieChart>
                 </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-2xl font-semibold">
+                    {structure.fileCount}
+                  </span>
+                  <span className="text-xs text-muted-foreground">files</span>
+                </div>
+              </div>
+              <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                {visibleFileTypes.map((stat, index) => {
+                  const share =
+                    structure.fileCount > 0
+                      ? (stat.count / structure.fileCount) * 100
+                      : 0
+                  return (
+                    <div
+                      key={stat.extension}
+                      className="flex items-center justify-between gap-3 text-sm"
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span
+                          className="size-2.5 shrink-0 rounded-sm"
+                          style={{ backgroundColor: chartColor(index) }}
+                        />
+                        <span className="truncate font-mono text-xs">
+                          {stat.extension}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {stat.count} · {share.toFixed(1)}%
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}

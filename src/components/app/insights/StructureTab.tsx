@@ -30,7 +30,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { useRepoStructure } from "@/hooks/useRepoInsights"
+import { useRepoFileMetadata, useRepoStructure } from "@/hooks/useRepoInsights"
 import { formatBytes } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -161,6 +161,11 @@ export function StructureTab({
   const query = useRepoStructure(repoId)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [selectedFile, setSelectedFile] = useState<RepoTreeNode | null>(null)
+  const fileMetadata = useRepoFileMetadata(
+    repoId,
+    selectedFile?.path ?? "",
+    Boolean(selectedFile && !selectedFile.lastModified),
+  )
 
   if (query.isLoading) return <InsightLoading />
   if (query.isError) {
@@ -231,7 +236,7 @@ export function StructureTab({
               No file types were returned for this scan.
             </p>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-[60%_30%] lg:items-center lg:justify-between">
+            <div className="grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-center">
               <div className="relative h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -242,8 +247,7 @@ export function StructureTab({
                       innerRadius="55%"
                       outerRadius="85%"
                       paddingAngle={2}
-                      stroke="var(--background)"
-                      strokeWidth={1}
+                      stroke="none"
                     >
                       {visibleFileTypes.map((stat, index) => (
                         <Cell key={stat.extension} fill={chartColor(index)} />
@@ -377,7 +381,13 @@ export function StructureTab({
                   <dd className="mt-1 text-sm">
                     {selectedFile.lastModified
                       ? new Date(selectedFile.lastModified).toLocaleString()
-                      : "Not available"}
+                      : fileMetadata.isLoading
+                        ? "Loading…"
+                        : fileMetadata.data?.lastModified
+                          ? new Date(
+                              fileMetadata.data.lastModified,
+                            ).toLocaleString()
+                          : "Not available"}
                   </dd>
                 </div>
               </dl>

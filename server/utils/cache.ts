@@ -41,6 +41,8 @@ export const cacheKeys = {
   metricsPattern: (repoId: string) => `cache:metrics:${repoId}:*`,
   structure: (repoId: string, scanId: string) =>
     `cache:structure:${repoId}:${scanId}`,
+  fileModified: (repoId: string, path: string) =>
+    `cache:file-modified:${repoId}:${path}`,
   activity: (repoId: string, scanId: string, range: number) =>
     `cache:activity:${repoId}:${scanId}:${range}`,
   concentration: (repoId: string, scanId: string) =>

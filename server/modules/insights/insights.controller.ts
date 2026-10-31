@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { badRequest } from '../../utils/errors.js';
+import { badRequest, unauthorized } from '../../utils/errors.js';
 import { parseRepoIdParam } from '../repositories/repository.schema.js';
 import type { ActivityRange } from './activity.js';
 import {
@@ -7,6 +7,7 @@ import {
   getRepoCi,
   getRepoConcentration,
   getRepoDependencies,
+  getRepoFileMetadata,
   getRepoOverview,
   getRepoStructure,
   queueDependencyRefresh,
@@ -26,6 +27,20 @@ function queryString(value: unknown, name: string): string | undefined {
     throw badRequest(`Invalid ${name}`);
   }
   return value.trim();
+}
+
+function filePath(value: unknown): string {
+  if (typeof value !== 'string') throw badRequest('Invalid path');
+  const path = value.trim();
+  if (
+    path.length === 0 ||
+    path.length > 1024 ||
+    path.startsWith('/') ||
+    path.split('/').includes('..')
+  ) {
+    throw badRequest('Invalid path');
+  }
+  return path;
 }
 
 function positiveInt(
@@ -69,6 +84,25 @@ function ciRange(value: unknown): 30 | 90 | 365 {
 export async function getStructure(req: Request, res: Response, next: NextFunction) {
   try {
     res.json(await getRepoStructure(repoId(req)));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getStructureFile(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    if (!req.userId) throw unauthorized();
+    res.json(
+      await getRepoFileMetadata(
+        repoId(req),
+        req.userId,
+        filePath(req.query.path),
+      ),
+    );
   } catch (err) {
     next(err);
   }

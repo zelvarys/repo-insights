@@ -209,6 +209,42 @@ describe('repository insight endpoints', () => {
     });
   });
 
+  it('returns the last modified date for a structure file', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.includes('/commits?') && url.includes('path=src%2Findex.ts')) {
+          return new Response(
+            JSON.stringify([
+              { commit: { author: { date: '2024-01-02T03:04:05Z' } } },
+            ]),
+            { status: 200 },
+          );
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      }),
+    );
+
+    const res = await auth(
+      request(app).get(
+        `/repos/${repoId}/structure/file?path=${encodeURIComponent('src/index.ts')}`,
+      ),
+    );
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      path: 'src/index.ts',
+      lastModified: '2024-01-02T03:04:05Z',
+    });
+  });
+
+  it('rejects invalid structure file paths', async () => {
+    const res = await auth(
+      request(app).get(`/repos/${repoId}/structure/file?path=../secret`),
+    );
+    expect(res.status).toBe(400);
+  });
+
   it('returns activity for the requested range', async () => {
     const res = await auth(
       request(app).get(`/repos/${repoId}/activity?range=90`),

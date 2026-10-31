@@ -1,16 +1,14 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
+import { formatDistanceToNow } from "date-fns"
 import {
-  Activity,
   ArrowRight,
+  CalendarDays,
   FolderGit2,
   Github,
-  Package,
+  Globe,
+  Lock,
   Plus,
-  ShieldCheck,
-  Star,
-  Users,
-  Workflow,
   Wrench,
 } from "lucide-react"
 import { AddRepoDialog } from "@/components/app/AddRepoDialog"
@@ -24,40 +22,15 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
+  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/hooks/useAuth"
 import { useRepos } from "@/hooks/useRepos"
 import { recentRepoIds } from "@/lib/recent-repos"
-
-const introFeatures = [
-  {
-    title: "Repository health",
-    description:
-      "Activity, dependencies, workflows, and commit quality in one score.",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Commit activity",
-    description:
-      "See cadence, contributor mix, and the messages that need work.",
-    icon: Activity,
-  },
-  {
-    title: "Dependencies",
-    description:
-      "Direct manifest dependencies with outdated and advisory checks.",
-    icon: Package,
-  },
-  {
-    title: "Workflows & tools",
-    description:
-      "GitHub Actions reliability alongside per-tool contributor adoption.",
-    icon: Workflow,
-  },
-]
 
 function signIn() {
   window.location.href = "/auth/github"
@@ -65,7 +38,7 @@ function signIn() {
 
 function PublicDashboard() {
   return (
-    <div className="mx-auto max-w-4xl py-6 sm:py-12">
+    <div className="mx-auto flex min-h-[60vh] max-w-2xl items-center justify-center py-10 sm:py-16">
       <div className="text-center">
         <Badge variant="secondary" className="mb-5 gap-1.5">
           <Wrench className="size-3" />
@@ -74,43 +47,19 @@ function PublicDashboard() {
         <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-5xl">
           See how healthy your repositories really are.
         </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-base text-balance text-muted-foreground sm:text-lg">
+        <p className="mx-auto mt-4 max-w-xl text-base text-balance text-muted-foreground sm:text-lg">
           Connect GitHub to scan repository health, activity, dependencies,
-          workflows, structure, and how consistently contributors use your
-          tools.
+          workflows, structure, and contributor tool adoption.
         </p>
         <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
           <Button size="lg" onClick={signIn}>
             <Github className="size-4" />
-            Connect GitHub
+            Sign in with GitHub
           </Button>
           <p className="text-xs text-muted-foreground">
             Read-only access. Public repositories only.
           </p>
         </div>
-      </div>
-
-      <div className="mt-10 grid gap-3 sm:grid-cols-2">
-        {introFeatures.map((feature) => (
-          <Card key={feature.title}>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <feature.icon className="size-4" />
-                </div>
-                <CardTitle className="text-sm">{feature.title}</CardTitle>
-              </div>
-              <CardDescription>{feature.description}</CardDescription>
-            </CardHeader>
-          </Card>
-        ))}
-      </div>
-
-      <div className="mt-8 text-center">
-        <Button onClick={signIn}>
-          <Github className="size-4" />
-          Sign in with GitHub
-        </Button>
       </div>
     </div>
   )
@@ -126,27 +75,44 @@ export default function Dashboard() {
   if (isLoading) return <ReposSkeleton />
   if (!user) return <PublicDashboard />
 
+  const sortedRepos = [...repos].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  )
+  const newestRepo = sortedRepos[0]
+  const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000
+  const addedThisMonth = repos.filter(
+    (repo) => Date.parse(repo.createdAt) >= monthAgo,
+  ).length
+  const publicRepos = repos.filter((repo) => !repo.isPrivate).length
+  const privateRepos = repos.length - publicRepos
   const stats = [
     {
       label: "Repositories",
       value: repos.length,
       icon: FolderGit2,
+      detail: `${publicRepos} public · ${privateRepos} private`,
     },
     {
-      label: "Contributors",
-      value: repos.reduce((sum, repo) => sum + repo.contributorCount, 0),
-      icon: Users,
+      label: "Added this month",
+      value: addedThisMonth,
+      icon: CalendarDays,
+      detail: "Repositories connected in the last 30 days",
     },
     {
-      label: "Stars",
-      value: repos.reduce((sum, repo) => sum + repo.stars, 0),
-      icon: Star,
+      label: "Latest repository",
+      value: (
+        <span className="block truncate text-lg">
+          {newestRepo?.name ?? "—"}
+        </span>
+      ),
+      icon: FolderGit2,
+      detail: newestRepo
+        ? `${newestRepo.owner} · added ${formatDistanceToNow(new Date(newestRepo.createdAt), { addSuffix: true })}`
+        : undefined,
     },
   ]
-
-  const sortedRepos = [...repos].sort(
-    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
-  )
+  const publicShare =
+    repos.length > 0 ? Math.round((publicRepos / repos.length) * 100) : 0
   const reposById = new Map(repos.map((repo) => [repo.id, repo]))
   const remembered = recentIds
     .map((id) => reposById.get(id))
@@ -190,39 +156,116 @@ export default function Dashboard() {
           }
         />
       ) : (
-        <div className="space-y-6">
-          <div className="grid gap-3 sm:grid-cols-3">
-            {stats.map((stat) => (
-              <StatCard
-                key={stat.label}
-                label={stat.label}
-                value={stat.value}
-                icon={stat.icon}
-              />
-            ))}
-          </div>
-
-          <div>
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <div>
-                <h2 className="text-lg font-semibold">Recent repositories</h2>
-                <p className="text-sm text-muted-foreground">
-                  Jump back into the repositories you viewed most recently.
-                </p>
-              </div>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/repos">
-                  View all
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {recentRepos.map((repo) => (
-                <RepositoryCard key={repo.id} repo={repo} />
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
+          <div className="space-y-6">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {stats.map((stat) => (
+                <StatCard
+                  key={stat.label}
+                  label={stat.label}
+                  value={stat.value}
+                  detail={stat.detail}
+                  icon={stat.icon}
+                />
               ))}
             </div>
+
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-lg font-semibold">Recent repositories</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Jump back into the repositories you viewed most recently.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/repos">
+                    View all
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                {recentRepos.map((repo) => (
+                  <RepositoryCard key={repo.id} repo={repo} />
+                ))}
+              </div>
+            </div>
           </div>
+
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle>Workspace</CardTitle>
+              <CardDescription>
+                Access, recent changes, and shortcuts for this workspace.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div>
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="font-medium">Repository access</span>
+                  <span className="text-muted-foreground">{repos.length}</span>
+                </div>
+                <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="bg-primary"
+                    style={{ width: `${publicShare}%` }}
+                  />
+                  <div
+                    className="bg-muted-foreground/40"
+                    style={{ width: `${100 - publicShare}%` }}
+                  />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Globe className="size-3.5" />
+                    {publicRepos} public
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Lock className="size-3.5" />
+                    {privateRepos} private
+                  </span>
+                </div>
+              </div>
+
+              {newestRepo ? (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Most recently added
+                    </p>
+                    <Link
+                      to={`/repos/${newestRepo.id}`}
+                      className="mt-1 flex items-center justify-between gap-3 rounded-md text-sm font-medium hover:text-primary"
+                    >
+                      <span className="truncate">{newestRepo.fullName}</span>
+                      <ArrowRight className="size-4 shrink-0" />
+                    </Link>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(newestRepo.createdAt), {
+                        addSuffix: true,
+                      })}
+                    </p>
+                  </div>
+                </>
+              ) : null}
+
+              <Separator />
+              <div className="flex flex-col gap-2">
+                <Button variant="outline" asChild>
+                  <Link to="/repos">
+                    Browse repositories
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+                <Button onClick={() => setDialogOpen(true)}>
+                  <Plus className="size-4" />
+                  Add repository
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </>

@@ -253,9 +253,7 @@ export function DependenciesTab({
                       >
                         <TableCell className="border-r">
                           <div className="flex flex-col">
-                            <span className="font-medium">
-                              {row.packageName}
-                            </span>
+                            <span>{row.packageName}</span>
                             <span className="text-xs text-muted-foreground">
                               {row.ecosystem}
                             </span>
@@ -270,27 +268,22 @@ export function DependenciesTab({
                           {row.latestVersion ?? "—"}
                         </TableCell>
                         <TableCell className="border-r text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <StatusBadge
-                              tone={status.tone}
-                              title={
-                                row.maxSeverity
-                                  ? `Highest severity: ${row.maxSeverity}`
-                                  : undefined
-                              }
-                            >
-                              {status.label}
-                            </StatusBadge>
-                            {status.count !== undefined ? (
-                              <StatusBadge
-                                tone="danger"
-                                title={`${status.count} known advisory${status.count === 1 ? "" : "ies"}`}
-                                className="tabular-nums"
-                              >
-                                {status.count}
-                              </StatusBadge>
-                            ) : null}
-                          </div>
+                          <StatusBadge
+                            tone={status.tone}
+                            badge={status.count}
+                            title={[
+                              status.count !== undefined
+                                ? `${status.count} known advisory${status.count === 1 ? "" : "ies"}`
+                                : null,
+                              row.maxSeverity
+                                ? `Highest severity: ${row.maxSeverity}`
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(". ")}
+                          >
+                            {status.label}
+                          </StatusBadge>
                         </TableCell>
                         <TableCell className="text-center">
                           <Button variant="ghost" size="sm" asChild>

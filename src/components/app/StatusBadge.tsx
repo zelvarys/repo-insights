@@ -15,20 +15,29 @@ const TONE_CLASSES: Record<StatusTone, string> = {
 
 export function StatusBadge({
   tone = "neutral",
+  badge,
   className,
   children,
   ...props
-}: React.ComponentProps<"span"> & { tone?: StatusTone }) {
+}: React.ComponentProps<"span"> & {
+  tone?: StatusTone
+  badge?: React.ReactNode
+}) {
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold whitespace-nowrap",
+        "relative inline-flex items-center justify-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold whitespace-nowrap",
         TONE_CLASSES[tone],
         className,
       )}
       {...props}
     >
       {children}
+      {badge !== undefined && badge !== null ? (
+        <span className="absolute -top-2 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] leading-none font-semibold text-white ring-2 ring-background">
+          {badge}
+        </span>
+      ) : null}
     </span>
   )
 }

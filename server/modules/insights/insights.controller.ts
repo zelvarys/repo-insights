@@ -109,7 +109,7 @@ export async function getDependencies(req: Request, res: Response, next: NextFun
     res.json(
       await getRepoDependencies(repoId(req), {
         page: positiveInt(req.query.page, 'page', 1, 10_000),
-        perPage: positiveInt(req.query.perPage, 'perPage', 50, 100),
+        perPage: positiveInt(req.query.perPage, 'perPage', 30, 100),
         outdated: optionalBoolean(req.query.outdated, 'outdated'),
         hasAdvisory: optionalBoolean(req.query.hasAdvisory, 'hasAdvisory'),
       }),

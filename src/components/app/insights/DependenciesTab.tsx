@@ -78,7 +78,7 @@ export function DependenciesTab({
   const [page, setPage] = useState(1)
   const [polling, setPolling] = useState(false)
   const [requestedAt, setRequestedAt] = useState<number | null>(null)
-  const filters: DependencyFilters = { page, perPage: 50, show }
+  const filters: DependencyFilters = { page, perPage: 30, show }
   const query = useRepoDependencies(repoId, filters, polling)
   const refresh = useRefreshDependencies(repoId)
 

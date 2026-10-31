@@ -342,7 +342,7 @@ async function processScanJob(job: {
     }
 
     const trackedRows = await pool.query<{ tool_name: string }>(
-      `SELECT tool_name FROM tracked_tools WHERE repo_id = $1`,
+      `SELECT tool_name FROM tracked_tools WHERE repo_id = $1 AND enabled = TRUE`,
       [repoId],
     );
     const trackedNames = new Set(trackedRows.rows.map((r) => r.tool_name));

@@ -1,5 +1,4 @@
 import type { RepoMetrics, ToolCategory, ToolMetric } from "@shared/types"
-import { ScoreGauge } from "@/components/app/ScoreGauge"
 import { TOOL_CATEGORY_LABELS, ToolRow } from "@/components/app/ToolRow"
 import {
   Card,
@@ -56,17 +55,25 @@ function ToolGroupList({ tools }: { tools: ToolMetric[] }) {
 }
 
 export function MetricsPanel({ metrics }: MetricsPanelProps) {
-  const detectedTools = metrics.tools.filter((tool) => tool.detected)
+  const detectedTools = metrics.tools.filter((tool) => tool.adoptionRate > 0)
   const trackedTools = metrics.tools.filter((tool) => tool.tracked)
 
   return (
     <div className="space-y-6">
       <Card>
-        <CardContent className="flex flex-col items-center justify-center gap-2 py-8">
-          <ScoreGauge score={metrics.adoptionScore} />
-          <p className="text-center text-xs text-muted-foreground">
+        <CardHeader className="pb-3">
+          <CardTitle>Adoption score</CardTitle>
+          <CardDescription>
             Average adoption across detected tracked tools.
-          </p>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-end gap-2">
+            <p className="text-5xl font-bold">
+              {metrics.adoptionScore.toFixed(1)}
+            </p>
+            <p className="pb-2 text-sm text-muted-foreground">/ 100</p>
+          </div>
         </CardContent>
       </Card>
 

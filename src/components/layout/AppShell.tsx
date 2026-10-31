@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom"
 import {
   Activity,
   ArrowLeft,
+  FolderGit2,
   FolderTree,
   Gauge,
   Github,
@@ -15,6 +16,7 @@ import {
   Wrench,
 } from "lucide-react"
 import { UserMenu } from "@/components/app/UserMenu"
+import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -27,6 +29,7 @@ import { cn } from "@/lib/utils"
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/repos", label: "Repositories", icon: FolderGit2, end: true },
 ]
 
 const repoFeatures = [
@@ -122,6 +125,29 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { user } = useAuth()
+
+  if (!user) {
+    return (
+      <div className="flex min-h-svh flex-col bg-background">
+        <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+          <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 md:px-6">
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-2 font-semibold"
+            >
+              <GitBranch className="size-5" />
+              repo-insights
+            </Link>
+            <UserMenu />
+          </div>
+        </header>
+        <main className="mx-auto w-full max-w-6xl flex-1 p-4 md:p-6 lg:p-8">
+          <Outlet />
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-svh bg-background">

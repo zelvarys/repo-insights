@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/card"
 import { useRepo, useRepoMetrics, useRepoScans } from "@/hooks/useRepoDetail"
 import { useRunScan, useScanPoll } from "@/hooks/useRunScan"
+import { rememberRecentRepo } from "@/lib/recent-repos"
 
 function NoScanState({
   scanning,
@@ -95,6 +96,10 @@ export default function RepoDetail() {
   const scansQuery = useRepoScans(repoId)
   const runScan = useRunScan(repoId)
   const scanPoll = useScanPoll(pollingScanId)
+
+  useEffect(() => {
+    if (repoId) rememberRecentRepo(repoId)
+  }, [repoId])
 
   const repo = repoQuery.data?.repository
   const metrics = metricsQuery.data

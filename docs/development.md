@@ -206,4 +206,5 @@ npx shadcn@latest add <component>
 ```
 
 The shared frontend/backend config lives at the root: `vite.config.ts`,
-`postcss.config.js`, `components.json`, and `tsconfig*.json`.
+`postcss.config.js`, `components.json`, and `config/typescript/*.json`. The
+root `tsconfig.json` references the app, server, node, and test projects.

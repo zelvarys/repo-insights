@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
-import type { ScanSummary } from '../../shared/types.js';
 import { createApp } from '../../server/app.js';
 import { pool, closeDb } from '../../server/config/database.js';
 import { closeRedis } from '../../server/config/redis.js';
@@ -133,7 +132,7 @@ const summary = {
   ciHealth,
   dependencyHealth,
   ciError: null,
-} satisfies ScanSummary;
+};
 
 async function seedInsights(): Promise<void> {
   const result = await pool.query<{ id: string }>(
@@ -451,7 +450,7 @@ describe('repository insight endpoints', () => {
       outdated: false,
     });
 
-    const stored = await pool.query<{ summary: ScanSummary }>(
+    const stored = await pool.query<{ summary: Record<string, unknown> }>(
       'SELECT summary FROM scans WHERE id = $1',
       [scanId],
     );

@@ -40,7 +40,8 @@ describe('crypto', () => {
   it('rejects a tampered ciphertext', () => {
     const enc = encryptToken('gho_secret');
     const buf = Buffer.from(enc, 'base64');
-    buf[buf.length - 1] ^= 0xff;
+    const last = buf.length - 1;
+    buf[last] = buf[last]! ^ 0xff;
     expect(() => decryptToken(buf.toString('base64'))).toThrow();
   });
 
@@ -49,7 +50,8 @@ describe('crypto', () => {
     // Swap the key at runtime is hard because `key()` reads env each call.
     // Instead simulate by tampering the tag byte.
     const buf = Buffer.from(enc, 'base64');
-    buf[buf.length - 1] ^= 0x01;
+    const last = buf.length - 1;
+    buf[last] = buf[last]! ^ 0x01;
     expect(() => decryptToken(buf.toString('base64'))).toThrow();
   });
 });

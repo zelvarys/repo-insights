@@ -1,4 +1,5 @@
 import type { RepoMetrics, ToolCategory, ToolMetric } from "@shared/types"
+import { toast } from "sonner"
 import { TOOL_CATEGORY_LABELS, ToolRow } from "@/components/app/ToolRow"
 import {
   Card,
@@ -8,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useTrackedTools, useUpdateTrackedTools } from "@/hooks/useTrackedTools"
 
 const CATEGORY_ORDER: ToolCategory[] = [
   "testing",
@@ -22,7 +24,17 @@ type MetricsPanelProps = {
   metrics: RepoMetrics
 }
 
-function ToolGroupList({ tools }: { tools: ToolMetric[] }) {
+function ToolGroupList({
+  tools,
+  trackedByName,
+  trackingDisabled,
+  onTrackedChange,
+}: {
+  tools: ToolMetric[]
+  trackedByName: Map<string, boolean>
+  trackingDisabled: boolean
+  onTrackedChange: (name: string, enabled: boolean) => void
+}) {
   if (tools.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
@@ -44,7 +56,15 @@ function ToolGroupList({ tools }: { tools: ToolMetric[] }) {
             </h3>
             <div className="space-y-2">
               {group.map((tool) => (
-                <ToolRow key={tool.name} tool={tool} />
+                <ToolRow
+                  key={tool.name}
+                  tool={tool}
+                  tracked={trackedByName.get(tool.name) ?? tool.tracked}
+                  trackingDisabled={trackingDisabled}
+                  onTrackedChange={(enabled) =>
+                    onTrackedChange(tool.name, enabled)
+                  }
+                />
               ))}
             </div>
           </section>
@@ -55,8 +75,37 @@ function ToolGroupList({ tools }: { tools: ToolMetric[] }) {
 }
 
 export function MetricsPanel({ metrics }: MetricsPanelProps) {
+  const trackedToolsQuery = useTrackedTools(metrics.repoId)
+  const updateTrackedTools = useUpdateTrackedTools(metrics.repoId)
+  const trackedByName = new Map(
+    (trackedToolsQuery.data?.tools ?? []).map((tool) => [
+      tool.toolName,
+      tool.enabled,
+    ]),
+  )
   const detectedTools = metrics.tools.filter((tool) => tool.adoptionRate > 0)
-  const trackedTools = metrics.tools.filter((tool) => tool.tracked)
+  const trackedTools = metrics.tools.filter(
+    (tool) => trackedByName.get(tool.name) ?? tool.tracked,
+  )
+  const trackingDisabled =
+    !trackedToolsQuery.data || updateTrackedTools.isPending
+
+  function handleTrackedChange(name: string, enabled: boolean) {
+    if (!trackedToolsQuery.data) return
+    updateTrackedTools.mutate(
+      trackedToolsQuery.data.tools.map((tool) => ({
+        name: tool.toolName,
+        enabled: tool.toolName === name ? enabled : tool.enabled,
+      })),
+      {
+        onError: (error) => {
+          toast.error("Could not update tracked tools", {
+            description: error.message,
+          })
+        },
+      },
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -81,10 +130,11 @@ export function MetricsPanel({ metrics }: MetricsPanelProps) {
         <CardHeader>
           <CardTitle>Tool breakdown</CardTitle>
           <CardDescription>
-            {metrics.toolsChecked} tools checked
-            {metrics.languages.length > 0
-              ? ` · Languages: ${metrics.languages.join(", ")}`
-              : ""}
+            {`${metrics.toolsChecked} tools checked${
+              metrics.languages.length > 0
+                ? ` · Languages: ${metrics.languages.join(", ")}`
+                : ""
+            }. Toggle a tool to include it in adoption scoring.`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -101,13 +151,28 @@ export function MetricsPanel({ metrics }: MetricsPanelProps) {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="all" className="mt-4">
-              <ToolGroupList tools={metrics.tools} />
+              <ToolGroupList
+                tools={metrics.tools}
+                trackedByName={trackedByName}
+                trackingDisabled={trackingDisabled}
+                onTrackedChange={handleTrackedChange}
+              />
             </TabsContent>
             <TabsContent value="detected" className="mt-4">
-              <ToolGroupList tools={detectedTools} />
+              <ToolGroupList
+                tools={detectedTools}
+                trackedByName={trackedByName}
+                trackingDisabled={trackingDisabled}
+                onTrackedChange={handleTrackedChange}
+              />
             </TabsContent>
             <TabsContent value="tracked" className="mt-4">
-              <ToolGroupList tools={trackedTools} />
+              <ToolGroupList
+                tools={trackedTools}
+                trackedByName={trackedByName}
+                trackingDisabled={trackingDisabled}
+                onTrackedChange={handleTrackedChange}
+              />
             </TabsContent>
           </Tabs>
         </CardContent>

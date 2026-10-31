@@ -1,5 +1,6 @@
 import { Users } from "lucide-react"
 import type { ToolCategory, ToolMetric } from "@shared/types"
+import { Switch } from "@/components/ui/switch"
 import { Progress } from "@/components/ui/progress"
 import {
   Tooltip,
@@ -19,9 +20,17 @@ export const TOOL_CATEGORY_LABELS: Record<ToolCategory, string> = {
 
 type ToolRowProps = {
   tool: ToolMetric
+  tracked?: boolean
+  trackingDisabled?: boolean
+  onTrackedChange?: (enabled: boolean) => void
 }
 
-export function ToolRow({ tool }: ToolRowProps) {
+export function ToolRow({
+  tool,
+  tracked = tool.tracked,
+  trackingDisabled = false,
+  onTrackedChange,
+}: ToolRowProps) {
   const row = (
     <div
       className={cn("rounded-lg border p-4", !tool.relevant && "opacity-50")}
@@ -39,9 +48,24 @@ export function ToolRow({ tool }: ToolRowProps) {
             ) : null}
           </p>
         </div>
-        <span className="text-sm font-medium">
-          {Math.round(tool.adoptionRate)}%
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium">
+            {Math.round(tool.adoptionRate)}%
+          </span>
+          {onTrackedChange ? (
+            <Switch
+              checked={tracked}
+              onCheckedChange={onTrackedChange}
+              disabled={!tool.relevant || trackingDisabled}
+              aria-label={`Track ${tool.name}`}
+              title={
+                tool.relevant
+                  ? "Include this tool in the adoption score"
+                  : "Not relevant to this repository"
+              }
+            />
+          ) : null}
+        </div>
       </div>
       <Progress
         value={tool.adoptionRate}

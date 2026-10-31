@@ -1,7 +1,7 @@
 import { Fragment, useState } from "react"
 import { Link } from "react-router-dom"
 import { formatDistanceToNow } from "date-fns"
-import { Settings } from "lucide-react"
+import { Wrench } from "lucide-react"
 import type { ScanStatus, ScanSummary } from "@shared/types"
 import { StatusBadge, type StatusTone } from "@/components/app/StatusBadge"
 import { Button } from "@/components/ui/button"
@@ -153,9 +153,9 @@ export function ScanHistory({ repoId }: { repoId: string }) {
         <CardDescription>The five most recent scans.</CardDescription>
         <CardAction>
           <Button variant="ghost" size="sm" asChild>
-            <Link to={`/repos/${repoId}/settings`}>
-              <Settings className="size-4" />
-              Tracked tools
+            <Link to={`/repos/${repoId}?tab=tools`}>
+              <Wrench className="size-4" />
+              Manage tools
             </Link>
           </Button>
         </CardAction>

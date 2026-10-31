@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { Link, useParams, useSearchParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
-import { Loader2, RefreshCw, ScanLine, Settings, Trash2 } from "lucide-react"
+import { Loader2, RefreshCw, ScanLine, Settings } from "lucide-react"
 import { toast } from "sonner"
 import { EmptyState } from "@/components/app/EmptyState"
 import { ErrorState } from "@/components/app/ErrorState"
@@ -12,17 +12,9 @@ import { CiTab } from "@/components/app/insights/CiTab"
 import { DependenciesTab } from "@/components/app/insights/DependenciesTab"
 import { OverviewTab } from "@/components/app/insights/OverviewTab"
 import { StructureTab } from "@/components/app/insights/StructureTab"
-import { RemoveRepoDialog } from "@/components/app/RemoveRepoDialog"
 import { ScanHistory } from "@/components/app/ScanHistory"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { useRepo, useRepoMetrics, useRepoScans } from "@/hooks/useRepoDetail"
 import { useRunScan, useScanPoll } from "@/hooks/useRunScan"
 import { rememberRecentRepo } from "@/lib/recent-repos"
@@ -73,7 +65,6 @@ export default function RepoDetail() {
   const { id } = useParams<{ id: string }>()
   const repoId = id ?? ""
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get("tab")
   const normalizedTab = tabParam === "ci" ? "workflows" : tabParam
@@ -89,7 +80,6 @@ export default function RepoDetail() {
 
   const [pollingScanId, setPollingScanId] = useState<string | null>(null)
   const [autoPolledScanId, setAutoPolledScanId] = useState<string | null>(null)
-  const [removeOpen, setRemoveOpen] = useState(false)
 
   const repoQuery = useRepo(repoId)
   const metricsQuery = useRepoMetrics(repoId)
@@ -296,40 +286,8 @@ export default function RepoDetail() {
           <div className="mt-6">
             <ScanHistory repoId={repoId} />
           </div>
-
-          <div className="mt-6">
-            <Card className="border-destructive/40">
-              <CardHeader>
-                <CardTitle>Danger zone</CardTitle>
-                <CardDescription>
-                  Removing this repository deletes its scans, metrics, and
-                  tracked tool settings.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  variant="destructive"
-                  onClick={() => setRemoveOpen(true)}
-                >
-                  <Trash2 className="size-4" />
-                  Remove repository
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
         </>
       )}
-
-      <RemoveRepoDialog
-        open={removeOpen}
-        onOpenChange={setRemoveOpen}
-        repoId={repoId}
-        repoName={repo?.fullName}
-        onRemoved={() => {
-          void queryClient.invalidateQueries({ queryKey: ["repos"] })
-          navigate("/dashboard", { replace: true })
-        }}
-      />
     </>
   )
 }

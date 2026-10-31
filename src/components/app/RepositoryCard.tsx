@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import { formatDistanceToNow } from "date-fns"
+import { formatDistanceToNowStrict } from "date-fns"
 import { ArrowRight, GitFork, Lock, Star, Users } from "lucide-react"
 import type { TrackedRepository } from "@shared/types"
 import { Badge } from "@/components/ui/badge"
@@ -49,7 +49,7 @@ export function RepositoryCard({ repo }: { repo: TrackedRepository }) {
         <CardFooter className="mt-auto flex-wrap justify-between gap-2 text-xs text-muted-foreground">
           <span>
             Added{" "}
-            {formatDistanceToNow(new Date(repo.createdAt), {
+            {formatDistanceToNowStrict(new Date(repo.createdAt), {
               addSuffix: true,
             })}
           </span>

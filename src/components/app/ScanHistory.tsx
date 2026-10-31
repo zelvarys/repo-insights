@@ -1,5 +1,5 @@
 import { Fragment, useState } from "react"
-import { formatDistanceToNow } from "date-fns"
+import { formatDistanceToNowStrict } from "date-fns"
 import type { ScanStatus, ScanSummary } from "@shared/types"
 import { StatusBadge, type StatusTone } from "@/components/app/StatusBadge"
 import { Button } from "@/components/ui/button"
@@ -44,7 +44,7 @@ function healthScore(summary: Record<string, unknown> | null): number | null {
 }
 
 function relativeDate(value: string): string {
-  return formatDistanceToNow(new Date(value), { addSuffix: true })
+  return formatDistanceToNowStrict(new Date(value), { addSuffix: true })
 }
 
 function ScanDetails({ scan }: { scan: ScanSummary }) {
@@ -189,10 +189,16 @@ export function ScanHistory({ repoId }: { repoId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="border-r">Started</TableHead>
-                    <TableHead className="border-r">Status</TableHead>
-                    <TableHead className="border-r">Health</TableHead>
-                    <TableHead>Completed</TableHead>
+                    <TableHead className="border-r text-center">
+                      Started
+                    </TableHead>
+                    <TableHead className="border-r text-center">
+                      Status
+                    </TableHead>
+                    <TableHead className="border-r text-center">
+                      Health
+                    </TableHead>
+                    <TableHead className="text-center">Completed</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -214,20 +220,20 @@ export function ScanHistory({ repoId }: { repoId: string }) {
                           }}
                         >
                           <TableCell
-                            className="border-r"
+                            className="border-r text-center"
                             title={new Date(scan.createdAt).toLocaleString()}
                           >
                             {relativeDate(scan.createdAt)}
                           </TableCell>
-                          <TableCell className="border-r">
+                          <TableCell className="border-r text-center">
                             <StatusBadge tone={STATUS_TONES[scan.status]}>
                               {scan.status}
                             </StatusBadge>
                           </TableCell>
-                          <TableCell className="border-r">
+                          <TableCell className="border-r text-center">
                             {score === null ? "—" : score.toFixed(1)}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center">
                             {scan.completedAt
                               ? relativeDate(scan.completedAt)
                               : "—"}

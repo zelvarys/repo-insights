@@ -178,9 +178,6 @@ function QualityCard({ quality }: { quality: CommitQuality }) {
             <p className="mt-1 text-2xl font-semibold">
               {quality.mostCommonType ?? "—"}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Avg message {quality.averageMessageLength.toFixed(0)} chars
-            </p>
           </div>
         </div>
 

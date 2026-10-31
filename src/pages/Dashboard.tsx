@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useQueries } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
-import { formatDistanceToNow } from "date-fns"
+import { formatDistanceToNowStrict } from "date-fns"
 import type { RepoMetrics } from "@shared/types"
 import {
   Activity,
@@ -340,9 +340,10 @@ export default function Dashboard() {
                       <ArrowRight className="size-4 shrink-0" />
                     </Link>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(newestRepo.createdAt), {
-                        addSuffix: true,
-                      })}
+                      {formatDistanceToNowStrict(
+                        new Date(newestRepo.createdAt),
+                        { addSuffix: true },
+                      )}
                     </p>
                   </div>
                 </>

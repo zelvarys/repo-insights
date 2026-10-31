@@ -156,8 +156,8 @@ function QualityCard({ quality }: { quality: CommitQuality }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div>
+        <div className="grid gap-4 sm:grid-cols-[35fr_35fr_30fr] sm:gap-0">
+          <div className="sm:pr-4">
             <p className="text-xs text-muted-foreground">
               Conventional Commits
             </p>
@@ -166,14 +166,14 @@ function QualityCard({ quality }: { quality: CommitQuality }) {
             </p>
             <Progress value={quality.conventionalPercent} className="mt-2" />
           </div>
-          <div>
+          <div className="sm:border-l sm:px-4">
             <p className="text-xs text-muted-foreground">Commits with a body</p>
             <p className="text-2xl font-semibold">
               {quality.bodyPercent.toFixed(1)}%
             </p>
             <Progress value={quality.bodyPercent} className="mt-2" />
           </div>
-          <div>
+          <div className="sm:border-l sm:pl-4">
             <p className="text-xs text-muted-foreground">Most common type</p>
             <p className="mt-1 text-2xl font-semibold">
               {quality.mostCommonType ?? "—"}

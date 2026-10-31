@@ -189,16 +189,10 @@ export function ScanHistory({ repoId }: { repoId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="border-r text-center">
-                      Started
-                    </TableHead>
-                    <TableHead className="border-r text-center">
-                      Status
-                    </TableHead>
-                    <TableHead className="border-r text-center">
-                      Health
-                    </TableHead>
-                    <TableHead className="text-center">Completed</TableHead>
+                    <TableHead>Started</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Health</TableHead>
+                    <TableHead>Completed</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -220,20 +214,19 @@ export function ScanHistory({ repoId }: { repoId: string }) {
                           }}
                         >
                           <TableCell
-                            className="border-r text-center"
                             title={new Date(scan.createdAt).toLocaleString()}
                           >
                             {relativeDate(scan.createdAt)}
                           </TableCell>
-                          <TableCell className="border-r text-center">
+                          <TableCell>
                             <StatusBadge tone={STATUS_TONES[scan.status]}>
                               {scan.status}
                             </StatusBadge>
                           </TableCell>
-                          <TableCell className="border-r text-center">
+                          <TableCell>
                             {score === null ? "—" : score.toFixed(1)}
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell>
                             {scan.completedAt
                               ? relativeDate(scan.completedAt)
                               : "—"}

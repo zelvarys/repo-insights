@@ -165,7 +165,9 @@ export function OverviewTab({
                     <span className="font-medium">
                       {component.available
                         ? component.score.toFixed(1)
-                        : "Not collected"}
+                        : component.key === "ci"
+                          ? "null"
+                          : "Not collected"}
                     </span>
                   </div>
                 ))}

@@ -49,7 +49,7 @@ export function componentScores(input: HealthInput): {
       ? clamp(input.ciSuccessRate ?? 0)
       : null;
   const concentration = input.concentration
-    ? clamp(100 - Math.max(0, input.concentration.top3Share - 50) * 2)
+    ? clamp((1 - input.concentration.gini) * 100)
     : null;
   const commitQuality =
     input.quality && input.quality.totalCommits > 0

@@ -280,6 +280,26 @@ describe('repo health score', () => {
     expect(health.score).toBe(83);
   });
 
+  it('scores contributor spread from distribution, not top-three share', () => {
+    const health = computeRepoHealth({
+      commitsLast90: 50,
+      concentration: {
+        totalCommits: 10,
+        contributorCount: 2,
+        top1Share: 60,
+        top3Share: 100,
+        top10Share: 100,
+        gini: 0.2,
+        risk: 'yellow',
+        topContributors: [],
+      },
+    });
+    const spread = health.components.find(
+      (component) => component.key === 'concentration',
+    );
+    expect(spread).toMatchObject({ score: 80, available: true });
+  });
+
   it('renormalizes missing components', () => {
     const health = computeRepoHealth({
       commitsLast90: 25,

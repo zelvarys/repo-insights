@@ -43,6 +43,7 @@ import { computeConcentration } from '../insights/concentration.js';
 import { aggregateCiHealth } from '../insights/ci.js';
 import { persistCiRuns } from '../insights/ci.service.js';
 import { buildRepoStructure, type RawTreeEntry } from '../insights/structure.js';
+import { computeRepoHealth } from '../insights/health-score.js';
 import {
   collectDependencyHealth,
   persistDependencyHealth,
@@ -66,6 +67,7 @@ const CONFIG_FILE_CANDIDATES = [
   'jest.config.js', 'jest.config.ts', 'jest.config.mjs',
   'jest.config.cjs', 'jest.config.json',
   'pyproject.toml', 'setup.cfg', 'setup.py', 'requirements.txt',
+  'requirements-dev.txt', 'dev-requirements.txt', 'Pipfile',
   'pytest.ini', 'tox.ini', 'ruff.toml', '.ruff.toml',
   'go.mod', 'go.sum',
   '.golangci.yml', '.golangci.yaml', '.golangci.toml', '.golangci.json',
@@ -410,6 +412,20 @@ async function processScanJob(job: {
       );
     }
 
+    const daily90 = activity?.ranges[90].daily ?? {};
+    const commitsLast90 = Object.values(daily90).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+    const health = computeRepoHealth({
+      commitsLast90,
+      dependencies: dependencyResult?.summary ?? null,
+      ciSuccessRate: ciHealth?.successRate ?? null,
+      ciTotalRuns: ciHealth?.totalRuns ?? null,
+      concentration: concentration ?? null,
+      quality: activity?.quality ?? null,
+    });
+
     const summary: Record<string, unknown> = {
       ...computeScore(summaryTools, trackedNames, {
         repoId,
@@ -418,6 +434,7 @@ async function processScanJob(job: {
         scanCompletedAt: null,
         languages: languagesToArray(languages),
       }),
+      health,
       ciHealth,
       ciError: ctx.ciError ?? null,
       ...(activity ? { activity } : {}),

@@ -42,12 +42,19 @@ function summaryNumber(
   return typeof value === "number" ? value : null
 }
 
+function healthScore(summary: Record<string, unknown> | null): number | null {
+  const health = summary?.health
+  if (!health || typeof health !== "object") return null
+  const score = (health as { score?: unknown }).score
+  return typeof score === "number" ? score : null
+}
+
 function relativeDate(value: string): string {
   return formatDistanceToNow(new Date(value), { addSuffix: true })
 }
 
 function ScanDetails({ scan }: { scan: ScanSummary }) {
-  const score = summaryNumber(scan.summary, "adoptionScore")
+  const score = healthScore(scan.summary)
   const detected = summaryNumber(scan.summary, "toolsDetected")
   const checked = summaryNumber(scan.summary, "toolsChecked")
 
@@ -70,7 +77,7 @@ function ScanDetails({ scan }: { scan: ScanSummary }) {
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       <div>
-        <p className="text-xs text-muted-foreground">Adoption score</p>
+        <p className="text-xs text-muted-foreground">Repository health</p>
         <p className="text-sm font-medium">
           {score === null ? "—" : score.toFixed(1)}
         </p>
@@ -96,7 +103,7 @@ function ScanMobileCard({
   expanded: boolean
   onToggle: () => void
 }) {
-  const score = summaryNumber(scan.summary, "adoptionScore")
+  const score = healthScore(scan.summary)
 
   return (
     <div className="rounded-lg border">
@@ -113,7 +120,7 @@ function ScanMobileCard({
           <Badge variant={STATUS_VARIANTS[scan.status]}>{scan.status}</Badge>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>Score {score === null ? "—" : score.toFixed(1)}</span>
+          <span>Health {score === null ? "—" : score.toFixed(1)}</span>
           <span>
             {scan.completedAt
               ? `Completed ${relativeDate(scan.completedAt)}`
@@ -196,14 +203,14 @@ export function ScanHistory({ repoId }: { repoId: string }) {
                   <TableRow>
                     <TableHead>Started</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Score</TableHead>
+                    <TableHead>Health</TableHead>
                     <TableHead>Completed</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {scans.map((scan) => {
                     const expanded = expandedId === scan.id
-                    const score = summaryNumber(scan.summary, "adoptionScore")
+                    const score = healthScore(scan.summary)
                     return (
                       <Fragment key={scan.id}>
                         <TableRow

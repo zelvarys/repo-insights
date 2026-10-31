@@ -1,13 +1,10 @@
 import { Fragment, useState } from "react"
-import { Link } from "react-router-dom"
 import { formatDistanceToNow } from "date-fns"
-import { Wrench } from "lucide-react"
 import type { ScanStatus, ScanSummary } from "@shared/types"
 import { StatusBadge, type StatusTone } from "@/components/app/StatusBadge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -151,14 +148,6 @@ export function ScanHistory({ repoId }: { repoId: string }) {
       <CardHeader>
         <CardTitle>Scan history</CardTitle>
         <CardDescription>The five most recent scans.</CardDescription>
-        <CardAction>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to={`/repos/${repoId}?tab=tools`}>
-              <Wrench className="size-4" />
-              Manage tools
-            </Link>
-          </Button>
-        </CardAction>
       </CardHeader>
       <CardContent>
         {scansQuery.isLoading ? (
@@ -200,9 +189,9 @@ export function ScanHistory({ repoId }: { repoId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Started</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Health</TableHead>
+                    <TableHead className="border-r">Started</TableHead>
+                    <TableHead className="border-r">Status</TableHead>
+                    <TableHead className="border-r">Health</TableHead>
                     <TableHead>Completed</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -225,16 +214,17 @@ export function ScanHistory({ repoId }: { repoId: string }) {
                           }}
                         >
                           <TableCell
+                            className="border-r"
                             title={new Date(scan.createdAt).toLocaleString()}
                           >
                             {relativeDate(scan.createdAt)}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="border-r">
                             <StatusBadge tone={STATUS_TONES[scan.status]}>
                               {scan.status}
                             </StatusBadge>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="border-r">
                             {score === null ? "—" : score.toFixed(1)}
                           </TableCell>
                           <TableCell>

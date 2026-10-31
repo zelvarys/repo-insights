@@ -36,7 +36,7 @@
 
 1. `GET /repos/:id/metrics` → `getRepoMetrics()`
 2. Latest completed scan for repo → cache key `cache:metrics:<repoId>:<scanId>` (60s TTL)
-3. Cache miss → aggregate `tool_usage` + `tracked_tools`, read persisted `scans.languages` (Redis context fallback only when NULL) → compute `coverage × adoption` → write cache → return
+3. Cache miss → aggregate `tool_usage` + `tracked_tools`, read persisted `scans.languages` (Redis context fallback only when NULL) → compute the adoption score → write cache → return
 4. New scan → new scan id → new cache key; old key expires naturally
 
 ## Request lifecycle — repository insights
@@ -159,10 +159,10 @@ there is still no way to share.
 
 ## Scoring
 
-`adoptionScore = coverage × adoption`, both 0–100:
+`adoptionScore` is the adoption percentage, 0–100:
 
-- `coverage = detected tracked tools / tracked tools`
 - `adoption = mean(adoptionRate of detected tracked tools that aren't commit-presence proxies)`
+- `adoptionScore = adoption`; there is no separate coverage multiplier.
 - Commit-presence proxies (`github-actions`, `dependabot`, `renovate`) are always reported but never count toward `adoption` — their per-contributor signal is "made a commit," which would inflate the score to 100 on any active repo.
 
 When `tracked_tools` is empty (uncurated repo), scoring falls back to "everything detected and relevant" so a fresh repo doesn't score 0.
@@ -195,7 +195,7 @@ and displayed alongside it.
 | Overview | `GET /repos/:id/overview` | Aggregates from the features below | `scans.summary`, `repo_tree` |
 | Activity + commit quality | `GET /repos/:id/activity` | Up to 1,000 GitHub commits | `scans.summary.activity` (`ctx.commitHistory`) |
 | Structure | `GET /repos/:id/structure` | GitHub recursive tree | `scans.repo_tree` (`ctx.tree`, `ctx.treeTruncated`) |
-| Dependencies | `GET /repos/:id/dependencies`, `POST /repos/:id/dependencies/refresh` | Direct manifests, registries, OSV; lockfiles as fallback | `scan_dependencies`, `scans.summary.dependency_health` (`ctx.configFiles`) |
+| Dependencies | `GET /repos/:id/dependencies`, `POST /repos/:id/dependencies/refresh` | Direct manifests, registries, OSV | `scan_dependencies`, `scans.summary.dependency_health` (`ctx.configFiles`) |
 | Workflows | `GET /repos/:id/ci` | GitHub Actions runs | `scan_ci_runs`, `scans.summary.ci_health` (`ctx.ciRuns`) |
 | Concentration | `GET /repos/:id/concentration` | Commit author counts | `scans.summary.concentration` (`ctx.commitHistory`) |
 | Tool adoption | `GET /repos/:id/metrics` | Existing scanner output | `scans.summary.tool_usage`, `tracked_tools` |
@@ -206,5 +206,5 @@ and displayed alongside it.
 - **Activity** — 90/180/365-day aggregates from up to 1,000 commits. Daily buckets use UTC; weekly buckets start Monday UTC. Commit quality ignores merge commits and sanitizes examples.
 - **Concentration** — top-1/top-3/top-10 share and Gini over positive contributor commit counts. Risk is green `<50%`, yellow `50–75%`, red `>75%` top-3 share.
 - **Workflows** — up to 300 workflow runs per scan. Workflow/branch/range filters are applied to persisted rows. Public repos use `public_repo`; if Actions read access is unavailable, workflows are reported unavailable rather than failing the scan.
-- **Dependencies** — parsers prefer direct manifests (`package.json`, `requirements.txt`, `pyproject.toml`, `go.mod`, `Gemfile`, `composer.json`) so lockfile-only transitive packages are not reported; lockfiles are per-ecosystem fallbacks. Lookups are capped at 300 dependencies, concurrency 8, 90s budget, with 24h registry/OSV caches. Refresh is queued and updates the latest completed scan in place.
+- **Dependencies** — parsers read direct manifests only: `package.json`, `requirements.txt`, `pyproject.toml`, `setup.cfg`, `setup.py`, `Pipfile`, `go.mod`, `Gemfile`, and `composer.json`. Lockfiles are never parsed, so transitive packages are not reported. Unpinned packages are shown as `unpinned`; outdated means the latest major release is at least one major ahead. Lookups are capped at 300 dependencies, concurrency 8, 90s budget, with 24h registry/OSV caches. Refresh is queued and updates the latest completed scan in place.
 - **GitHub budget** — insight collection adds roughly 11 GitHub calls per scan beyond the old pipeline (up to 10 commit pages in total, one tree, and up to 3 Actions pages), keeping the normal total near 87.

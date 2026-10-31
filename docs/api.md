@@ -252,8 +252,7 @@ Requires auth. Rate-limited to 120/min. Cached for 60s per `(repoId, latest scan
   "repoFullName": "octocat/hello-world",
   "scanId": "uuid",
   "scanCompletedAt": "2026-01-01T00:00:00.000Z",
-  "adoptionScore": 62.5,
-  "coverage": 71.43,
+  "adoptionScore": 87.5,
   "adoption": 87.5,
   "languages": ["js"],
   "toolsChecked": 13,
@@ -277,7 +276,7 @@ Requires auth. Rate-limited to 120/min. Cached for 60s per `(repoId, latest scan
 }
 ```
 
-`coverage` and `adoption` are also 0–100. `adoptionScore = coverage × adoption / 100`. Coverage is the share of tracked tools that were detected; adoption is the mean per-contributor adoption of detected tracked tools, excluding commit-presence proxies (`github-actions`, `dependabot`, `renovate`). The same scoring module produces the metrics response and the cached scan summary, so both always report the same score. See `docs/architecture.md#scoring`.
+`adoption` and `adoptionScore` are both 0–100 and are the same value. Adoption is the mean per-contributor adoption of detected tracked tools, excluding commit-presence proxies (`github-actions`, `dependabot`, `renovate`). The same scoring module produces the metrics response and the cached scan summary, so both always report the same score. See `docs/architecture.md#scoring`.
 
 Repos with no completed scan return a well-shaped empty response (`scanId: null`, `tools: []`, `adoptionScore: 0`).
 
@@ -439,7 +438,7 @@ Success rate counts completed runs only. A repo with no workflow files returns
 
 ### `GET /repos/:id/dependencies?page=1&perPage=50&outdated=&hasAdvisory=`
 
-Paginated dependency rows from lockfiles, with a scan-level summary.
+Paginated dependency rows from direct manifests, with a scan-level summary.
 
 Query parameters:
 
@@ -480,13 +479,13 @@ Query parameters:
 }
 ```
 
-Direct manifests are preferred: `package.json`, `requirements.txt`,
-`pyproject.toml`, `go.mod`, `Gemfile`, and `composer.json`. Lockfiles
-(`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `go.sum`, `Gemfile.lock`,
-`composer.lock`) are per-ecosystem fallbacks when no direct manifest is
-available. Parsing is capped at 300 dependencies per
-scan; registry and OSV lookups use 24h Redis caches and a 90s budget. A failed
-or truncated lookup sets `summary.partial`.
+Parsers read direct manifests only: `package.json`, `requirements.txt`,
+`pyproject.toml`, `setup.cfg`, `setup.py`, `Pipfile`, `go.mod`, `Gemfile`, and
+`composer.json`. Lockfiles are not parsed, so transitive packages are not
+returned. Unpinned packages use `currentVersion: "*"`; `outdated` is true only
+when the latest major release is at least one major ahead. Parsing is capped at
+300 dependencies per scan; registry and OSV lookups use 24h Redis caches and a
+90s budget. A failed or truncated lookup sets `summary.partial`.
 
 ### `POST /repos/:id/dependencies/refresh`
 

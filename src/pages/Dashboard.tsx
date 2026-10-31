@@ -1,13 +1,15 @@
 import { useState } from "react"
+import { useQueries } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
 import { formatDistanceToNow } from "date-fns"
+import type { RepoMetrics } from "@shared/types"
 import {
   ArrowRight,
   FolderGit2,
+  Gauge,
   Github,
-  Globe,
-  Lock,
   Plus,
+  ScanLine,
   Wrench,
 } from "lucide-react"
 import { AddRepoDialog } from "@/components/app/AddRepoDialog"
@@ -29,6 +31,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/hooks/useAuth"
 import { useRepos } from "@/hooks/useRepos"
+import { api } from "@/lib/api"
 import { recentRepoIds } from "@/lib/recent-repos"
 
 function signIn() {
@@ -70,6 +73,13 @@ export default function Dashboard() {
   const { user, isLoading } = useAuth()
   const reposQuery = useRepos(Boolean(user))
   const repos = reposQuery.data?.repositories ?? []
+  const metricQueries = useQueries({
+    queries: repos.map((repo) => ({
+      queryKey: ["repo", repo.id, "metrics"],
+      queryFn: () => api.get<RepoMetrics>(`/repos/${repo.id}/metrics`),
+      enabled: Boolean(user),
+    })),
+  })
 
   if (isLoading) return <ReposSkeleton />
   if (!user) return <PublicDashboard />
@@ -78,29 +88,49 @@ export default function Dashboard() {
     (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
   )
   const newestRepo = sortedRepos[0]
-  const publicRepos = repos.filter((repo) => !repo.isPrivate).length
-  const privateRepos = repos.length - publicRepos
-  const publicShare =
-    repos.length > 0 ? Math.round((publicRepos / repos.length) * 100) : 0
-  const privateShare = repos.length > 0 ? 100 - publicShare : 0
+  const scannedMetrics = metricQueries
+    .map((query) => query.data)
+    .filter((metrics): metrics is RepoMetrics => Boolean(metrics?.scanId))
+  const averageAdoption =
+    scannedMetrics.length > 0
+      ? scannedMetrics.reduce(
+          (sum, metrics) => sum + metrics.adoptionScore,
+          0,
+        ) / scannedMetrics.length
+      : null
+  const detectedTools = scannedMetrics.reduce(
+    (sum, metrics) => sum + metrics.toolsDetected,
+    0,
+  )
+  const scanCoverage =
+    repos.length > 0
+      ? Math.round((scannedMetrics.length / repos.length) * 100)
+      : 0
+  const metricsLoading = metricQueries.some((query) => query.isLoading)
   const stats = [
     {
-      label: "Repositories",
-      value: repos.length,
-      icon: FolderGit2,
-      detail: "Tracked in this workspace",
+      label: "Average adoption",
+      value: averageAdoption === null ? "—" : averageAdoption.toFixed(1),
+      icon: Gauge,
+      detail: metricsLoading
+        ? "Loading repository metrics"
+        : `${scannedMetrics.length} scanned repositories`,
     },
     {
-      label: "Public",
-      value: publicRepos,
-      icon: Globe,
-      detail: `${publicShare}% of repositories`,
+      label: "Scan coverage",
+      value: `${scannedMetrics.length}/${repos.length}`,
+      icon: ScanLine,
+      detail: metricsLoading
+        ? "Loading repository metrics"
+        : `${scanCoverage}% of repositories scanned`,
     },
     {
-      label: "Private",
-      value: privateRepos,
-      icon: Lock,
-      detail: `${privateShare}% of repositories`,
+      label: "Tools detected",
+      value: detectedTools,
+      icon: Wrench,
+      detail: metricsLoading
+        ? "Loading repository metrics"
+        : "Across scanned repositories",
     },
   ]
   const reposById = new Map(repos.map((repo) => [repo.id, repo]))
@@ -116,12 +146,6 @@ export default function Dashboard() {
       <PageHeader
         title="Dashboard"
         description="A quick view of your repositories and the areas that need attention."
-        actions={
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="size-4" />
-            Add repository
-          </Button>
-        }
       />
 
       <AddRepoDialog open={dialogOpen} onOpenChange={setDialogOpen} />

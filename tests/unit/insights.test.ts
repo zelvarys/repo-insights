@@ -155,6 +155,17 @@ describe('contributor concentration', () => {
     });
   });
 
+  it('does not flag a balanced three-person project as concentrated', () => {
+    const result = computeConcentration([
+      ...Array.from({ length: 3 }, () => ({ authorLogin: 'alice' })),
+      ...Array.from({ length: 3 }, () => ({ authorLogin: 'bob' })),
+      ...Array.from({ length: 3 }, () => ({ authorLogin: 'carol' })),
+    ]);
+    expect(result.top3Share).toBe(100);
+    expect(result.top1Share).toBe(33.33);
+    expect(result.risk).toBe('green');
+  });
+
   it('returns zeroes for no commits', () => {
     const result = computeConcentration([]);
     expect(result.totalCommits).toBe(0);

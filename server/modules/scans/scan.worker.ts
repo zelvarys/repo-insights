@@ -114,6 +114,7 @@ async function buildScanContext(
   const commitHistory: CommitInfo[] = commitsRaw.map((commit) => ({
     sha: commit.sha,
     authorLogin: commit.author?.login ?? null,
+    authorName: commit.commit.author?.name ?? null,
     message: commit.commit.message,
     date: commit.commit.author?.date ?? new Date().toISOString(),
     files: [],
@@ -132,6 +133,7 @@ async function buildScanContext(
     commits.push({
       sha: commit.sha,
       authorLogin: commit.author?.login ?? null,
+      authorName: commit.commit.author?.name ?? null,
       message: commit.commit.message,
       date: commit.commit.author?.date ?? new Date().toISOString(),
       files,
@@ -384,7 +386,18 @@ async function processScanJob(job: {
       ? computeConcentration(
           ctx.commitHistory
             .filter((commit) => Date.parse(commit.date) >= cutoff)
-            .map((commit) => ({ authorLogin: commit.authorLogin })),
+            .filter(
+              (commit) =>
+                !/^Merge (pull request|branch|remote-tracking branch|tag)/i.test(
+                  commit.message,
+                ),
+            )
+            .flatMap((commit) => {
+              const author = (commit.authorLogin ?? commit.authorName ?? '')
+                .trim();
+              if (!author || /\[bot\]$/i.test(author)) return [];
+              return [{ authorLogin: author }];
+            }),
         )
       : undefined;
     const lastModifiedByPath: Record<string, string> = {};

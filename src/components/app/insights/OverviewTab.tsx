@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   Gauge,
   GitBranch,
-  Info,
   ShieldAlert,
   Sparkles,
   Users,
@@ -139,7 +138,7 @@ export function OverviewTab({
             and commit quality.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
+        <CardContent className="grid gap-4 sm:grid-cols-[40fr_30fr_30fr] sm:items-center">
           <div className="flex items-end gap-2">
             <p className="text-5xl font-bold">
               {health?.score === null || health?.score === undefined
@@ -148,32 +147,38 @@ export function OverviewTab({
             </p>
             <p className="pb-2 text-sm text-muted-foreground">/ 100</p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {health?.components.map((component) => (
-              <div
-                key={component.key}
-                className="flex items-center justify-between rounded-md border px-3 py-2 text-xs"
-              >
-                <span
-                  className={component.available ? "" : "text-muted-foreground"}
-                >
-                  {component.label}
-                </span>
-                <span className="font-medium">
-                  {component.available
-                    ? component.score.toFixed(1)
-                    : "Not collected"}
-                </span>
+          {[health?.components.slice(0, 3), health?.components.slice(3)].map(
+            (components, index) => (
+              <div key={index} className="grid gap-2">
+                {components?.map((component) => (
+                  <div
+                    key={component.key}
+                    className="flex items-center justify-between rounded-md border px-3 py-2 text-xs"
+                  >
+                    <span
+                      className={
+                        component.available ? "" : "text-muted-foreground"
+                      }
+                    >
+                      {component.label}
+                    </span>
+                    <span className="font-medium">
+                      {component.available
+                        ? component.score.toFixed(1)
+                        : "Not collected"}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            ),
+          )}
         </CardContent>
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {cards.activity ? (
           <GlanceCard
-            title="Activity"
+            title="Commit activity"
             description="Commits in the last 90 days."
             icon={<Activity className="size-4" />}
             onOpen={() => onSelectTab("activity")}
@@ -215,26 +220,20 @@ export function OverviewTab({
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-semibold">
-                  {formatPercent(cards.concentration.top3Share)}
+                  {formatPercent(cards.concentration.top1Share)}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  from top 3
+                  from top contributor
                 </span>
                 <span
                   className={cn(
-                    "inline-flex items-center gap-1 text-xs font-medium",
+                    "ml-auto inline-flex items-center gap-1 text-xs font-medium",
                     RISK_META[cards.concentration.risk].className,
                   )}
                   title={`${RISK_META[cards.concentration.risk].label} concentration risk`}
                 >
                   <AlertTriangle className="size-3.5" aria-hidden="true" />
                   {RISK_META[cards.concentration.risk].label}
-                </span>
-                <span
-                  title="Bus factor estimates how much knowledge is concentrated in a few contributors. More spread is usually safer."
-                  className="text-muted-foreground"
-                >
-                  <Info className="size-3.5" />
                 </span>
               </div>
               <div className="space-y-1">

@@ -73,7 +73,7 @@ export function computeRepoHealth(input: HealthInput): RepoHealth {
     score: number | null;
   }> = [
     { key: 'activity', label: 'Activity', score: scores.activity },
-    { key: 'dependencies', label: 'Dependency freshness', score: scores.dependencies },
+    { key: 'dependencies', label: 'Dependency health', score: scores.dependencies },
     { key: 'ci', label: 'Workflow stability', score: scores.ci },
     { key: 'concentration', label: 'Contributor spread', score: scores.concentration },
     { key: 'commitQuality', label: 'Commit quality', score: scores.commitQuality },

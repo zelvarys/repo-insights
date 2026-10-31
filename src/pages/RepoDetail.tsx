@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
-import { Link, useParams, useSearchParams } from "react-router-dom"
+import { useParams, useSearchParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
-import { Loader2, RefreshCw, ScanLine, Settings } from "lucide-react"
+import { Loader2, RefreshCw, ScanLine } from "lucide-react"
 import { toast } from "sonner"
 import { EmptyState } from "@/components/app/EmptyState"
 import { ErrorState } from "@/components/app/ErrorState"
@@ -195,25 +195,16 @@ export default function RepoDetail() {
             ? `Repository health and tool adoption for the ${repo.defaultBranch} branch.`
             : "Repository health and tool adoption for this repository."
         }
+        className="border-b pb-4"
         actions={
-          <>
-            <Button onClick={handleRunScan} disabled={runDisabled}>
-              {scanning ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <RefreshCw className="size-4" />
-              )}
-              {scanning ? "Scanning..." : "Run scan"}
-            </Button>
-            {repoId ? (
-              <Button variant="outline" asChild>
-                <Link to={`/repos/${repoId}/settings`}>
-                  <Settings className="size-4" />
-                  Settings
-                </Link>
-              </Button>
-            ) : null}
-          </>
+          <Button onClick={handleRunScan} disabled={runDisabled}>
+            {scanning ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <RefreshCw className="size-4" />
+            )}
+            {scanning ? "Scanning..." : "Run scan"}
+          </Button>
         }
       />
 

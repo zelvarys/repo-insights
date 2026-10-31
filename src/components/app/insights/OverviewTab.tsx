@@ -138,9 +138,9 @@ export function OverviewTab({
             and commit quality.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-[40fr_30fr_30fr] sm:items-center">
+        <CardContent className="grid gap-4 sm:grid-cols-[36fr_32fr_32fr] sm:items-center">
           <div className="flex items-end gap-2">
-            <p className="text-5xl font-bold">
+            <p className="text-6xl font-bold">
               {health?.score === null || health?.score === undefined
                 ? "—"
                 : health.score.toFixed(1)}
@@ -238,7 +238,7 @@ export function OverviewTab({
               </div>
               <div className="space-y-1">
                 {cards.concentration.topContributors
-                  .slice(0, 3)
+                  .slice(0, 2)
                   .map((person) => (
                     <div
                       key={person.login}

@@ -166,11 +166,6 @@ function PublicDashboard() {
                 </li>
               ))}
             </ol>
-            <Separator />
-            <Button className="w-full" onClick={signIn}>
-              <Github className="size-4" />
-              Connect GitHub
-            </Button>
           </CardContent>
         </Card>
       </div>

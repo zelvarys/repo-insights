@@ -152,18 +152,7 @@ export function AppShell() {
         <div className="flex-1 p-4">
           <NavItems signedIn={signedIn} />
         </div>
-        <div className="space-y-2 border-t p-4">
-          {!signedIn ? (
-            <Button
-              className="w-full justify-start"
-              onClick={() => {
-                window.location.href = "/auth/github"
-              }}
-            >
-              <Github className="size-4" />
-              Connect GitHub
-            </Button>
-          ) : null}
+        <div className="border-t p-4">
           <Button variant="outline" className="w-full justify-start" asChild>
             <a
               href="https://github.com/zelvarys/repo-insights"

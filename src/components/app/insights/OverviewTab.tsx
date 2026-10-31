@@ -6,6 +6,7 @@ import {
 } from "recharts"
 import {
   Activity,
+  AlertTriangle,
   Gauge,
   GitBranch,
   Info,
@@ -19,7 +20,6 @@ import {
   InsightLoading,
   InsightUnavailable,
 } from "@/components/app/insights/InsightState"
-import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardContent,
@@ -31,15 +31,25 @@ import { Progress } from "@/components/ui/progress"
 import { useRepoMetrics } from "@/hooks/useRepoDetail"
 import { useRepoOverview } from "@/hooks/useRepoInsights"
 import { formatPercent } from "@/lib/format"
+import { cn } from "@/lib/utils"
 
 type RepoTab =
   "overview" | "activity" | "structure" | "dependencies" | "workflows" | "tools"
 
-function riskVariant(risk: "green" | "yellow" | "red") {
-  if (risk === "green") return "default" as const
-  if (risk === "yellow") return "secondary" as const
-  return "destructive" as const
-}
+const RISK_META = {
+  green: {
+    label: "Low",
+    className: "text-emerald-600 dark:text-emerald-400",
+  },
+  yellow: {
+    label: "Moderate",
+    className: "text-amber-600 dark:text-amber-400",
+  },
+  red: {
+    label: "High",
+    className: "text-destructive",
+  },
+} as const
 
 function GlanceCard({
   title,
@@ -210,9 +220,16 @@ export function OverviewTab({
                 <span className="text-xs text-muted-foreground">
                   from top 3
                 </span>
-                <Badge variant={riskVariant(cards.concentration.risk)}>
-                  {cards.concentration.risk}
-                </Badge>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 text-xs font-medium",
+                    RISK_META[cards.concentration.risk].className,
+                  )}
+                  title={`${RISK_META[cards.concentration.risk].label} concentration risk`}
+                >
+                  <AlertTriangle className="size-3.5" aria-hidden="true" />
+                  {RISK_META[cards.concentration.risk].label}
+                </span>
                 <span
                   title="Bus factor estimates how much knowledge is concentrated in a few contributors. More spread is usually safer."
                   className="text-muted-foreground"

@@ -4,7 +4,7 @@ import { buildRepoStructure } from '../../server/modules/insights/structure.js';
 import { buildCommitActivity, selectActivity } from '../../server/modules/insights/activity.js';
 import { computeCommitQuality } from '../../server/modules/insights/commit-quality.js';
 import { computeConcentration, computeGini, concentrationRisk } from '../../server/modules/insights/concentration.js';
-import { aggregateCiHealth, filterCiRuns } from '../../server/modules/insights/ci.js';
+import { aggregateCiHealth, filterCiRuns, worstWorkflow } from '../../server/modules/insights/ci.js';
 import { computeRepoHealth } from '../../server/modules/insights/health-score.js';
 
 describe('repo structure', () => {
@@ -212,6 +212,15 @@ describe('CI health', () => {
     expect(health.successRate).toBeNull();
     expect(health.totalRuns).toBe(0);
     expect(health.workflows).toEqual([]);
+  });
+
+  it('does not rank a weakest workflow without two eligible workflows', () => {
+    const manyCiRuns = Array.from({ length: 12 }, (_, index) => ({
+      ...runs[0]!,
+      runId: 100 + index,
+    }));
+    expect(worstWorkflow(aggregateCiHealth(manyCiRuns))).toBeNull();
+    expect(worstWorkflow(aggregateCiHealth(runs))).toBeNull();
   });
 });
 

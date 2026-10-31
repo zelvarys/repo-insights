@@ -20,7 +20,7 @@ import type {
   RepoStructureResponse,
 } from '../../../shared/types.js';
 import { selectActivity, type StoredActivity, type ActivityRange } from './activity.js';
-import { aggregateCiHealth, filterCiRuns } from './ci.js';
+import { aggregateCiHealth, filterCiRuns, worstWorkflow } from './ci.js';
 import { loadCiRuns } from './ci.service.js';
 import { computeRepoHealth } from './health-score.js';
 import { loadDependencyRows } from './dependencies/service.js';
@@ -367,11 +367,7 @@ export async function getRepoOverview(
             ci: {
               available: true,
               successRate: ciHealth.successRate,
-              worstWorkflow:
-                [...ciHealth.workflows]
-                  .filter((workflow) => workflow.totalRuns > 10)
-                  .sort((a, b) => a.successRate - b.successRate)[0]?.name ??
-                null,
+              worstWorkflow: worstWorkflow(ciHealth),
             },
           }
         : {}),

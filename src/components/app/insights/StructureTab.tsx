@@ -21,8 +21,6 @@ import {
   InsightLoading,
   InsightUnavailable,
 } from "@/components/app/insights/InsightState"
-import { StatCard } from "@/components/app/StatCard"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -220,24 +218,6 @@ export function StructureTab({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Files" value={structure.fileCount} />
-        <StatCard label="Directories" value={structure.directoryCount} />
-        <StatCard
-          label="Repository size"
-          value={formatBytes(structure.totalSize)}
-        />
-        <StatCard
-          label="File types"
-          value={visibleFileTypes.length}
-          detail={
-            structure.truncated ? (
-              <Badge variant="secondary">Truncated</Badge>
-            ) : undefined
-          }
-        />
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>File-type breakdown</CardTitle>
@@ -251,7 +231,7 @@ export function StructureTab({
               No file types were returned for this scan.
             </p>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
+            <div className="grid gap-6 lg:grid-cols-[60%_30%] lg:items-center lg:justify-between">
               <div className="relative h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -263,7 +243,7 @@ export function StructureTab({
                       outerRadius="85%"
                       paddingAngle={2}
                       stroke="var(--background)"
-                      strokeWidth={2}
+                      strokeWidth={1}
                     >
                       {visibleFileTypes.map((stat, index) => (
                         <Cell key={stat.extension} fill={chartColor(index)} />
@@ -318,6 +298,9 @@ export function StructureTab({
               </div>
             </div>
           )}
+          <p className="mt-4 border-t pt-3 text-xs text-muted-foreground">
+            Repository size: {formatBytes(structure.totalSize)}
+          </p>
         </CardContent>
       </Card>
 

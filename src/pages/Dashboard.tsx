@@ -3,7 +3,6 @@ import { Link } from "react-router-dom"
 import { formatDistanceToNow } from "date-fns"
 import {
   ArrowRight,
-  CalendarDays,
   FolderGit2,
   Github,
   Globe,
@@ -79,40 +78,31 @@ export default function Dashboard() {
     (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
   )
   const newestRepo = sortedRepos[0]
-  const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000
-  const addedThisMonth = repos.filter(
-    (repo) => Date.parse(repo.createdAt) >= monthAgo,
-  ).length
   const publicRepos = repos.filter((repo) => !repo.isPrivate).length
   const privateRepos = repos.length - publicRepos
+  const publicShare =
+    repos.length > 0 ? Math.round((publicRepos / repos.length) * 100) : 0
+  const privateShare = repos.length > 0 ? 100 - publicShare : 0
   const stats = [
     {
       label: "Repositories",
       value: repos.length,
       icon: FolderGit2,
-      detail: `${publicRepos} public · ${privateRepos} private`,
+      detail: "Tracked in this workspace",
     },
     {
-      label: "Added this month",
-      value: addedThisMonth,
-      icon: CalendarDays,
-      detail: "Repositories connected in the last 30 days",
+      label: "Public",
+      value: publicRepos,
+      icon: Globe,
+      detail: `${publicShare}% of repositories`,
     },
     {
-      label: "Latest repository",
-      value: (
-        <span className="block truncate text-lg">
-          {newestRepo?.name ?? "—"}
-        </span>
-      ),
-      icon: FolderGit2,
-      detail: newestRepo
-        ? `${newestRepo.owner} · added ${formatDistanceToNow(new Date(newestRepo.createdAt), { addSuffix: true })}`
-        : undefined,
+      label: "Private",
+      value: privateRepos,
+      icon: Lock,
+      detail: `${privateShare}% of repositories`,
     },
   ]
-  const publicShare =
-    repos.length > 0 ? Math.round((publicRepos / repos.length) * 100) : 0
   const reposById = new Map(repos.map((repo) => [repo.id, repo]))
   const remembered = recentIds
     .map((id) => reposById.get(id))
@@ -197,40 +187,12 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle>Workspace</CardTitle>
               <CardDescription>
-                Access, recent changes, and shortcuts for this workspace.
+                Recent changes and shortcuts for this workspace.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div>
-                <div className="flex items-center justify-between gap-2 text-sm">
-                  <span className="font-medium">Repository access</span>
-                  <span className="text-muted-foreground">{repos.length}</span>
-                </div>
-                <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="bg-primary"
-                    style={{ width: `${publicShare}%` }}
-                  />
-                  <div
-                    className="bg-muted-foreground/40"
-                    style={{ width: `${100 - publicShare}%` }}
-                  />
-                </div>
-                <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Globe className="size-3.5" />
-                    {publicRepos} public
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Lock className="size-3.5" />
-                    {privateRepos} private
-                  </span>
-                </div>
-              </div>
-
               {newestRepo ? (
                 <>
-                  <Separator />
                   <div>
                     <p className="text-xs text-muted-foreground">
                       Most recently added

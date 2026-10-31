@@ -8,6 +8,7 @@ import {
   InsightUnavailable,
 } from "@/components/app/insights/InsightState"
 import { StatCard } from "@/components/app/StatCard"
+import { StatusBadge, type StatusTone } from "@/components/app/StatusBadge"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -47,20 +48,21 @@ function severitySummary(severity: Record<DependencySeverity, number>): string {
   return present.map((level) => `${severity[level]} ${level}`).join(", ")
 }
 
-function dependencyStatus(row: DependencyRow) {
+function dependencyStatus(row: DependencyRow): {
+  label: string
+  tone: StatusTone
+  count?: number
+} {
   if (row.advisoryCount > 0) {
     return {
-      label: `Advisory ${row.advisoryCount}`,
-      variant: "destructive" as const,
+      label: "Advisory",
+      tone: "danger",
+      count: row.advisoryCount,
     }
   }
-  if (row.outdated) {
-    return { label: "Outdated", variant: "secondary" as const }
-  }
-  if (row.latestVersion === null) {
-    return { label: "Unknown", variant: "outline" as const }
-  }
-  return { label: "Up to date", variant: "default" as const }
+  if (row.outdated) return { label: "Outdated", tone: "warning" }
+  if (row.latestVersion === null) return { label: "Unknown", tone: "neutral" }
+  return { label: "Up to date", tone: "success" }
 }
 
 export function DependenciesTab({
@@ -224,10 +226,12 @@ export function DependenciesTab({
               <TableHeader>
                 <TableRow>
                   <TableHead className="border-r">Package</TableHead>
-                  <TableHead className="border-r">Current</TableHead>
-                  <TableHead className="border-r">Latest</TableHead>
-                  <TableHead className="border-r">Status</TableHead>
-                  <TableHead>Registry</TableHead>
+                  <TableHead className="border-r text-center">
+                    Current
+                  </TableHead>
+                  <TableHead className="border-r text-center">Latest</TableHead>
+                  <TableHead className="border-r text-center">Status</TableHead>
+                  <TableHead className="text-center">Registry</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -257,27 +261,38 @@ export function DependenciesTab({
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="border-r font-mono text-xs">
+                        <TableCell className="border-r text-center font-mono text-xs">
                           {row.currentVersion === "*"
                             ? "unpinned"
                             : row.currentVersion}
                         </TableCell>
-                        <TableCell className="border-r font-mono text-xs">
+                        <TableCell className="border-r text-center font-mono text-xs">
                           {row.latestVersion ?? "—"}
                         </TableCell>
-                        <TableCell className="border-r last:border-r-0">
-                          <Badge
-                            variant={status.variant}
-                            title={
-                              row.maxSeverity
-                                ? `Highest severity: ${row.maxSeverity}`
-                                : undefined
-                            }
-                          >
-                            {status.label}
-                          </Badge>
+                        <TableCell className="border-r text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <StatusBadge
+                              tone={status.tone}
+                              title={
+                                row.maxSeverity
+                                  ? `Highest severity: ${row.maxSeverity}`
+                                  : undefined
+                              }
+                            >
+                              {status.label}
+                            </StatusBadge>
+                            {status.count !== undefined ? (
+                              <StatusBadge
+                                tone="danger"
+                                title={`${status.count} known advisory${status.count === 1 ? "" : "ies"}`}
+                                className="tabular-nums"
+                              >
+                                {status.count}
+                              </StatusBadge>
+                            ) : null}
+                          </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-center">
                           <Button variant="ghost" size="sm" asChild>
                             <a
                               href={row.registryUrl}

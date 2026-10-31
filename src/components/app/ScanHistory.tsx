@@ -3,7 +3,7 @@ import { Link } from "react-router-dom"
 import { formatDistanceToNow } from "date-fns"
 import { Settings } from "lucide-react"
 import type { ScanStatus, ScanSummary } from "@shared/types"
-import { Badge } from "@/components/ui/badge"
+import { StatusBadge, type StatusTone } from "@/components/app/StatusBadge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -24,14 +24,11 @@ import {
 } from "@/components/ui/table"
 import { useRepoScans } from "@/hooks/useRepoDetail"
 
-const STATUS_VARIANTS: Record<
-  ScanStatus,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  complete: "default",
-  pending: "secondary",
-  running: "secondary",
-  failed: "destructive",
+const STATUS_TONES: Record<ScanStatus, StatusTone> = {
+  complete: "success",
+  pending: "warning",
+  running: "info",
+  failed: "danger",
 }
 
 function summaryNumber(
@@ -117,7 +114,9 @@ function ScanMobileCard({
           <span className="text-sm font-medium">
             {relativeDate(scan.createdAt)}
           </span>
-          <Badge variant={STATUS_VARIANTS[scan.status]}>{scan.status}</Badge>
+          <StatusBadge tone={STATUS_TONES[scan.status]}>
+            {scan.status}
+          </StatusBadge>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>Health {score === null ? "—" : score.toFixed(1)}</span>
@@ -231,9 +230,9 @@ export function ScanHistory({ repoId }: { repoId: string }) {
                             {relativeDate(scan.createdAt)}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={STATUS_VARIANTS[scan.status]}>
+                            <StatusBadge tone={STATUS_TONES[scan.status]}>
                               {scan.status}
-                            </Badge>
+                            </StatusBadge>
                           </TableCell>
                           <TableCell>
                             {score === null ? "—" : score.toFixed(1)}

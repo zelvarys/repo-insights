@@ -68,7 +68,7 @@ export function computeCommitQuality(commits: QualityCommit[]): CommitQuality {
 
   const examples = [...new Set(malformed)]
     .sort((a, b) => a.length - b.length || a.localeCompare(b))
-    .slice(0, 5);
+    .slice(0, 3);
 
   return {
     totalCommits: total,

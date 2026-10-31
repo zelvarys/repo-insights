@@ -121,6 +121,15 @@ describe('commit activity and quality', () => {
     expect(quality.messageLengthBuckets.reduce((sum, bucket) => sum + bucket.count, 0)).toBe(4);
   });
 
+  it('limits examples to three', () => {
+    const quality = computeCommitQuality(
+      Array.from({ length: 6 }, (_, index) => ({
+        message: `bad message ${index}`,
+      })),
+    );
+    expect(quality.examples).toHaveLength(3);
+  });
+
   it('sanitizes emails and mentions in examples', () => {
     const quality = computeCommitQuality([
       { message: 'thanks @alice and bob@example.com' },

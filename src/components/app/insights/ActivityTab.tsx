@@ -178,7 +178,7 @@ function QualityCard({ quality }: { quality: CommitQuality }) {
             <p className="mt-1 text-2xl font-semibold">
               {quality.mostCommonType ?? "—"}
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground">
               Avg message {quality.averageMessageLength.toFixed(0)} chars
             </p>
           </div>
@@ -189,7 +189,13 @@ function QualityCard({ quality }: { quality: CommitQuality }) {
             <BarChart data={quality.messageLengthBuckets}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="label" tickLine={false} axisLine={false} />
-              <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+              <YAxis
+                orientation="right"
+                allowDecimals={false}
+                tickLine={false}
+                axisLine={false}
+                width={32}
+              />
               <ChartTooltip
                 contentStyle={{
                   background: "var(--popover)",
@@ -207,7 +213,7 @@ function QualityCard({ quality }: { quality: CommitQuality }) {
         </div>
 
         {quality.examples.length > 0 ? (
-          <details className="group rounded-lg border p-3">
+          <details open className="group rounded-lg border p-3">
             <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium [&::-webkit-details-marker]:hidden">
               <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
               Examples that could be improved

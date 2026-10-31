@@ -1,5 +1,15 @@
 import { useState } from "react"
 import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  ResponsiveContainer,
+  Tooltip as ChartTooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
+import {
   ChevronDown,
   ChevronRight,
   Copy,
@@ -19,12 +29,12 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
 import { useRepoStructure } from "@/hooks/useRepoInsights"
 import { formatBytes } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -44,14 +54,23 @@ const IGNORED_FILE_TYPES = new Set([
   ".map",
 ])
 
-function treeToText(nodes: RepoTreeNode[], depth = 0): string {
-  return nodes
-    .map((node) => {
-      const line = `${"  ".repeat(depth)}${node.name}${node.type === "dir" ? "/" : ""}`
-      if (node.type !== "dir" || !node.children?.length) return line
-      return `${line}\n${treeToText(node.children, depth + 1)}`
+function treeToText(nodes: RepoTreeNode[]): string {
+  const lines = ["."]
+
+  function visit(children: RepoTreeNode[], prefix: string) {
+    children.forEach((node, index) => {
+      const last = index === children.length - 1
+      lines.push(
+        `${prefix}${last ? "`-- " : "|-- "}${node.name}${node.type === "dir" ? "/" : ""}`,
+      )
+      if (node.type === "dir" && node.children?.length) {
+        visit(node.children, `${prefix}${last ? "    " : "|   "}`)
+      }
     })
-    .join("\n")
+  }
+
+  visit(nodes, "")
+  return lines.join("\n")
 }
 
 function TreeRow({
@@ -171,6 +190,7 @@ export function StructureTab({
   const rootDirs = structure.tree.filter((node) => node.type === "dir")
   const allRootsExpanded =
     rootDirs.length > 0 && rootDirs.every((node) => expanded.has(node.path))
+  const chartHeight = Math.max(220, visibleFileTypes.length * 28 + 24)
 
   function toggle(path: string) {
     setExpanded((current) => {
@@ -231,48 +251,64 @@ export function StructureTab({
               No file types were returned for this scan.
             </p>
           ) : (
-            <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-              {visibleFileTypes.map((stat) => {
-                const share =
-                  structure.fileCount > 0
-                    ? (stat.count / structure.fileCount) * 100
-                    : 0
-                return (
-                  <div key={stat.extension}>
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="font-mono text-xs">
-                        {stat.extension}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {stat.count} {stat.count === 1 ? "file" : "files"} ·{" "}
-                        {share.toFixed(1)}%
-                      </span>
-                    </div>
-                    <Progress value={share} className="mt-2 h-2" />
-                  </div>
-                )
-              })}
+            <div className="max-h-[28rem] overflow-y-auto">
+              <div style={{ height: chartHeight }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={visibleFileTypes}
+                    layout="vertical"
+                    margin={{ top: 4, right: 36, left: 4, bottom: 4 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" hide allowDecimals={false} />
+                    <YAxis
+                      dataKey="extension"
+                      type="category"
+                      width={72}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 12, fontFamily: "monospace" }}
+                    />
+                    <ChartTooltip
+                      cursor={{ fill: "var(--muted)" }}
+                      contentStyle={{
+                        background: "var(--popover)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                      }}
+                      formatter={(value) => [
+                        `${value} ${value === 1 ? "file" : "files"}`,
+                        "Count",
+                      ]}
+                    />
+                    <Bar
+                      dataKey="count"
+                      fill="var(--chart-2)"
+                      radius={[0, 4, 4, 0]}
+                      barSize={14}
+                    >
+                      <LabelList
+                        dataKey="count"
+                        position="right"
+                        fill="var(--muted-foreground)"
+                        fontSize={11}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-3">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <FolderTree className="size-4" />
-              Repository tree
-            </CardTitle>
-            <CardDescription>
-              Up to depth 4 and 500 entries. Click a directory to expand it;
-              select a file for its full path and metadata.
-            </CardDescription>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={toggleRoots}>
-              {allRootsExpanded ? "Collapse roots" : "Expand roots"}
-            </Button>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FolderTree className="size-4" />
+            Repository tree
+          </CardTitle>
+          <CardAction>
             <Button
               variant="outline"
               size="icon"
@@ -283,9 +319,18 @@ export function StructureTab({
             >
               <Copy className="size-4" />
             </Button>
-          </div>
+          </CardAction>
+          <CardDescription className="mt-2">
+            Up to depth 4 and 500 entries. Click a directory to expand it;
+            select a file for its full path and metadata.
+          </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-3 flex justify-end">
+            <Button variant="outline" size="sm" onClick={toggleRoots}>
+              {allRootsExpanded ? "Collapse roots" : "Expand roots"}
+            </Button>
+          </div>
           <div className="max-h-[32rem] overflow-auto rounded-lg border p-2">
             {structure.tree.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
@@ -335,12 +380,7 @@ export function StructureTab({
                 </div>
               </dl>
             </div>
-          ) : (
-            <p className="mt-3 text-xs text-muted-foreground">
-              Select a file in the tree to see its full path, size, and last
-              modified date.
-            </p>
-          )}
+          ) : null}
         </CardContent>
       </Card>
     </div>

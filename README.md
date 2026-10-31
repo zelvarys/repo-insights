@@ -4,11 +4,11 @@
   repo-insights
 </h1>
 
-repo-insights tells you whether your contributors are actually using the tools you set up — plus activity, dependency health, workflow stability, and more, all in one dashboard.
+repo-insights is a repository health dashboard for maintainers. It brings activity, dependency freshness, workflow reliability, codebase structure, contributor concentration, commit quality, and tool adoption into one clear view.
 
-> **"Are our contributors actually using the tools we're asking them to use?"**
+> **"Is this repository healthy, and where should we focus next?"**
 
-Connect a GitHub repository and get clear, per-tool adoption metrics — who's using ESLint, who's writing tests, who's bypassing CI — instead of guessing.
+Connect a GitHub repository to see how work is progressing, where risk is building, and how consistently contributors are using the tools the project has adopted.
 
 ## Features
 

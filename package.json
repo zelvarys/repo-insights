@@ -2,7 +2,7 @@
   "name": "repo-insights",
   "version": "0.1.0",
   "private": true,
-  "description": "Analytics platform that measures whether contributors actually use the tools a project adopts.",
+  "description": "Repository health dashboard for activity, dependencies, workflows, structure, contributors, commit quality, and tool adoption.",
   "type": "module",
   "main": "dist/server/server.js",
   "engines": {

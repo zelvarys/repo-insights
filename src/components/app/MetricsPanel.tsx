@@ -1,14 +1,6 @@
-import { Info } from "lucide-react"
-import type {
-  RepoMetrics,
-  ToolCategory,
-  ToolMetric,
-} from "@shared/types"
+import type { RepoMetrics, ToolCategory, ToolMetric } from "@shared/types"
 import { ScoreGauge } from "@/components/app/ScoreGauge"
-import {
-  TOOL_CATEGORY_LABELS,
-  ToolRow,
-} from "@/components/app/ToolRow"
+import { TOOL_CATEGORY_LABELS, ToolRow } from "@/components/app/ToolRow"
 import {
   Card,
   CardContent,
@@ -17,11 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 
 const CATEGORY_ORDER: ToolCategory[] = [
   "testing",
@@ -34,44 +21,6 @@ const CATEGORY_ORDER: ToolCategory[] = [
 
 type MetricsPanelProps = {
   metrics: RepoMetrics
-}
-
-function StatCard({
-  label,
-  value,
-  description,
-  tooltip,
-}: {
-  label: string
-  value: string
-  description: string
-  tooltip: string
-}) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-          {label}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex rounded-full text-muted-foreground transition-colors hover:text-foreground"
-                aria-label={`About ${label.toLowerCase()}`}
-              >
-                <Info className="size-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>{tooltip}</TooltipContent>
-          </Tooltip>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-3xl font-semibold">{value}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-      </CardContent>
-    </Card>
-  )
 }
 
 function ToolGroupList({ tools }: { tools: ToolMetric[] }) {
@@ -92,9 +41,7 @@ function ToolGroupList({ tools }: { tools: ToolMetric[] }) {
           <section key={category} className="space-y-2">
             <h3 className="text-sm font-medium">
               {TOOL_CATEGORY_LABELS[category]}
-              <span className="ml-2 text-muted-foreground">
-                {group.length}
-              </span>
+              <span className="ml-2 text-muted-foreground">{group.length}</span>
             </h3>
             <div className="space-y-2">
               {group.map((tool) => (
@@ -114,27 +61,14 @@ export function MetricsPanel({ metrics }: MetricsPanelProps) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-        <Card>
-          <CardContent className="flex items-center justify-center py-6">
-            <ScoreGauge score={metrics.adoptionScore} />
-          </CardContent>
-        </Card>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <StatCard
-            label="Coverage"
-            value={`${metrics.coverage.toFixed(1)}%`}
-            description={`${metrics.toolsDetected} of ${metrics.toolsTracked} tracked tools detected`}
-            tooltip="Share of your tracked tools that were detected in the latest scan."
-          />
-          <StatCard
-            label="Adoption"
-            value={`${metrics.adoption.toFixed(1)}%`}
-            description={`${metrics.toolsDetected} detected across ${metrics.toolsRelevant} relevant tools`}
-            tooltip="Average adoption rate across detected tracked tools. Commit-presence proxies are excluded from the score."
-          />
-        </div>
-      </div>
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center gap-2 py-8">
+          <ScoreGauge score={metrics.adoptionScore} />
+          <p className="text-center text-xs text-muted-foreground">
+            Average adoption across detected tracked tools.
+          </p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

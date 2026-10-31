@@ -123,21 +123,18 @@ export function computeScore(
   const detectedInSet = scoringSet.filter((t) => t.detected);
   const scoredTools = detectedInSet.filter((t) => t.countsTowardScore);
 
-  const coverage =
-    scoringSet.length > 0 ? detectedInSet.length / scoringSet.length : 0;
   const adoption =
     scoredTools.length > 0
       ? scoredTools.reduce((sum, t) => sum + t.adoptionRate, 0) /
         scoredTools.length
       : 0;
 
-  const adoptionScore = Math.round(coverage * adoption * 100) / 100;
+  const adoptionScore = Math.round(adoption * 100) / 100;
 
   return {
     ...base,
     adoptionScore,
-    coverage: Math.round(coverage * 10000) / 100,
-    adoption: Math.round(adoption * 100) / 100,
+    adoption: adoptionScore,
     toolsChecked: normalizedTools.length,
     toolsRelevant: normalizedTools.filter((t) => t.relevant).length,
     toolsTracked: scoringSet.length,

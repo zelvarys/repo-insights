@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils"
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/repos", label: "Repositories", icon: FolderGit2, end: true },
+  { to: "/settings", label: "Settings", icon: Settings, end: true },
 ]
 
 const repoFeatures = [

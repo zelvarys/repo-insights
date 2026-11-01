@@ -196,7 +196,7 @@ export function StructureTab({
       ? [
           ...visibleFileTypes.slice(0, 9),
           {
-            extension: "etc",
+            extension: "other",
             count: visibleFileTypes
               .slice(9)
               .reduce((sum, stat) => sum + stat.count, 0),
@@ -261,14 +261,14 @@ export function StructureTab({
                       nameKey="extension"
                       innerRadius="55%"
                       outerRadius="85%"
-                      paddingAngle={2}
+                      paddingAngle={1}
                       stroke="none"
                     >
                       {chartFileTypes.map((stat, index) => (
                         <Cell
                           key={stat.extension}
                           fill={
-                            stat.extension === "etc"
+                            stat.extension === "other"
                               ? "#ffffff"
                               : chartColor(index)
                           }
@@ -311,7 +311,7 @@ export function StructureTab({
                           className="size-2.5 shrink-0 rounded-sm"
                           style={{
                             backgroundColor:
-                              stat.extension === "etc"
+                              stat.extension === "other"
                                 ? "#ffffff"
                                 : chartColor(index),
                           }}
@@ -364,7 +364,7 @@ export function StructureTab({
               {allRootsExpanded ? "Collapse roots" : "Expand roots"}
             </Button>
           </div>
-          <div className="max-h-[32rem] overflow-auto rounded-lg border p-2">
+          <div className="max-h-[48rem] overflow-auto rounded-lg border p-2">
             {structure.tree.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 No files were returned for this scan.

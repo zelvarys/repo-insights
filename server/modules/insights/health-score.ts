@@ -53,7 +53,9 @@ export function componentScores(input: HealthInput): {
     : null;
   const commitQuality =
     input.quality && input.quality.totalCommits > 0
-      ? clamp(input.quality.conventionalPercent)
+      ? clamp(
+          (input.quality.conventionalPercent + input.quality.bodyPercent) / 2,
+        )
       : null;
 
   return {

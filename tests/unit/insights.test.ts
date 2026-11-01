@@ -277,7 +277,7 @@ describe('repo health score', () => {
       },
       quality,
     });
-    expect(health.score).toBe(83);
+    expect(health.score).toBe(78);
   });
 
   it('scores contributor spread from distribution, not top-three share', () => {
@@ -300,6 +300,21 @@ describe('repo health score', () => {
     expect(spread).toMatchObject({ score: 80, available: true });
   });
 
+  it('scores commit quality from conventional and body percentages', () => {
+    const health = computeRepoHealth({
+      commitsLast90: 0,
+      quality: {
+        ...quality,
+        conventionalPercent: 80,
+        bodyPercent: 20,
+      },
+    });
+    const commitQuality = health.components.find(
+      (component) => component.key === 'commitQuality',
+    );
+    expect(commitQuality).toMatchObject({ score: 50, available: true });
+  });
+
   it('renormalizes missing components', () => {
     const health = computeRepoHealth({
       commitsLast90: 25,
@@ -313,7 +328,7 @@ describe('repo health score', () => {
       'ci',
       'commitQuality',
     ]);
-    expect(health.score).toBe(70.83);
+    expect(health.score).toBe(62.5);
   });
 
   it('scores a repo with zero recent commits from the activity component alone', () => {

@@ -9,7 +9,9 @@ import {
   FolderGit2,
   FolderTree,
   Gauge,
+  GitFork,
   Github,
+  Lock,
   Package,
   Plus,
   ScanLine,
@@ -34,7 +36,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/hooks/useAuth"
 import { useRepos } from "@/hooks/useRepos"
 import { api } from "@/lib/api"
@@ -290,7 +291,7 @@ export default function Dashboard() {
                 Recent changes and shortcuts for this workspace.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent>
               <div>
                 <p className="mb-1 text-xs text-muted-foreground">
                   Recently visited
@@ -300,18 +301,27 @@ export default function Dashboard() {
                     No repositories visited yet.
                   </p>
                 ) : (
-                  <div className="divide-y">
+                  <div className="divide-y border-t">
                     {recentRepositories.map((repo) => (
                       <Link
                         key={repo.id}
                         to={`/repos/${repo.id}`}
-                        className="block py-3 text-sm transition-colors hover:text-primary"
+                        className="block py-3 text-sm transition-colors last:pb-0 hover:text-primary"
                       >
                         <span className="flex items-center justify-between gap-3 font-medium">
                           <span className="truncate">{repo.fullName}</span>
                           <ArrowRight className="size-4 shrink-0" />
                         </span>
                         <span className="mt-2 flex flex-wrap items-center gap-2">
+                          <Badge
+                            variant={repo.isPrivate ? "outline" : "secondary"}
+                            className="gap-1"
+                          >
+                            {repo.isPrivate ? (
+                              <Lock className="size-3" />
+                            ) : null}
+                            {repo.isPrivate ? "Private" : "Public"}
+                          </Badge>
                           <Badge variant="secondary" className="gap-1">
                             <Star className="size-3" />
                             {repo.stars}
@@ -320,13 +330,16 @@ export default function Dashboard() {
                             <Users className="size-3" />
                             {repo.contributorCount} contributors
                           </Badge>
+                          <Badge variant="secondary" className="gap-1">
+                            <GitFork className="size-3" />
+                            {repo.forks}
+                          </Badge>
                         </span>
                         <span className="mt-2 block text-xs text-muted-foreground">
                           Added{" "}
-                          {formatDistanceToNowStrict(
-                            new Date(repo.createdAt),
-                            { addSuffix: true },
-                          )}
+                          {formatDistanceToNowStrict(new Date(repo.createdAt), {
+                            addSuffix: true,
+                          })}
                         </span>
                       </Link>
                     ))}
@@ -334,8 +347,7 @@ export default function Dashboard() {
                 )}
               </div>
 
-              <Separator />
-              <div className="flex flex-col gap-2">
+              <div className="mt-3 flex flex-col gap-2 border-t pt-3">
                 <Button variant="outline" asChild>
                   <Link to="/repos">
                     Browse repositories

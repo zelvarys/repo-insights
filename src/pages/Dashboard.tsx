@@ -331,7 +331,7 @@ export default function Dashboard() {
                           : null,
                       ]
                         .filter(Boolean)
-                        .join("  •  ")
+                        .join("    •    ")
                       return (
                         <Link
                           key={repo.id}

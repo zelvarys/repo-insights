@@ -1,11 +1,8 @@
 import { useState } from "react"
 import { useQueries } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
-import type {
-  OverviewResponse,
-  RepoMetrics,
-  TrackedRepository,
-} from "@shared/types"
+import { formatDistanceToNowStrict } from "date-fns"
+import type { RepoMetrics, TrackedRepository } from "@shared/types"
 import {
   Activity,
   ArrowRight,
@@ -17,6 +14,7 @@ import {
   Plus,
   ScanLine,
   ShieldCheck,
+  Star,
   Users,
   Workflow,
   Wrench,
@@ -193,14 +191,6 @@ export default function Dashboard() {
       enabled: Boolean(user),
     })),
   })
-  const overviewQueries = useQueries({
-    queries: recentRepositories.map((repo) => ({
-      queryKey: ["repo", repo.id, "insights", "overview"],
-      queryFn: () => api.get<OverviewResponse>(`/repos/${repo.id}/overview`),
-      enabled: Boolean(user),
-    })),
-  })
-
   if (isLoading) return <ReposSkeleton />
   if (!user) return <PublicDashboard />
 
@@ -311,27 +301,35 @@ export default function Dashboard() {
                   </p>
                 ) : (
                   <div className="divide-y">
-                    {recentRepositories.map((repo, index) => {
-                      const health = overviewQueries[index]?.data?.health
-                      return (
-                        <Link
-                          key={repo.id}
-                          to={`/repos/${repo.id}`}
-                          className="flex items-center justify-between gap-3 py-3 text-sm transition-colors hover:text-primary"
-                        >
-                          <span className="truncate font-medium">
-                            {repo.fullName}
-                          </span>
-                          <span className="shrink-0 text-xs text-muted-foreground">
-                            Health{" "}
-                            {health?.score === null ||
-                            health?.score === undefined
-                              ? "—"
-                              : health.score.toFixed(1)}
-                          </span>
-                        </Link>
-                      )
-                    })}
+                    {recentRepositories.map((repo) => (
+                      <Link
+                        key={repo.id}
+                        to={`/repos/${repo.id}`}
+                        className="block py-3 text-sm transition-colors hover:text-primary"
+                      >
+                        <span className="flex items-center justify-between gap-3 font-medium">
+                          <span className="truncate">{repo.fullName}</span>
+                          <ArrowRight className="size-4 shrink-0" />
+                        </span>
+                        <span className="mt-2 flex flex-wrap items-center gap-2">
+                          <Badge variant="secondary" className="gap-1">
+                            <Star className="size-3" />
+                            {repo.stars}
+                          </Badge>
+                          <Badge variant="secondary" className="gap-1">
+                            <Users className="size-3" />
+                            {repo.contributorCount} contributors
+                          </Badge>
+                        </span>
+                        <span className="mt-2 block text-xs text-muted-foreground">
+                          Added{" "}
+                          {formatDistanceToNowStrict(
+                            new Date(repo.createdAt),
+                            { addSuffix: true },
+                          )}
+                        </span>
+                      </Link>
+                    ))}
                   </div>
                 )}
               </div>

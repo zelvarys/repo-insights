@@ -191,21 +191,7 @@ export function StructureTab({
   const visibleFileTypes = structure.fileTypes.filter(
     (stat) => !IGNORED_FILE_TYPES.has(stat.extension),
   )
-  const chartFileTypes =
-    visibleFileTypes.length > 9
-      ? [
-          ...visibleFileTypes.slice(0, 9),
-          {
-            extension: "other",
-            count: visibleFileTypes
-              .slice(9)
-              .reduce((sum, stat) => sum + stat.count, 0),
-            sizeBytes: visibleFileTypes
-              .slice(9)
-              .reduce((sum, stat) => sum + stat.sizeBytes, 0),
-          },
-        ]
-      : visibleFileTypes
+  const chartFileTypes = visibleFileTypes.slice(0, 10)
   const rootDirs = structure.tree.filter((node) => node.type === "dir")
   const allRootsExpanded =
     rootDirs.length > 0 && rootDirs.every((node) => expanded.has(node.path))
@@ -265,14 +251,7 @@ export function StructureTab({
                       stroke="none"
                     >
                       {chartFileTypes.map((stat, index) => (
-                        <Cell
-                          key={stat.extension}
-                          fill={
-                            stat.extension === "other"
-                              ? "#ffffff"
-                              : chartColor(index)
-                          }
-                        />
+                        <Cell key={stat.extension} fill={chartColor(index)} />
                       ))}
                     </Pie>
                     <ChartTooltip
@@ -309,12 +288,7 @@ export function StructureTab({
                       <span className="flex min-w-0 items-center gap-2">
                         <span
                           className="size-2.5 shrink-0 rounded-sm"
-                          style={{
-                            backgroundColor:
-                              stat.extension === "other"
-                                ? "#ffffff"
-                                : chartColor(index),
-                          }}
+                          style={{ backgroundColor: chartColor(index) }}
                         />
                         <span className="truncate font-mono text-xs">
                           {stat.extension}

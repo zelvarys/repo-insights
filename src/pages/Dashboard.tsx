@@ -22,7 +22,6 @@ import { AddRepoDialog } from "@/components/app/AddRepoDialog"
 import { EmptyState } from "@/components/app/EmptyState"
 import { ErrorState } from "@/components/app/ErrorState"
 import { ReposSkeleton } from "@/components/app/LoadingSkeletons"
-import { RepositoryCard } from "@/components/app/RepositoryCard"
 import { StatCard } from "@/components/app/StatCard"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { Badge } from "@/components/ui/badge"
@@ -38,7 +37,6 @@ import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/hooks/useAuth"
 import { useRepos } from "@/hooks/useRepos"
 import { api } from "@/lib/api"
-import { recentRepoIds } from "@/lib/recent-repos"
 
 const introFeatures = [
   {
@@ -175,7 +173,6 @@ function PublicDashboard() {
 
 export default function Dashboard() {
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [recentIds] = useState(() => recentRepoIds())
   const { user, isLoading } = useAuth()
   const reposQuery = useRepos(Boolean(user))
   const repos = reposQuery.data?.repositories ?? []
@@ -193,7 +190,7 @@ export default function Dashboard() {
   const sortedRepos = [...repos].sort(
     (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
   )
-  const newestRepo = sortedRepos[0]
+  const recentRepositories = sortedRepos.slice(0, 3)
   const scannedMetrics = metricQueries
     .map((query) => query.data)
     .filter((metrics): metrics is RepoMetrics => Boolean(metrics?.scanId))
@@ -239,14 +236,6 @@ export default function Dashboard() {
         : "Across scanned repositories",
     },
   ]
-  const reposById = new Map(repos.map((repo) => [repo.id, repo]))
-  const remembered = recentIds
-    .map((id) => reposById.get(id))
-    .filter((repo) => repo !== undefined)
-    .slice(0, 2)
-  const recentRepos =
-    remembered.length > 0 ? remembered : sortedRepos.slice(0, 2)
-
   return (
     <>
       <PageHeader
@@ -289,28 +278,6 @@ export default function Dashboard() {
                 />
               ))}
             </div>
-
-            <div>
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-lg font-semibold">Recent repositories</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Jump back into the repositories you viewed most recently.
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/repos">
-                    View all
-                    <ArrowRight className="size-4" />
-                  </Link>
-                </Button>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                {recentRepos.map((repo) => (
-                  <RepositoryCard key={repo.id} repo={repo} />
-                ))}
-              </div>
-            </div>
           </div>
 
           <Card className="h-fit">
@@ -321,28 +288,31 @@ export default function Dashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              {newestRepo ? (
-                <>
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Most recently added
-                    </p>
+              <div>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Most recent repositories
+                </p>
+                <div className="space-y-3">
+                  {recentRepositories.map((repo) => (
                     <Link
-                      to={`/repos/${newestRepo.id}`}
-                      className="mt-1 flex items-center justify-between gap-3 rounded-md text-sm font-medium hover:text-primary"
+                      key={repo.id}
+                      to={`/repos/${repo.id}`}
+                      className="block rounded-md border p-3 transition-colors hover:border-primary/50 hover:bg-accent/50"
                     >
-                      <span className="truncate">{newestRepo.fullName}</span>
-                      <ArrowRight className="size-4 shrink-0" />
+                      <span className="flex items-center justify-between gap-3 text-sm font-medium">
+                        <span className="truncate">{repo.fullName}</span>
+                        <ArrowRight className="size-4 shrink-0" />
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        Added{" "}
+                        {formatDistanceToNowStrict(new Date(repo.createdAt), {
+                          addSuffix: true,
+                        })}
+                      </span>
                     </Link>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {formatDistanceToNowStrict(
-                        new Date(newestRepo.createdAt),
-                        { addSuffix: true },
-                      )}
-                    </p>
-                  </div>
-                </>
-              ) : null}
+                  ))}
+                </div>
+              </div>
 
               <Separator />
               <div className="flex flex-col gap-2">

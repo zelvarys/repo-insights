@@ -42,7 +42,6 @@ import {
 import { useAuth } from "@/hooks/useAuth"
 import { useRepos } from "@/hooks/useRepos"
 import { api } from "@/lib/api"
-import { formatPercent } from "@/lib/format"
 import { recentRepoIds } from "@/lib/recent-repos"
 
 const introFeatures = [
@@ -328,14 +327,11 @@ export default function Dashboard() {
                           ? `${cards.activity.last90Commits} commits`
                           : null,
                         cards?.dependencies
-                          ? `${cards.dependencies.outdated} outdated`
-                          : null,
-                        cards?.ci
-                          ? `${formatPercent(cards.ci.successRate)} CI`
+                          ? `${cards.dependencies.outdated} outdated packages`
                           : null,
                       ]
                         .filter(Boolean)
-                        .join(" • ")
+                        .join("  •  ")
                       return (
                         <Link
                           key={repo.id}

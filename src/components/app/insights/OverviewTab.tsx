@@ -6,9 +6,9 @@ import {
 } from "recharts"
 import {
   Activity,
+  AlertTriangle,
   Gauge,
   GitBranch,
-  Info,
   ShieldAlert,
   Sparkles,
   Users,
@@ -19,7 +19,6 @@ import {
   InsightLoading,
   InsightUnavailable,
 } from "@/components/app/insights/InsightState"
-import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardContent,
@@ -31,15 +30,25 @@ import { Progress } from "@/components/ui/progress"
 import { useRepoMetrics } from "@/hooks/useRepoDetail"
 import { useRepoOverview } from "@/hooks/useRepoInsights"
 import { formatPercent } from "@/lib/format"
+import { cn } from "@/lib/utils"
 
 type RepoTab =
   "overview" | "activity" | "structure" | "dependencies" | "workflows" | "tools"
 
-function riskVariant(risk: "green" | "yellow" | "red") {
-  if (risk === "green") return "default" as const
-  if (risk === "yellow") return "secondary" as const
-  return "destructive" as const
-}
+const RISK_META = {
+  green: {
+    label: "Low",
+    className: "text-emerald-600 dark:text-emerald-400",
+  },
+  yellow: {
+    label: "Moderate",
+    className: "text-amber-600 dark:text-amber-400",
+  },
+  red: {
+    label: "High",
+    className: "text-destructive",
+  },
+} as const
 
 function GlanceCard({
   title,
@@ -129,52 +138,79 @@ export function OverviewTab({
             and commit quality.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
+        <CardContent className="grid gap-4 sm:grid-cols-[36fr_32fr_32fr] sm:items-center">
           <div className="flex items-end gap-2">
-            <p className="text-5xl font-bold">
+            <p className="text-6xl font-bold">
               {health?.score === null || health?.score === undefined
                 ? "—"
                 : health.score.toFixed(1)}
             </p>
-            <p className="pb-2 text-sm text-muted-foreground">out of 100</p>
+            <p className="pb-2 text-sm text-muted-foreground">/ 100</p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {health?.components.map((component) => (
-              <div
-                key={component.key}
-                className="flex items-center justify-between rounded-md border px-3 py-2 text-xs"
-              >
-                <span
-                  className={component.available ? "" : "text-muted-foreground"}
-                >
-                  {component.label}
-                </span>
-                <span className="font-medium">
-                  {component.available
-                    ? component.score.toFixed(1)
-                    : "Not collected"}
-                </span>
+          {[health?.components.slice(0, 3), health?.components.slice(3)].map(
+            (components, index) => (
+              <div key={index} className="grid gap-2">
+                {components?.map((component) => (
+                  <div
+                    key={component.key}
+                    className="flex items-center justify-between rounded-md border px-3 py-2 text-xs"
+                  >
+                    <span
+                      className={
+                        component.available ? "" : "text-muted-foreground"
+                      }
+                    >
+                      {component.label}
+                    </span>
+                    <span className="font-medium">
+                      {component.available
+                        ? component.score.toFixed(1)
+                        : component.key === "ci"
+                          ? "null"
+                          : "Not collected"}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            ),
+          )}
         </CardContent>
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <GlanceCard
-          title="Tool adoption"
-          description="How consistently contributors use tracked tools."
-          icon={<Gauge className="size-4" />}
-          onOpen={() => onSelectTab("tools")}
-        >
-          <p className="text-2xl font-semibold">
-            {adoption.toFixed(1)}
-            <span className="ml-1 text-xs font-normal text-muted-foreground">
-              / 100
-            </span>
-          </p>
-          <Progress value={adoption} className="mt-3" />
-        </GlanceCard>
+        {cards.activity ? (
+          <GlanceCard
+            title="Commit activity"
+            description="Commits in the last 90 days."
+            icon={<Activity className="size-4" />}
+            onOpen={() => onSelectTab("activity")}
+          >
+            <p className="text-2xl font-semibold">
+              {cards.activity.last90Commits}
+            </p>
+            <div className="mt-2 h-16">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={cards.activity.sparkline}>
+                  <ChartTooltip
+                    contentStyle={{
+                      background: "var(--popover)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="var(--chart-2)"
+                    fill="var(--chart-2)"
+                    fillOpacity={0.2}
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </GlanceCard>
+        ) : null}
 
         {cards.concentration ? (
           <GlanceCard
@@ -186,24 +222,25 @@ export function OverviewTab({
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-semibold">
-                  {formatPercent(cards.concentration.top3Share)}
+                  {formatPercent(cards.concentration.top1Share)}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  from top 3
+                  from top contributor
                 </span>
-                <Badge variant={riskVariant(cards.concentration.risk)}>
-                  {cards.concentration.risk}
-                </Badge>
                 <span
-                  title="Bus factor estimates how much knowledge is concentrated in a few contributors. More spread is usually safer."
-                  className="text-muted-foreground"
+                  className={cn(
+                    "ml-auto inline-flex items-center gap-1 text-xs font-medium",
+                    RISK_META[cards.concentration.risk].className,
+                  )}
+                  title={`${RISK_META[cards.concentration.risk].label} concentration risk`}
                 >
-                  <Info className="size-3.5" />
+                  <AlertTriangle className="size-3.5" aria-hidden="true" />
+                  {RISK_META[cards.concentration.risk].label}
                 </span>
               </div>
               <div className="space-y-1">
                 {cards.concentration.topContributors
-                  .slice(0, 3)
+                  .slice(0, 2)
                   .map((person) => (
                     <div
                       key={person.login}
@@ -246,19 +283,19 @@ export function OverviewTab({
             onOpen={() => onSelectTab("dependencies")}
           >
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div>
+              <div className="rounded-md border px-2 py-2">
                 <p className="text-2xl font-semibold">
                   {cards.dependencies.total}
                 </p>
                 <p className="text-[10px] text-muted-foreground">total</p>
               </div>
-              <div>
+              <div className="rounded-md border px-2 py-2">
                 <p className="text-2xl font-semibold">
                   {cards.dependencies.outdated}
                 </p>
                 <p className="text-[10px] text-muted-foreground">outdated</p>
               </div>
-              <div>
+              <div className="rounded-md border px-2 py-2">
                 <p className="text-2xl font-semibold">
                   {cards.dependencies.advisoryCount}
                 </p>
@@ -268,39 +305,20 @@ export function OverviewTab({
           </GlanceCard>
         ) : null}
 
-        {cards.activity ? (
-          <GlanceCard
-            title="Activity"
-            description="Commits in the last 90 days."
-            icon={<Activity className="size-4" />}
-            onOpen={() => onSelectTab("activity")}
-          >
-            <p className="text-2xl font-semibold">
-              {cards.activity.last90Commits}
-            </p>
-            <div className="mt-2 h-16">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={cards.activity.sparkline}>
-                  <ChartTooltip
-                    contentStyle={{
-                      background: "var(--popover)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 8,
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke="var(--chart-2)"
-                    fill="var(--chart-2)"
-                    fillOpacity={0.2}
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </GlanceCard>
-        ) : null}
+        <GlanceCard
+          title="Tool adoption"
+          description="How consistently contributors use tracked tools."
+          icon={<Gauge className="size-4" />}
+          onOpen={() => onSelectTab("tools")}
+        >
+          <p className="text-2xl font-semibold">
+            {adoption.toFixed(1)}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">
+              / 100
+            </span>
+          </p>
+          <Progress value={adoption} className="mt-3" />
+        </GlanceCard>
 
         {cards.commitQuality ? (
           <GlanceCard
@@ -310,7 +328,11 @@ export function OverviewTab({
             onOpen={() => onSelectTab("activity")}
           >
             <p className="text-2xl font-semibold">
-              {formatPercent(cards.commitQuality.conventionalPercent)}
+              {formatPercent(
+                (cards.commitQuality.conventionalPercent +
+                  cards.commitQuality.bodyPercent) /
+                  2,
+              )}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Conventional Commits ·{" "}

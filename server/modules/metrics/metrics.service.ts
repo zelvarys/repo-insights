@@ -141,7 +141,7 @@ async function computeRepoMetrics(repoId: string): Promise<RepoMetrics> {
 
   const tools: ToolMetric[] = toolRows.rows.map((row) => {
     const stats = perToolStats.get(row.tool_name);
-    const tracked = trackedMap.get(row.tool_name) ?? false;
+    const tracked = trackedMap.get(row.tool_name) === true;
     return {
       name: row.tool_name,
       category: row.category as ToolCategory,
@@ -156,7 +156,13 @@ async function computeRepoMetrics(repoId: string): Promise<RepoMetrics> {
     };
   });
 
-  return computeScore(tools, new Set(trackedMap.keys()), {
+  const enabledToolNames = new Set(
+    [...trackedMap.entries()]
+      .filter(([, enabled]) => enabled)
+      .map(([name]) => name),
+  );
+
+  return computeScore(tools, enabledToolNames, {
     repoId: repo.id,
     repoFullName: repo.fullName,
     scanId: scan.id,

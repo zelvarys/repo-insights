@@ -6,6 +6,7 @@ import {
   getDependencies,
   getOverview,
   getStructure,
+  getStructureFile,
   refreshDependencies,
 } from './insights.controller.js';
 import { requireAuth } from '../../middleware/auth.middleware.js';
@@ -19,6 +20,12 @@ export const insightsRoutes = Router();
 
 insightsRoutes.use(requireAuth);
 
+insightsRoutes.get(
+  '/repos/:id/structure/file',
+  globalLimiter,
+  insightsLimiter,
+  getStructureFile,
+);
 insightsRoutes.get(
   '/repos/:id/structure',
   globalLimiter,

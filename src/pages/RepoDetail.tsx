@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { useParams, useSearchParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
-import { Loader2, RefreshCw, ScanLine, Settings, Trash2 } from "lucide-react"
+import { Loader2, RefreshCw, ScanLine } from "lucide-react"
 import { toast } from "sonner"
 import { EmptyState } from "@/components/app/EmptyState"
 import { ErrorState } from "@/components/app/ErrorState"
@@ -12,19 +12,12 @@ import { CiTab } from "@/components/app/insights/CiTab"
 import { DependenciesTab } from "@/components/app/insights/DependenciesTab"
 import { OverviewTab } from "@/components/app/insights/OverviewTab"
 import { StructureTab } from "@/components/app/insights/StructureTab"
-import { RemoveRepoDialog } from "@/components/app/RemoveRepoDialog"
 import { ScanHistory } from "@/components/app/ScanHistory"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { useRepo, useRepoMetrics, useRepoScans } from "@/hooks/useRepoDetail"
 import { useRunScan, useScanPoll } from "@/hooks/useRunScan"
+import { rememberRecentRepo } from "@/lib/recent-repos"
 
 function NoScanState({
   scanning,
@@ -72,7 +65,6 @@ export default function RepoDetail() {
   const { id } = useParams<{ id: string }>()
   const repoId = id ?? ""
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get("tab")
   const normalizedTab = tabParam === "ci" ? "workflows" : tabParam
@@ -88,13 +80,16 @@ export default function RepoDetail() {
 
   const [pollingScanId, setPollingScanId] = useState<string | null>(null)
   const [autoPolledScanId, setAutoPolledScanId] = useState<string | null>(null)
-  const [removeOpen, setRemoveOpen] = useState(false)
 
   const repoQuery = useRepo(repoId)
   const metricsQuery = useRepoMetrics(repoId)
   const scansQuery = useRepoScans(repoId)
   const runScan = useRunScan(repoId)
   const scanPoll = useScanPoll(pollingScanId)
+
+  useEffect(() => {
+    if (repoId) rememberRecentRepo(repoId)
+  }, [repoId])
 
   const repo = repoQuery.data?.repository
   const metrics = metricsQuery.data
@@ -200,25 +195,16 @@ export default function RepoDetail() {
             ? `Repository health and tool adoption for the ${repo.defaultBranch} branch.`
             : "Repository health and tool adoption for this repository."
         }
+        className="border-b pb-4"
         actions={
-          <>
-            <Button onClick={handleRunScan} disabled={runDisabled}>
-              {scanning ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <RefreshCw className="size-4" />
-              )}
-              {scanning ? "Scanning..." : "Run scan"}
-            </Button>
-            {repoId ? (
-              <Button variant="outline" asChild>
-                <Link to={`/repos/${repoId}/settings`}>
-                  <Settings className="size-4" />
-                  Settings
-                </Link>
-              </Button>
-            ) : null}
-          </>
+          <Button onClick={handleRunScan} disabled={runDisabled}>
+            {scanning ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <RefreshCw className="size-4" />
+            )}
+            {scanning ? "Scanning..." : "Run scan"}
+          </Button>
         }
       />
 
@@ -291,40 +277,8 @@ export default function RepoDetail() {
           <div className="mt-6">
             <ScanHistory repoId={repoId} />
           </div>
-
-          <div className="mt-6">
-            <Card className="border-destructive/40">
-              <CardHeader>
-                <CardTitle>Danger zone</CardTitle>
-                <CardDescription>
-                  Removing this repository deletes its scans, metrics, and
-                  tracked tool settings.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  variant="destructive"
-                  onClick={() => setRemoveOpen(true)}
-                >
-                  <Trash2 className="size-4" />
-                  Remove repository
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
         </>
       )}
-
-      <RemoveRepoDialog
-        open={removeOpen}
-        onOpenChange={setRemoveOpen}
-        repoId={repoId}
-        repoName={repo?.fullName}
-        onRemoved={() => {
-          void queryClient.invalidateQueries({ queryKey: ["repos"] })
-          navigate("/dashboard", { replace: true })
-        }}
-      />
     </>
   )
 }

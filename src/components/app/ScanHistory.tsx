@@ -1,13 +1,10 @@
 import { Fragment, useState } from "react"
-import { Link } from "react-router-dom"
-import { formatDistanceToNow } from "date-fns"
-import { Settings } from "lucide-react"
+import { formatDistanceToNowStrict } from "date-fns"
 import type { ScanStatus, ScanSummary } from "@shared/types"
-import { Badge } from "@/components/ui/badge"
+import { StatusBadge, type StatusTone } from "@/components/app/StatusBadge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -24,14 +21,11 @@ import {
 } from "@/components/ui/table"
 import { useRepoScans } from "@/hooks/useRepoDetail"
 
-const STATUS_VARIANTS: Record<
-  ScanStatus,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  complete: "default",
-  pending: "secondary",
-  running: "secondary",
-  failed: "destructive",
+const STATUS_TONES: Record<ScanStatus, StatusTone> = {
+  complete: "success",
+  pending: "warning",
+  running: "info",
+  failed: "danger",
 }
 
 function summaryNumber(
@@ -42,12 +36,19 @@ function summaryNumber(
   return typeof value === "number" ? value : null
 }
 
+function healthScore(summary: Record<string, unknown> | null): number | null {
+  const health = summary?.health
+  if (!health || typeof health !== "object") return null
+  const score = (health as { score?: unknown }).score
+  return typeof score === "number" ? score : null
+}
+
 function relativeDate(value: string): string {
-  return formatDistanceToNow(new Date(value), { addSuffix: true })
+  return formatDistanceToNowStrict(new Date(value), { addSuffix: true })
 }
 
 function ScanDetails({ scan }: { scan: ScanSummary }) {
-  const score = summaryNumber(scan.summary, "adoptionScore")
+  const score = healthScore(scan.summary)
   const detected = summaryNumber(scan.summary, "toolsDetected")
   const checked = summaryNumber(scan.summary, "toolsChecked")
 
@@ -70,7 +71,7 @@ function ScanDetails({ scan }: { scan: ScanSummary }) {
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       <div>
-        <p className="text-xs text-muted-foreground">Adoption score</p>
+        <p className="text-xs text-muted-foreground">Repository health</p>
         <p className="text-sm font-medium">
           {score === null ? "—" : score.toFixed(1)}
         </p>
@@ -96,7 +97,7 @@ function ScanMobileCard({
   expanded: boolean
   onToggle: () => void
 }) {
-  const score = summaryNumber(scan.summary, "adoptionScore")
+  const score = healthScore(scan.summary)
 
   return (
     <div className="rounded-lg border">
@@ -110,10 +111,12 @@ function ScanMobileCard({
           <span className="text-sm font-medium">
             {relativeDate(scan.createdAt)}
           </span>
-          <Badge variant={STATUS_VARIANTS[scan.status]}>{scan.status}</Badge>
+          <StatusBadge tone={STATUS_TONES[scan.status]}>
+            {scan.status}
+          </StatusBadge>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>Score {score === null ? "—" : score.toFixed(1)}</span>
+          <span>Health {score === null ? "—" : score.toFixed(1)}</span>
           <span>
             {scan.completedAt
               ? `Completed ${relativeDate(scan.completedAt)}`
@@ -145,14 +148,6 @@ export function ScanHistory({ repoId }: { repoId: string }) {
       <CardHeader>
         <CardTitle>Scan history</CardTitle>
         <CardDescription>The five most recent scans.</CardDescription>
-        <CardAction>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to={`/repos/${repoId}/settings`}>
-              <Settings className="size-4" />
-              Tracked tools
-            </Link>
-          </Button>
-        </CardAction>
       </CardHeader>
       <CardContent>
         {scansQuery.isLoading ? (
@@ -196,14 +191,14 @@ export function ScanHistory({ repoId }: { repoId: string }) {
                   <TableRow>
                     <TableHead>Started</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Score</TableHead>
+                    <TableHead>Health</TableHead>
                     <TableHead>Completed</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {scans.map((scan) => {
                     const expanded = expandedId === scan.id
-                    const score = summaryNumber(scan.summary, "adoptionScore")
+                    const score = healthScore(scan.summary)
                     return (
                       <Fragment key={scan.id}>
                         <TableRow
@@ -224,9 +219,9 @@ export function ScanHistory({ repoId }: { repoId: string }) {
                             {relativeDate(scan.createdAt)}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={STATUS_VARIANTS[scan.status]}>
+                            <StatusBadge tone={STATUS_TONES[scan.status]}>
                               {scan.status}
-                            </Badge>
+                            </StatusBadge>
                           </TableCell>
                           <TableCell>
                             {score === null ? "—" : score.toFixed(1)}

@@ -36,7 +36,6 @@ export type RepoMetrics = {
   scanId: string | null;
   scanCompletedAt: string | null;
   adoptionScore: number;
-  coverage: number;
   adoption: number;
   languages: string[];
   toolsChecked: number;

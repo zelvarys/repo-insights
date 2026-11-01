@@ -12,6 +12,7 @@ export type CommitFile = {
 export type CommitInfo = {
   sha: string;
   authorLogin: string | null;
+  authorName?: string | null;
   message: string;
   date: string;
   files: CommitFile[];

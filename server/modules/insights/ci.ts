@@ -130,8 +130,9 @@ export function aggregateCiHealth(
 }
 
 export function worstWorkflow(health: CiHealth): string | null {
+  if (health.workflows.length < 2) return null;
   const eligible = health.workflows.filter((workflow) => workflow.totalRuns > 10);
-  if (eligible.length === 0) return null;
+  if (eligible.length < 2) return null;
   return [...eligible].sort(
     (a, b) => a.successRate - b.successRate || a.name.localeCompare(b.name),
   )[0]!.name;

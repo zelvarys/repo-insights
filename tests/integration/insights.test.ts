@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
-import type { ScanSummary } from '../../shared/types.js';
 import { createApp } from '../../server/app.js';
 import { pool, closeDb } from '../../server/config/database.js';
 import { closeRedis } from '../../server/config/redis.js';
@@ -133,7 +132,7 @@ const summary = {
   ciHealth,
   dependencyHealth,
   ciError: null,
-} satisfies ScanSummary;
+};
 
 async function seedInsights(): Promise<void> {
   const result = await pool.query<{ id: string }>(
@@ -208,6 +207,42 @@ describe('repository insight endpoints', () => {
       scanId,
       structure: { fileCount: 3, directoryCount: 2 },
     });
+  });
+
+  it('returns the last modified date for a structure file', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.includes('/commits?') && url.includes('path=src%2Findex.ts')) {
+          return new Response(
+            JSON.stringify([
+              { commit: { author: { date: '2024-01-02T03:04:05Z' } } },
+            ]),
+            { status: 200 },
+          );
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      }),
+    );
+
+    const res = await auth(
+      request(app).get(
+        `/repos/${repoId}/structure/file?path=${encodeURIComponent('src/index.ts')}`,
+      ),
+    );
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      path: 'src/index.ts',
+      lastModified: '2024-01-02T03:04:05Z',
+    });
+  });
+
+  it('rejects invalid structure file paths', async () => {
+    const res = await auth(
+      request(app).get(`/repos/${repoId}/structure/file?path=../secret`),
+    );
+    expect(res.status).toBe(400);
   });
 
   it('returns activity for the requested range', async () => {
@@ -451,7 +486,7 @@ describe('repository insight endpoints', () => {
       outdated: false,
     });
 
-    const stored = await pool.query<{ summary: ScanSummary }>(
+    const stored = await pool.query<{ summary: Record<string, unknown> }>(
       'SELECT summary FROM scans WHERE id = $1',
       [scanId],
     );

@@ -353,7 +353,7 @@ describe('scan pipeline', () => {
 
     const summary = scanRow.rows[0]!.summary;
     expect(summary.adoptionScore).toBe(metrics.body.adoptionScore);
-    expect(summary.coverage).toBe(metrics.body.coverage);
+    expect((summary.health as { score: number }).score).toBeGreaterThanOrEqual(0);
     expect(summary.adoption).toBe(metrics.body.adoption);
     expect(summary.toolsChecked).toBe(metrics.body.toolsChecked);
     expect(summary.toolsTracked).toBe(metrics.body.toolsTracked);

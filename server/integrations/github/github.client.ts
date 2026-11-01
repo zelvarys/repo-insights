@@ -500,6 +500,22 @@ export async function fetchCommitDetail(
   return ghFetch<GitHubCommitDetail>(`/repos/${owner}/${repo}/commits/${sha}`, token);
 }
 
+export async function fetchLatestCommitForPath(
+  token: string,
+  owner: string,
+  repo: string,
+  path: string,
+  branch?: string,
+): Promise<string | null> {
+  const params = new URLSearchParams({ path, per_page: '1' });
+  if (branch) params.set('sha', branch);
+  const commits = await ghFetch<GitHubCommitListItem[]>(
+    `/repos/${owner}/${repo}/commits?${params.toString()}`,
+    token,
+  );
+  return commits[0]?.commit.author?.date ?? null;
+}
+
 export async function fetchContributors(
   token: string,
   owner: string,

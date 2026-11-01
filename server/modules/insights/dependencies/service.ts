@@ -7,7 +7,12 @@ import type {
   DependencySeverity,
   DependencySummary,
 } from '../../../../shared/types.js';
-import { parseDependencies, registryUrl, type ParsedDependency } from './parsers.js';
+import {
+  ANY_VERSION,
+  parseDependencies,
+  registryUrl,
+  type ParsedDependency,
+} from './parsers.js';
 import { getLatestVersion } from './registries.js';
 import { lookupAdvisories, maxSeverity } from './osv.js';
 import { isOutdated } from './semver.js';
@@ -79,13 +84,19 @@ export async function checkDependencies(
     },
   );
 
-  const osv = await lookupAdvisories(dependencies, options);
+  const advisoriesFor = dependencies.filter(
+    (dependency) => dependency.version !== ANY_VERSION,
+  );
+  const osv = await lookupAdvisories(advisoriesFor, options);
   partial ||= osv.partial;
 
   const rows: CheckedDependency[] = dependencies.map((dependency, index) => {
-    const advisories = osv.advisories.get(
-      `${dependency.ecosystem}:${dependency.name}@${dependency.version}`,
-    ) ?? [];
+    const advisories =
+      dependency.version === ANY_VERSION
+        ? []
+        : (osv.advisories.get(
+            `${dependency.ecosystem}:${dependency.name}@${dependency.version}`,
+          ) ?? []);
     return {
       ...dependency,
       latestVersion: latest[index] ?? null,
@@ -118,10 +129,9 @@ export async function persistDependencyHealth(
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const scan = await client.query<{ summary: Record<string, unknown> | null }>(
-      `SELECT summary FROM scans WHERE id = $1 FOR UPDATE`,
-      [scanId],
-    );
+    const scan = await client.query<{
+      summary: Record<string, unknown> | null;
+    }>(`SELECT summary FROM scans WHERE id = $1 FOR UPDATE`, [scanId]);
     if (scan.rows.length === 0) {
       await client.query('ROLLBACK');
       return;
@@ -168,7 +178,9 @@ export async function persistDependencyHealth(
   }
 }
 
-export async function loadDependencyRows(scanId: string): Promise<DependencyRow[]> {
+export async function loadDependencyRows(
+  scanId: string,
+): Promise<DependencyRow[]> {
   const { rows } = await pool.query<{
     ecosystem: DependencyRow['ecosystem'];
     package_name: string;

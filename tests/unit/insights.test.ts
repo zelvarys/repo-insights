@@ -4,7 +4,7 @@ import { buildRepoStructure } from '../../server/modules/insights/structure.js';
 import { buildCommitActivity, selectActivity } from '../../server/modules/insights/activity.js';
 import { computeCommitQuality } from '../../server/modules/insights/commit-quality.js';
 import { computeConcentration, computeGini, concentrationRisk } from '../../server/modules/insights/concentration.js';
-import { aggregateCiHealth, filterCiRuns } from '../../server/modules/insights/ci.js';
+import { aggregateCiHealth, filterCiRuns, worstWorkflow } from '../../server/modules/insights/ci.js';
 import { computeRepoHealth } from '../../server/modules/insights/health-score.js';
 
 describe('repo structure', () => {
@@ -121,6 +121,15 @@ describe('commit activity and quality', () => {
     expect(quality.messageLengthBuckets.reduce((sum, bucket) => sum + bucket.count, 0)).toBe(4);
   });
 
+  it('limits examples to three', () => {
+    const quality = computeCommitQuality(
+      Array.from({ length: 6 }, (_, index) => ({
+        message: `bad message ${index}`,
+      })),
+    );
+    expect(quality.examples).toHaveLength(3);
+  });
+
   it('sanitizes emails and mentions in examples', () => {
     const quality = computeCommitQuality([
       { message: 'thanks @alice and bob@example.com' },
@@ -153,6 +162,17 @@ describe('contributor concentration', () => {
       commits: 8,
       share: 80,
     });
+  });
+
+  it('does not flag a balanced three-person project as concentrated', () => {
+    const result = computeConcentration([
+      ...Array.from({ length: 3 }, () => ({ authorLogin: 'alice' })),
+      ...Array.from({ length: 3 }, () => ({ authorLogin: 'bob' })),
+      ...Array.from({ length: 3 }, () => ({ authorLogin: 'carol' })),
+    ]);
+    expect(result.top3Share).toBe(100);
+    expect(result.top1Share).toBe(33.33);
+    expect(result.risk).toBe('green');
   });
 
   it('returns zeroes for no commits', () => {
@@ -213,6 +233,15 @@ describe('CI health', () => {
     expect(health.totalRuns).toBe(0);
     expect(health.workflows).toEqual([]);
   });
+
+  it('does not rank a weakest workflow without two eligible workflows', () => {
+    const manyCiRuns = Array.from({ length: 12 }, (_, index) => ({
+      ...runs[0]!,
+      runId: 100 + index,
+    }));
+    expect(worstWorkflow(aggregateCiHealth(manyCiRuns))).toBeNull();
+    expect(worstWorkflow(aggregateCiHealth(runs))).toBeNull();
+  });
 });
 
 describe('repo health score', () => {
@@ -248,7 +277,42 @@ describe('repo health score', () => {
       },
       quality,
     });
-    expect(health.score).toBe(83);
+    expect(health.score).toBe(78);
+  });
+
+  it('scores contributor spread from distribution, not top-three share', () => {
+    const health = computeRepoHealth({
+      commitsLast90: 50,
+      concentration: {
+        totalCommits: 10,
+        contributorCount: 2,
+        top1Share: 60,
+        top3Share: 100,
+        top10Share: 100,
+        gini: 0.2,
+        risk: 'yellow',
+        topContributors: [],
+      },
+    });
+    const spread = health.components.find(
+      (component) => component.key === 'concentration',
+    );
+    expect(spread).toMatchObject({ score: 80, available: true });
+  });
+
+  it('scores commit quality from conventional and body percentages', () => {
+    const health = computeRepoHealth({
+      commitsLast90: 0,
+      quality: {
+        ...quality,
+        conventionalPercent: 80,
+        bodyPercent: 20,
+      },
+    });
+    const commitQuality = health.components.find(
+      (component) => component.key === 'commitQuality',
+    );
+    expect(commitQuality).toMatchObject({ score: 50, available: true });
   });
 
   it('renormalizes missing components', () => {
@@ -264,7 +328,7 @@ describe('repo health score', () => {
       'ci',
       'commitQuality',
     ]);
-    expect(health.score).toBe(70.83);
+    expect(health.score).toBe(62.5);
   });
 
   it('scores a repo with zero recent commits from the activity component alone', () => {

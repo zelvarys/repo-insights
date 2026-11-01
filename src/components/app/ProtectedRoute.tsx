@@ -1,11 +1,14 @@
 import { Navigate, Outlet } from "react-router-dom"
-import { useAuthStore } from "@/store/auth"
+import { PageLoader } from "@/components/PageLoader"
+import { useAuth } from "@/hooks/useAuth"
 
 export function ProtectedRoute() {
-  const user = useAuthStore((state) => state.user)
+  const { user, isLoading } = useAuth()
+
+  if (isLoading) return <PageLoader />
 
   if (!user) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/dashboard" replace />
   }
 
   return <Outlet />

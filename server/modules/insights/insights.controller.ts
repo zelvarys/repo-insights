@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { badRequest } from '../../utils/errors.js';
+import { badRequest, unauthorized } from '../../utils/errors.js';
 import { parseRepoIdParam } from '../repositories/repository.schema.js';
 import type { ActivityRange } from './activity.js';
 import {
@@ -7,6 +7,7 @@ import {
   getRepoCi,
   getRepoConcentration,
   getRepoDependencies,
+  getRepoFileMetadata,
   getRepoOverview,
   getRepoStructure,
   queueDependencyRefresh,
@@ -26,6 +27,20 @@ function queryString(value: unknown, name: string): string | undefined {
     throw badRequest(`Invalid ${name}`);
   }
   return value.trim();
+}
+
+function filePath(value: unknown): string {
+  if (typeof value !== 'string') throw badRequest('Invalid path');
+  const path = value.trim();
+  if (
+    path.length === 0 ||
+    path.length > 1024 ||
+    path.startsWith('/') ||
+    path.split('/').includes('..')
+  ) {
+    throw badRequest('Invalid path');
+  }
+  return path;
 }
 
 function positiveInt(
@@ -74,6 +89,25 @@ export async function getStructure(req: Request, res: Response, next: NextFuncti
   }
 }
 
+export async function getStructureFile(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    if (!req.userId) throw unauthorized();
+    res.json(
+      await getRepoFileMetadata(
+        repoId(req),
+        req.userId,
+        filePath(req.query.path),
+      ),
+    );
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getActivity(req: Request, res: Response, next: NextFunction) {
   try {
     res.json(await getRepoActivity(repoId(req), activityRange(req.query.range)));
@@ -109,7 +143,7 @@ export async function getDependencies(req: Request, res: Response, next: NextFun
     res.json(
       await getRepoDependencies(repoId(req), {
         page: positiveInt(req.query.page, 'page', 1, 10_000),
-        perPage: positiveInt(req.query.perPage, 'perPage', 50, 100),
+        perPage: positiveInt(req.query.perPage, 'perPage', 30, 100),
         outdated: optionalBoolean(req.query.outdated, 'outdated'),
         hasAdvisory: optionalBoolean(req.query.hasAdvisory, 'hasAdvisory'),
       }),

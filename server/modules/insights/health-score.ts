@@ -49,11 +49,13 @@ export function componentScores(input: HealthInput): {
       ? clamp(input.ciSuccessRate ?? 0)
       : null;
   const concentration = input.concentration
-    ? clamp(100 - Math.max(0, input.concentration.top3Share - 50) * 2)
+    ? clamp((1 - input.concentration.gini) * 100)
     : null;
   const commitQuality =
     input.quality && input.quality.totalCommits > 0
-      ? clamp(input.quality.conventionalPercent)
+      ? clamp(
+          (input.quality.conventionalPercent + input.quality.bodyPercent) / 2,
+        )
       : null;
 
   return {
@@ -73,7 +75,7 @@ export function computeRepoHealth(input: HealthInput): RepoHealth {
     score: number | null;
   }> = [
     { key: 'activity', label: 'Activity', score: scores.activity },
-    { key: 'dependencies', label: 'Dependency freshness', score: scores.dependencies },
+    { key: 'dependencies', label: 'Dependency health', score: scores.dependencies },
     { key: 'ci', label: 'Workflow stability', score: scores.ci },
     { key: 'concentration', label: 'Contributor spread', score: scores.concentration },
     { key: 'commitQuality', label: 'Commit quality', score: scores.commitQuality },

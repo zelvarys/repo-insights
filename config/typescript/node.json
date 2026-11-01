@@ -10,11 +10,11 @@
     "moduleDetection": "force",
     "noEmit": true,
     "strict": true,
-    "baseUrl": ".",
+    "baseUrl": "../..",
     "paths": {
       "vite": ["./node_modules/vite"],
       "vite/*": ["./node_modules/vite/*"]
     }
   },
-  "include": ["vite.config.ts"]
+  "include": ["../../vite.config.ts"]
 }

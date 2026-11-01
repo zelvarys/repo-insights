@@ -26,10 +26,10 @@ export function computeGini(counts: number[]): number {
 }
 
 export function concentrationRisk(
-  top3Share: number,
+  topShare: number,
 ): 'green' | 'yellow' | 'red' {
-  if (top3Share < 50) return 'green';
-  if (top3Share > 75) return 'red';
+  if (topShare < 50) return 'green';
+  if (topShare > 75) return 'red';
   return 'yellow';
 }
 
@@ -57,15 +57,15 @@ export function computeConcentration(
     share: share(row.commits),
   }));
 
-  const top3Share = share(sumTop(3));
+  const top1Share = share(sumTop(1));
   return {
     totalCommits,
     contributorCount: sorted.length,
-    top1Share: share(sumTop(1)),
-    top3Share,
+    top1Share,
+    top3Share: share(sumTop(3)),
     top10Share: share(sumTop(10)),
     gini: computeGini(sorted.map((row) => row.commits)),
-    risk: concentrationRisk(top3Share),
+    risk: concentrationRisk(top1Share),
     topContributors,
   };
 }

@@ -1,4 +1,5 @@
-import { LogOut, Settings } from "lucide-react"
+import { Link } from "react-router-dom"
+import { Github, LogOut, Settings } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -8,11 +9,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { useAuth } from "@/hooks/useAuth"
 import { useLogout } from "@/hooks/useLogout"
 
@@ -29,7 +25,8 @@ export function UserMenu() {
           window.location.href = "/auth/github"
         }}
       >
-        Sign in
+        <Github className="size-4" />
+        Connect GitHub
       </Button>
     )
   }
@@ -62,20 +59,12 @@ export function UserMenu() {
           </span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuItem
-              aria-disabled="true"
-              tabIndex={-1}
-              onSelect={(event) => event.preventDefault()}
-              className="cursor-not-allowed opacity-50"
-            >
-              <Settings className="size-4" />
-              Settings
-            </DropdownMenuItem>
-          </TooltipTrigger>
-          <TooltipContent side="left">Coming soon</TooltipContent>
-        </Tooltip>
+        <DropdownMenuItem asChild>
+          <Link to="/settings">
+            <Settings className="size-4" />
+            Settings
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => logout.mutate()}
           disabled={logout.isPending}

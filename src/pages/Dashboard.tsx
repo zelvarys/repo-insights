@@ -1,19 +1,34 @@
 import { useState } from "react"
+import { useQueries } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
-import { formatDistanceToNow } from "date-fns"
+import type {
+  OverviewResponse,
+  RepoMetrics,
+  TrackedRepository,
+} from "@shared/types"
 import {
+  Activity,
   ArrowRight,
   FolderGit2,
+  FolderTree,
+  Gauge,
   GitFork,
+  Github,
   Lock,
+  Package,
   Plus,
+  ScanLine,
+  ShieldCheck,
   Star,
   Users,
+  Workflow,
+  Wrench,
 } from "lucide-react"
 import { AddRepoDialog } from "@/components/app/AddRepoDialog"
 import { EmptyState } from "@/components/app/EmptyState"
 import { ErrorState } from "@/components/app/ErrorState"
 import { ReposSkeleton } from "@/components/app/LoadingSkeletons"
+import { StatCard } from "@/components/app/StatCard"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,45 +36,226 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { useAuth } from "@/hooks/useAuth"
 import { useRepos } from "@/hooks/useRepos"
+import { api } from "@/lib/api"
+import { recentRepoIds } from "@/lib/recent-repos"
 
-export default function Dashboard() {
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const reposQuery = useRepos()
-  const repos = reposQuery.data?.repositories ?? []
-  const stats = [
-    {
-      label: "Repositories",
-      value: repos.length,
-      icon: FolderGit2,
-    },
-    {
-      label: "Contributors",
-      value: repos.reduce((sum, repo) => sum + repo.contributorCount, 0),
-      icon: Users,
-    },
-    {
-      label: "Stars",
-      value: repos.reduce((sum, repo) => sum + repo.stars, 0),
-      icon: Star,
-    },
-  ]
+const introFeatures = [
+  {
+    title: "Repository health",
+    description:
+      "Activity, dependencies, workflows, and commit quality combined into one score.",
+    icon: ShieldCheck,
+  },
+  {
+    title: "Commit activity",
+    description:
+      "See release cadence, contributor mix, and the commit messages that need work.",
+    icon: Activity,
+  },
+  {
+    title: "Dependencies",
+    description:
+      "Manifest dependencies with outdated versions and known advisories.",
+    icon: Package,
+  },
+  {
+    title: "Workflows and tools",
+    description:
+      "GitHub Actions reliability alongside contributor adoption of your tools.",
+    icon: Workflow,
+  },
+  {
+    title: "Repository structure",
+    description:
+      "File-type breakdowns, repository size, and an explorable source tree.",
+    icon: FolderTree,
+  },
+  {
+    title: "Contributor spread",
+    description:
+      "Understand bus factor and whether knowledge is concentrated in a few people.",
+    icon: Users,
+  },
+]
 
+const landingSteps = [
+  "Connect your GitHub account with read-only access.",
+  "Add the public repositories you want to track.",
+  "Run a scan and review health, activity, dependencies, and tool adoption.",
+]
+
+function signIn() {
+  window.location.href = "/auth/github"
+}
+
+function PublicDashboard() {
   return (
     <>
       <PageHeader
         title="Dashboard"
-        description="Your connected repositories and their activity, structure, dependencies, workflows, and tool adoption."
-        actions={
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="size-4" />
-            Add repository
-          </Button>
-        }
+        description="Repository health and tool adoption at a glance."
+      />
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <Badge variant="secondary" className="mb-2 w-fit gap-1.5">
+                <Wrench className="size-3" />
+                Repository insights for maintainers
+              </Badge>
+              <CardTitle className="text-2xl text-balance sm:text-3xl">
+                See how healthy your repositories really are.
+              </CardTitle>
+              <CardDescription className="max-w-2xl text-base">
+                Connect GitHub to scan repository health, activity,
+                dependencies, workflows, structure, and how consistently
+                contributors use your tools.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center gap-3">
+              <Button size="lg" onClick={signIn}>
+                <Github className="size-4" />
+                Connect GitHub
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Read-only access. Public repositories only.
+              </p>
+            </CardContent>
+          </Card>
+
+          <div>
+            <div className="mb-3">
+              <h2 className="text-lg font-semibold">What you get</h2>
+              <p className="text-sm text-muted-foreground">
+                A complete picture of repository health in one place.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {introFeatures.map((feature) => (
+                <Card key={feature.title}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <feature.icon className="size-4 text-primary" />
+                      {feature.title}
+                    </CardTitle>
+                    <CardDescription>{feature.description}</CardDescription>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>How it works</CardTitle>
+            <CardDescription>
+              Start in a few minutes with read-only GitHub access.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <ol className="space-y-4">
+              {landingSteps.map((step, index) => (
+                <li key={step} className="flex gap-3">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    {index + 1}
+                  </span>
+                  <span className="text-sm text-muted-foreground">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  )
+}
+
+export default function Dashboard() {
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [recentIds] = useState(() => recentRepoIds())
+  const { user, isLoading } = useAuth()
+  const reposQuery = useRepos(Boolean(user))
+  const repos = reposQuery.data?.repositories ?? []
+  const reposById = new Map(repos.map((repo) => [repo.id, repo]))
+  const recentRepositories = recentIds
+    .map((id) => reposById.get(id))
+    .filter((repo): repo is TrackedRepository => repo !== undefined)
+    .slice(0, 3)
+  const metricQueries = useQueries({
+    queries: repos.map((repo) => ({
+      queryKey: ["repo", repo.id, "metrics"],
+      queryFn: () => api.get<RepoMetrics>(`/repos/${repo.id}/metrics`),
+      enabled: Boolean(user),
+    })),
+  })
+  const overviewQueries = useQueries({
+    queries: recentRepositories.map((repo) => ({
+      queryKey: ["repo", repo.id, "insights", "overview"],
+      queryFn: () => api.get<OverviewResponse>(`/repos/${repo.id}/overview`),
+      enabled: Boolean(user),
+    })),
+  })
+
+  if (isLoading) return <ReposSkeleton />
+  if (!user) return <PublicDashboard />
+
+  const scannedMetrics = metricQueries
+    .map((query) => query.data)
+    .filter((metrics): metrics is RepoMetrics => Boolean(metrics?.scanId))
+  const averageAdoption =
+    scannedMetrics.length > 0
+      ? scannedMetrics.reduce(
+          (sum, metrics) => sum + metrics.adoptionScore,
+          0,
+        ) / scannedMetrics.length
+      : null
+  const detectedTools = scannedMetrics.reduce(
+    (sum, metrics) => sum + metrics.toolsDetected,
+    0,
+  )
+  const scanCoverage =
+    repos.length > 0
+      ? Math.round((scannedMetrics.length / repos.length) * 100)
+      : 0
+  const metricsLoading = metricQueries.some((query) => query.isLoading)
+  const stats = [
+    {
+      label: "Average adoption",
+      value: averageAdoption === null ? "—" : averageAdoption.toFixed(1),
+      icon: Gauge,
+      detail: metricsLoading
+        ? "Loading repository metrics"
+        : `${scannedMetrics.length} scanned repositories`,
+    },
+    {
+      label: "Scan coverage",
+      value: `${scannedMetrics.length}/${repos.length}`,
+      icon: ScanLine,
+      detail: metricsLoading
+        ? "Loading repository metrics"
+        : `${scanCoverage}% of repositories scanned`,
+    },
+    {
+      label: "Tools detected",
+      value: detectedTools,
+      icon: Wrench,
+      detail: metricsLoading
+        ? "Loading repository metrics"
+        : "Across scanned repositories",
+    },
+  ]
+  return (
+    <>
+      <PageHeader
+        title="Dashboard"
+        description="A quick view of your repositories and the areas that need attention."
       />
 
       <AddRepoDialog open={dialogOpen} onOpenChange={setDialogOpen} />
@@ -84,83 +280,116 @@ export default function Dashboard() {
           }
         />
       ) : (
-        <>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {stats.map((stat) => (
-              <Card key={stat.label} className="gap-2 py-4">
-                <CardHeader className="flex flex-row items-center justify-between gap-2 px-4 pb-0">
-                  <CardDescription>{stat.label}</CardDescription>
-                  <stat.icon className="size-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent className="px-4">
-                  <p className="text-2xl font-semibold">{stat.value}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="mt-6">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold">Your repositories</h2>
-              <span className="text-sm text-muted-foreground">
-                {repos.length}
-              </span>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {repos.map((repo) => (
-                <Link
-                  key={repo.id}
-                  to={`/repos/${repo.id}`}
-                  className="group block h-full rounded-xl focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-                >
-                  <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:shadow-sm">
-                    <CardHeader>
-                      <CardTitle className="truncate">
-                        {repo.fullName}
-                      </CardTitle>
-                      <CardDescription className="truncate">
-                        Default branch: {repo.defaultBranch}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-wrap gap-2">
-                      <Badge
-                        variant={repo.isPrivate ? "outline" : "secondary"}
-                        className="gap-1"
-                      >
-                        {repo.isPrivate ? <Lock className="size-3" /> : null}
-                        {repo.isPrivate ? "Private" : "Public"}
-                      </Badge>
-                      <Badge variant="secondary" className="gap-1">
-                        <Star className="size-3" />
-                        {repo.stars}
-                      </Badge>
-                      <Badge variant="secondary" className="gap-1">
-                        <Users className="size-3" />
-                        {repo.contributorCount} contributors
-                      </Badge>
-                      <Badge variant="secondary" className="gap-1">
-                        <GitFork className="size-3" />
-                        {repo.forks}
-                      </Badge>
-                    </CardContent>
-                    <CardFooter className="mt-auto flex-wrap justify-between gap-2 text-xs text-muted-foreground">
-                      <span>
-                        Added{" "}
-                        {formatDistanceToNow(new Date(repo.createdAt), {
-                          addSuffix: true,
-                        })}
-                      </span>
-                      <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                        View insights
-                        <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-                      </span>
-                    </CardFooter>
-                  </Card>
-                </Link>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
+          <div className="space-y-6">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {stats.map((stat) => (
+                <StatCard
+                  key={stat.label}
+                  label={stat.label}
+                  value={stat.value}
+                  detail={stat.detail}
+                  icon={stat.icon}
+                />
               ))}
             </div>
           </div>
-        </>
+
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle>Workspace</CardTitle>
+              <CardDescription>
+                Recent changes and shortcuts for this workspace.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div>
+                <p className="mb-1 text-xs text-muted-foreground">
+                  Recently visited
+                </p>
+                {recentRepositories.length === 0 ? (
+                  <p className="py-3 text-sm text-muted-foreground">
+                    No repositories visited yet.
+                  </p>
+                ) : (
+                  <div className="divide-y border-t">
+                    {recentRepositories.map((repo, index) => {
+                      const overview = overviewQueries[index]?.data
+                      const health = overview?.health?.score
+                      const cards = overview?.cards
+                      const summary = [
+                        `Health: ${
+                          health === null || health === undefined
+                            ? "—"
+                            : health.toFixed(1)
+                        }`,
+                        cards?.activity
+                          ? `${cards.activity.last90Commits} commits`
+                          : null,
+                        cards?.dependencies
+                          ? `${cards.dependencies.outdated} outdated packages`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join("    •    ")
+                      return (
+                        <Link
+                          key={repo.id}
+                          to={`/repos/${repo.id}`}
+                          className="block py-3 text-sm transition-colors last:pb-0 hover:text-primary"
+                        >
+                          <span className="flex items-center justify-between gap-3 font-medium">
+                            <span className="truncate">{repo.fullName}</span>
+                            <ArrowRight className="size-4 shrink-0" />
+                          </span>
+                          <span className="mt-2 flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant={repo.isPrivate ? "outline" : "secondary"}
+                              className="gap-1"
+                            >
+                              {repo.isPrivate ? (
+                                <Lock className="size-3" />
+                              ) : null}
+                              {repo.isPrivate ? "Private" : "Public"}
+                            </Badge>
+                            <Badge variant="secondary" className="gap-1">
+                              <Star className="size-3" />
+                              {repo.stars}
+                            </Badge>
+                            <Badge variant="secondary" className="gap-1">
+                              <Users className="size-3" />
+                              {repo.contributorCount} contributors
+                            </Badge>
+                            <Badge variant="secondary" className="gap-1">
+                              <GitFork className="size-3" />
+                              {repo.forks}
+                            </Badge>
+                          </span>
+                          <span className="mt-2 block text-xs text-muted-foreground">
+                            {summary}
+                          </span>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3 flex flex-col gap-2 border-t pt-3">
+                <Button variant="outline" asChild>
+                  <Link to="/repos">
+                    Browse repositories
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+                <Button onClick={() => setDialogOpen(true)}>
+                  <Plus className="size-4" />
+                  Add repository
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </>
   )

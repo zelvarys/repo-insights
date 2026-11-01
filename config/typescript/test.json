@@ -1,0 +1,12 @@
+{
+  "extends": "./server.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "../../tests/**/*.ts",
+    "../../server/**/*.ts",
+    "../../shared/**/*.ts"
+  ],
+  "exclude": ["../../node_modules", "../../dist"]
+}

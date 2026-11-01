@@ -33,9 +33,28 @@ function insightKey(repoId: string, name: string) {
 export function useRepoStructure(repoId: string) {
   return useQuery({
     queryKey: insightKey(repoId, "structure"),
-    queryFn: () =>
-      api.get<RepoStructureResponse>(`/repos/${repoId}/structure`),
+    queryFn: () => api.get<RepoStructureResponse>(`/repos/${repoId}/structure`),
     enabled: Boolean(repoId),
+  })
+}
+
+export type RepoFileMetadataResponse = {
+  path: string
+  lastModified: string | null
+}
+
+export function useRepoFileMetadata(
+  repoId: string,
+  path: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: [...insightKey(repoId, "file-metadata"), path],
+    queryFn: () =>
+      api.get<RepoFileMetadataResponse>(
+        `/repos/${repoId}/structure/file?path=${encodeURIComponent(path)}`,
+      ),
+    enabled: Boolean(repoId && path && enabled),
   })
 }
 
@@ -44,7 +63,7 @@ export function useRepoActivity(repoId: string, range: ActivityRange) {
     queryKey: [...insightKey(repoId, "activity"), range],
     queryFn: () =>
       api.get<CommitActivityResponse>(
-        `/repos/${repoId}/activity?range=${range}`
+        `/repos/${repoId}/activity?range=${range}`,
       ),
     enabled: Boolean(repoId),
   })
@@ -55,7 +74,7 @@ export function useRepoConcentration(repoId: string) {
     queryKey: insightKey(repoId, "concentration"),
     queryFn: () =>
       api.get<ContributorConcentrationResponse>(
-        `/repos/${repoId}/concentration`
+        `/repos/${repoId}/concentration`,
       ),
     enabled: Boolean(repoId),
   })
@@ -76,7 +95,7 @@ export function useRepoCi(repoId: string, filters: CiFilters) {
 export function useRepoDependencies(
   repoId: string,
   filters: DependencyFilters,
-  polling = false
+  polling = false,
 ) {
   const params = new URLSearchParams({
     page: String(filters.page),
@@ -88,7 +107,7 @@ export function useRepoDependencies(
     queryKey: [...insightKey(repoId, "dependencies"), filters],
     queryFn: () =>
       api.get<DependenciesResponse>(
-        `/repos/${repoId}/dependencies?${params.toString()}`
+        `/repos/${repoId}/dependencies?${params.toString()}`,
       ),
     enabled: Boolean(repoId),
     refetchInterval: polling ? 2000 : false,
@@ -108,7 +127,7 @@ export function useRefreshDependencies(repoId: string) {
     mutationFn: () =>
       api.post<DependencyRefreshResponse>(
         `/repos/${repoId}/dependencies/refresh`,
-        {}
+        {},
       ),
     onSuccess: () => {
       void queryClient.invalidateQueries({

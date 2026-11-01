@@ -43,6 +43,7 @@ import { computeConcentration } from '../insights/concentration.js';
 import { aggregateCiHealth } from '../insights/ci.js';
 import { persistCiRuns } from '../insights/ci.service.js';
 import { buildRepoStructure, type RawTreeEntry } from '../insights/structure.js';
+import { computeRepoHealth } from '../insights/health-score.js';
 import {
   collectDependencyHealth,
   persistDependencyHealth,
@@ -66,6 +67,7 @@ const CONFIG_FILE_CANDIDATES = [
   'jest.config.js', 'jest.config.ts', 'jest.config.mjs',
   'jest.config.cjs', 'jest.config.json',
   'pyproject.toml', 'setup.cfg', 'setup.py', 'requirements.txt',
+  'requirements-dev.txt', 'dev-requirements.txt', 'Pipfile',
   'pytest.ini', 'tox.ini', 'ruff.toml', '.ruff.toml',
   'go.mod', 'go.sum',
   '.golangci.yml', '.golangci.yaml', '.golangci.toml', '.golangci.json',
@@ -112,6 +114,7 @@ async function buildScanContext(
   const commitHistory: CommitInfo[] = commitsRaw.map((commit) => ({
     sha: commit.sha,
     authorLogin: commit.author?.login ?? null,
+    authorName: commit.commit.author?.name ?? null,
     message: commit.commit.message,
     date: commit.commit.author?.date ?? new Date().toISOString(),
     files: [],
@@ -130,6 +133,7 @@ async function buildScanContext(
     commits.push({
       sha: commit.sha,
       authorLogin: commit.author?.login ?? null,
+      authorName: commit.commit.author?.name ?? null,
       message: commit.commit.message,
       date: commit.commit.author?.date ?? new Date().toISOString(),
       files,
@@ -340,7 +344,7 @@ async function processScanJob(job: {
     }
 
     const trackedRows = await pool.query<{ tool_name: string }>(
-      `SELECT tool_name FROM tracked_tools WHERE repo_id = $1`,
+      `SELECT tool_name FROM tracked_tools WHERE repo_id = $1 AND enabled = TRUE`,
       [repoId],
     );
     const trackedNames = new Set(trackedRows.rows.map((r) => r.tool_name));
@@ -382,7 +386,18 @@ async function processScanJob(job: {
       ? computeConcentration(
           ctx.commitHistory
             .filter((commit) => Date.parse(commit.date) >= cutoff)
-            .map((commit) => ({ authorLogin: commit.authorLogin })),
+            .filter(
+              (commit) =>
+                !/^Merge (pull request|branch|remote-tracking branch|tag)/i.test(
+                  commit.message,
+                ),
+            )
+            .flatMap((commit) => {
+              const author = (commit.authorLogin ?? commit.authorName ?? '')
+                .trim();
+              if (!author || /\[bot\]$/i.test(author)) return [];
+              return [{ authorLogin: author }];
+            }),
         )
       : undefined;
     const lastModifiedByPath: Record<string, string> = {};
@@ -410,6 +425,20 @@ async function processScanJob(job: {
       );
     }
 
+    const daily90 = activity?.ranges[90].daily ?? {};
+    const commitsLast90 = Object.values(daily90).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+    const health = computeRepoHealth({
+      commitsLast90,
+      dependencies: dependencyResult?.summary ?? null,
+      ciSuccessRate: ciHealth?.successRate ?? null,
+      ciTotalRuns: ciHealth?.totalRuns ?? null,
+      concentration: concentration ?? null,
+      quality: activity?.quality ?? null,
+    });
+
     const summary: Record<string, unknown> = {
       ...computeScore(summaryTools, trackedNames, {
         repoId,
@@ -418,6 +447,7 @@ async function processScanJob(job: {
         scanCompletedAt: null,
         languages: languagesToArray(languages),
       }),
+      health,
       ciHealth,
       ciError: ctx.ciError ?? null,
       ...(activity ? { activity } : {}),

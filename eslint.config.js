@@ -19,7 +19,7 @@ export default tseslint.config(
     extends: [tseslint.configs.recommended],
     languageOptions: {
       parserOptions: {
-        project: ['./tsconfig.json'],
+        project: ['./config/typescript/server.json'],
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -30,7 +30,7 @@ export default tseslint.config(
     extends: [tseslint.configs.recommended],
     languageOptions: {
       parserOptions: {
-        project: ['./tsconfig.app.json'],
+        project: ['./config/typescript/app.json'],
         tsconfigRootDir: import.meta.dirname,
       },
     },

@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom"
 import {
   Activity,
   ArrowLeft,
+  FolderGit2,
   FolderTree,
   Gauge,
   Github,
@@ -15,6 +16,7 @@ import {
   Wrench,
 } from "lucide-react"
 import { UserMenu } from "@/components/app/UserMenu"
+import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -27,13 +29,15 @@ import { cn } from "@/lib/utils"
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/repos", label: "Repositories", icon: FolderGit2, end: true },
+  { to: "/settings", label: "Settings", icon: Settings, end: true },
 ]
 
 const repoFeatures = [
   { tab: "overview", label: "Overview", icon: Gauge },
   { tab: "activity", label: "Activity", icon: Activity },
-  { tab: "structure", label: "Structure", icon: FolderTree },
   { tab: "dependencies", label: "Dependencies", icon: Package },
+  { tab: "structure", label: "Structure", icon: FolderTree },
   { tab: "workflows", label: "Workflows", icon: Workflow },
   { tab: "tools", label: "Tools", icon: Wrench },
 ]
@@ -53,7 +57,13 @@ function navClass(active: boolean) {
   )
 }
 
-function NavItems({ onNavigate }: { onNavigate?: () => void }) {
+function NavItems({
+  onNavigate,
+  signedIn,
+}: {
+  onNavigate?: () => void
+  signedIn: boolean
+}) {
   const location = useLocation()
   const context = repoContext(location.pathname)
   const activeTab =
@@ -67,18 +77,20 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
           Dashboard
         </Link>
       ) : (
-        navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            onClick={onNavigate}
-            className={({ isActive }) => navClass(isActive)}
-          >
-            <item.icon className="size-4" />
-            {item.label}
-          </NavLink>
-        ))
+        navItems
+          .filter((item) => signedIn || item.to === "/dashboard")
+          .map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              onClick={onNavigate}
+              className={({ isActive }) => navClass(isActive)}
+            >
+              <item.icon className="size-4" />
+              {item.label}
+            </NavLink>
+          ))
       )}
 
       {context ? (
@@ -122,6 +134,8 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { user } = useAuth()
+  const signedIn = Boolean(user)
 
   return (
     <div className="flex min-h-svh bg-background">
@@ -136,7 +150,7 @@ export function AppShell() {
           </Link>
         </div>
         <div className="flex-1 p-4">
-          <NavItems />
+          <NavItems signedIn={signedIn} />
         </div>
         <div className="border-t p-4">
           <Button variant="outline" className="w-full justify-start" asChild>
@@ -179,7 +193,10 @@ export function AppShell() {
                 </SheetTitle>
               </SheetHeader>
               <div className="p-4">
-                <NavItems onNavigate={() => setMobileOpen(false)} />
+                <NavItems
+                  signedIn={signedIn}
+                  onNavigate={() => setMobileOpen(false)}
+                />
               </div>
             </SheetContent>
           </Sheet>

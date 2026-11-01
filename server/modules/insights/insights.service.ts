@@ -1,8 +1,10 @@
 import { pool } from '../../config/database.js';
 import { getTrackedRepository } from '../repositories/repository.service.js';
+import { getAccessTokenForUser } from '../auth/auth.service.js';
+import { fetchLatestCommitForPath } from '../../integrations/github/github.client.js';
 import { cacheGet, cacheSet, cacheKeys } from '../../utils/cache.js';
 import { logger } from '../../utils/logger.js';
-import { conflict, serviceUnavailable } from '../../utils/errors.js';
+import { conflict, serviceUnavailable, unauthorized } from '../../utils/errors.js';
 import type {
   CiHealth,
   CiHealthResponse,
@@ -20,7 +22,7 @@ import type {
   RepoStructureResponse,
 } from '../../../shared/types.js';
 import { selectActivity, type StoredActivity, type ActivityRange } from './activity.js';
-import { aggregateCiHealth, filterCiRuns } from './ci.js';
+import { aggregateCiHealth, filterCiRuns, worstWorkflow } from './ci.js';
 import { loadCiRuns } from './ci.service.js';
 import { computeRepoHealth } from './health-score.js';
 import { loadDependencyRows } from './dependencies/service.js';
@@ -95,6 +97,33 @@ export async function getRepoStructure(
     ...(scan.repo_tree
       ? { structure: scan.repo_tree }
       : { reason: 'not_collected' }),
+  }));
+}
+
+export type RepoFileMetadataResponse = {
+  path: string;
+  lastModified: string | null;
+};
+
+export async function getRepoFileMetadata(
+  repoId: string,
+  userId: string,
+  path: string,
+): Promise<RepoFileMetadataResponse> {
+  const repo = await getTrackedRepository(repoId);
+  const token = await getAccessTokenForUser(userId);
+  if (!token) {
+    throw unauthorized('GitHub token unavailable — please re-authenticate');
+  }
+  return cached(cacheKeys.fileModified(repoId, path), async () => ({
+    path,
+    lastModified: await fetchLatestCommitForPath(
+      token,
+      repo.owner,
+      repo.name,
+      path,
+      repo.defaultBranch,
+    ),
   }));
 }
 
@@ -367,11 +396,7 @@ export async function getRepoOverview(
             ci: {
               available: true,
               successRate: ciHealth.successRate,
-              worstWorkflow:
-                [...ciHealth.workflows]
-                  .filter((workflow) => workflow.totalRuns > 10)
-                  .sort((a, b) => a.successRate - b.successRate)[0]?.name ??
-                null,
+              worstWorkflow: worstWorkflow(ciHealth),
             },
           }
         : {}),

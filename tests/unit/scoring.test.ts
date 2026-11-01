@@ -22,7 +22,12 @@ describe('computeScore', () => {
     const metrics = computeScore(
       [
         tool({ name: 'jest', detected: true, adoptionRate: 100 }),
-        tool({ name: 'pytest', detected: true, adoptionRate: 50, relevant: false }),
+        tool({
+          name: 'pytest',
+          detected: true,
+          adoptionRate: 50,
+          relevant: false,
+        }),
         tool({ name: 'eslint', detected: false, adoptionRate: 0 }),
       ],
       new Set(),
@@ -30,12 +35,11 @@ describe('computeScore', () => {
 
     expect(metrics.toolsTracked).toBe(1);
     expect(metrics.toolsDetected).toBe(1);
-    expect(metrics.coverage).toBe(100);
     expect(metrics.adoption).toBe(100);
     expect(metrics.adoptionScore).toBe(100);
   });
 
-  it('excludes commit-presence tools from adoption but keeps them in coverage', () => {
+  it('excludes commit-presence tools from adoption', () => {
     const metrics = computeScore(
       [
         tool({ name: 'jest', detected: true, adoptionRate: 50 }),
@@ -52,16 +56,14 @@ describe('computeScore', () => {
 
     expect(metrics.toolsTracked).toBe(3);
     expect(metrics.toolsDetected).toBe(2);
-    expect(metrics.coverage).toBe(66.67);
     expect(metrics.adoption).toBe(50);
-    expect(metrics.adoptionScore).toBe(33.33);
+    expect(metrics.adoptionScore).toBe(50);
   });
 
   it('returns zeroes when there are no tools', () => {
     const metrics = computeScore([], new Set());
 
     expect(metrics.adoptionScore).toBe(0);
-    expect(metrics.coverage).toBe(0);
     expect(metrics.adoption).toBe(0);
     expect(metrics.toolsChecked).toBe(0);
   });

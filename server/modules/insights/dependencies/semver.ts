@@ -53,6 +53,10 @@ export function compareVersions(a: string, b: string): number | null {
 
 export function isOutdated(current: string, latest: string | null): boolean {
   if (!latest) return false;
-  const comparison = compareVersions(current, latest);
-  return comparison !== null && comparison < 0;
+  const currentVersion = parseVersion(current);
+  const latestVersion = parseVersion(latest);
+  if (!currentVersion || !latestVersion) return false;
+  const currentMajor = currentVersion.main[0] ?? 0;
+  const latestMajor = latestVersion.main[0] ?? 0;
+  return latestMajor - currentMajor >= 1;
 }

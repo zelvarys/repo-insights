@@ -17,88 +17,7 @@ afterEach(() => {
 });
 
 describe('dependency parsers', () => {
-  it('parses npm package-lock v3 and drops the root package', () => {
-    const result = parseDependencies({
-      'package-lock.json': JSON.stringify({
-        lockfileVersion: 3,
-        packages: {
-          '': { name: 'app' },
-          'node_modules/lodash': { version: '4.17.21' },
-          'node_modules/@types/node': { version: '20.0.0' },
-          'node_modules/a/node_modules/b': { version: '1.2.3' },
-        },
-      }),
-    });
-    expect(result.partial).toBe(false);
-    expect(result.dependencies).toEqual([
-      { ecosystem: 'npm', name: '@types/node', version: '20.0.0' },
-      { ecosystem: 'npm', name: 'b', version: '1.2.3' },
-      { ecosystem: 'npm', name: 'lodash', version: '4.17.21' },
-    ]);
-  });
-
-  it('parses yarn.lock selectors and scoped packages', () => {
-    const result = parseDependencies({
-      'yarn.lock': [
-        '# yarn lockfile v1',
-        '',
-        '@types/node@^20.0.0:',
-        '  version "20.1.0"',
-        '',
-        'lodash@^4.0.0, lodash@^4.17.0:',
-        '  version "4.17.21"',
-      ].join('\n'),
-    });
-    expect(result.dependencies).toEqual([
-      { ecosystem: 'npm', name: '@types/node', version: '20.1.0' },
-      { ecosystem: 'npm', name: 'lodash', version: '4.17.21' },
-    ]);
-  });
-
-  it('parses pnpm lock packages', () => {
-    const result = parseDependencies({
-      'pnpm-lock.yaml': [
-        "lockfileVersion: '9.0'",
-        'packages:',
-        '  lodash@4.17.21:',
-        '    resolution: {integrity: sha512-x}',
-        '  /@scope/pkg@1.2.3:',
-        '    resolution: {integrity: sha512-y}',
-      ].join('\n'),
-    });
-    expect(result.dependencies).toEqual([
-      { ecosystem: 'npm', name: '@scope/pkg', version: '1.2.3' },
-      { ecosystem: 'npm', name: 'lodash', version: '4.17.21' },
-    ]);
-  });
-
-  it('parses pinned Python requirements and Poetry versions', () => {
-    const result = parseDependencies({
-      'requirements.txt': [
-        '# comment',
-        '-r other.txt',
-        'requests==2.31.0',
-        'django[argon2]==4.2.1 ; python_version >= "3.7"',
-        'unpinned>=1.0',
-        'git+https://example.com/repo.git#egg=thing',
-      ].join('\n'),
-      'pyproject.toml': [
-        '[tool.poetry.dependencies]',
-        'python = "^3.11"',
-        'click = "8.1.7"',
-        '[tool.poetry.group.dev.dependencies]',
-        'pytest = "7.4.0"',
-      ].join('\n'),
-    });
-    expect(result.dependencies).toEqual([
-      { ecosystem: 'pypi', name: 'click', version: '8.1.7' },
-      { ecosystem: 'pypi', name: 'django', version: '4.2.1' },
-      { ecosystem: 'pypi', name: 'requests', version: '2.31.0' },
-      { ecosystem: 'pypi', name: 'unpinned', version: '1.0' },
-    ]);
-  });
-
-  it('prefers direct package manifests over transitive lockfile entries', () => {
+  it('parses direct npm manifest dependencies and ignores lockfiles', () => {
     const result = parseDependencies({
       'package.json': JSON.stringify({
         dependencies: {
@@ -116,6 +35,7 @@ describe('dependency parsers', () => {
         },
       }),
     });
+    expect(result.partial).toBe(false);
     expect(result.dependencies).toEqual([
       { ecosystem: 'npm', name: 'lodash', version: '4.17.21' },
       { ecosystem: 'npm', name: 'react', version: '18.2.0' },
@@ -123,7 +43,41 @@ describe('dependency parsers', () => {
     ]);
   });
 
-  it('parses PEP 621 project dependencies from pyproject.toml', () => {
+  it('does not report dependencies from lockfiles alone', () => {
+    const result = parseDependencies({
+      'package-lock.json': JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          'node_modules/lodash': { version: '4.17.21' },
+        },
+      }),
+      'go.sum': 'github.com/gin-gonic/gin v1.9.1 h1:abc=',
+      'Gemfile.lock': 'GEM\n  specs:\n    rails (7.0.8)\n',
+    });
+    expect(result.dependencies).toEqual([]);
+  });
+
+  it('parses Python requirements including unpinned packages', () => {
+    const result = parseDependencies({
+      'requirements.txt': [
+        '# comment',
+        '-r other.txt',
+        'requests==2.31.0',
+        'django[argon2]==4.2.1 ; python_version >= "3.7"',
+        'unpinned',
+        'flask>=3.0',
+        'git+https://example.com/repo.git#egg=thing',
+      ].join('\n'),
+    });
+    expect(result.dependencies).toEqual([
+      { ecosystem: 'pypi', name: 'django', version: '4.2.1' },
+      { ecosystem: 'pypi', name: 'flask', version: '3.0' },
+      { ecosystem: 'pypi', name: 'requests', version: '2.31.0' },
+      { ecosystem: 'pypi', name: 'unpinned', version: '*' },
+    ]);
+  });
+
+  it('parses Python pyproject, setup, and Pipfile manifests', () => {
     const result = parseDependencies({
       'pyproject.toml': [
         '[project]',
@@ -132,15 +86,48 @@ describe('dependency parsers', () => {
         '  "django[argon2]~=4.2.1",',
         '  "unpinned",',
         ']',
+        '[tool.poetry.dependencies]',
+        'python = "^3.11"',
+        'click = "8.1.7"',
+        '[tool.poetry.group.dev.dependencies]',
+        'pytest = "7.4.0"',
+      ].join('\n'),
+      'setup.cfg': [
+        '[options]',
+        'install_requires =',
+        '    numpy >= 2.0',
+        '    pandas',
+      ].join('\n'),
+      'setup.py': [
+        'setup(',
+        '  install_requires=["boto3>=1.34.0", "rich"],',
+        ')',
+      ].join('\n'),
+      Pipfile: [
+        '[packages]',
+        'fastapi = ">=0.115"',
+        'uvicorn = "*"',
+        '[dev-packages]',
+        'ruff = "0.8.0"',
       ].join('\n'),
     });
     expect(result.dependencies).toEqual([
+      { ecosystem: 'pypi', name: 'boto3', version: '1.34.0' },
+      { ecosystem: 'pypi', name: 'click', version: '8.1.7' },
       { ecosystem: 'pypi', name: 'django', version: '4.2.1' },
+      { ecosystem: 'pypi', name: 'fastapi', version: '0.115' },
+      { ecosystem: 'pypi', name: 'numpy', version: '2.0' },
+      { ecosystem: 'pypi', name: 'pandas', version: '*' },
+      { ecosystem: 'pypi', name: 'pytest', version: '7.4.0' },
       { ecosystem: 'pypi', name: 'requests', version: '2.31.0' },
+      { ecosystem: 'pypi', name: 'rich', version: '*' },
+      { ecosystem: 'pypi', name: 'ruff', version: '0.8.0' },
+      { ecosystem: 'pypi', name: 'unpinned', version: '*' },
+      { ecosystem: 'pypi', name: 'uvicorn', version: '*' },
     ]);
   });
 
-  it('parses Go modules, Gemfile.lock, and Composer lock', () => {
+  it('parses Go modules, Gemfile, and Composer manifests', () => {
     const result = parseDependencies({
       'go.mod': [
         'module example.com/app',
@@ -149,19 +136,19 @@ describe('dependency parsers', () => {
         '\tgithub.com/stretchr/testify v1.8.4',
         ')',
       ].join('\n'),
-      'Gemfile.lock': [
-        'GEM',
-        '  remote: https://rubygems.org/',
-        '  specs:',
-        '    rails (7.0.8)',
-        '      actionpack (= 7.0.8)',
-        '',
-        'PLATFORMS',
-        '  ruby',
+      Gemfile: [
+        "source 'https://rubygems.org'",
+        "gem 'rails', '7.0.8'",
+        "gem 'puma'",
+        "gem 'local', path: '../local'",
       ].join('\n'),
-      'composer.lock': JSON.stringify({
-        packages: [{ name: 'monolog/monolog', version: '3.5.0' }],
-        'packages-dev': [{ name: 'phpunit/phpunit', version: '10.4.0' }],
+      'composer.json': JSON.stringify({
+        require: {
+          php: '^8.2',
+          'ext-json': '*',
+          'monolog/monolog': '^3.5',
+        },
+        'require-dev': { 'phpunit/phpunit': '10.4.0' },
       }),
     });
     expect(result.dependencies).toEqual([
@@ -171,35 +158,21 @@ describe('dependency parsers', () => {
         name: 'github.com/stretchr/testify',
         version: '1.8.4',
       },
-      { ecosystem: 'packagist', name: 'monolog/monolog', version: '3.5.0' },
+      { ecosystem: 'packagist', name: 'monolog/monolog', version: '3.5' },
       { ecosystem: 'packagist', name: 'phpunit/phpunit', version: '10.4.0' },
+      { ecosystem: 'rubygems', name: 'puma', version: '*' },
       { ecosystem: 'rubygems', name: 'rails', version: '7.0.8' },
     ]);
   });
 
-  it('parses go.sum checksums and ignores go.mod hash entries', () => {
+  it('deduplicates dependencies and flags malformed manifests', () => {
     const result = parseDependencies({
-      'go.sum': [
-        'github.com/gin-gonic/gin v1.9.1 h1:abc=',
-        'github.com/gin-gonic/gin v1.9.1/go.mod h1:def=',
-        'github.com/stretchr/testify v1.8.4 h1:ghi=',
-        'github.com/stretchr/testify v1.8.4/go.mod h1:jkl=',
+      'package.json': '{not json',
+      'requirements.txt': [
+        'requests==2.31.0',
+        'requests==2.31.0',
+        'requests>=2.31.0',
       ].join('\n'),
-    });
-    expect(result.dependencies).toEqual([
-      { ecosystem: 'go', name: 'github.com/gin-gonic/gin', version: '1.9.1' },
-      {
-        ecosystem: 'go',
-        name: 'github.com/stretchr/testify',
-        version: '1.8.4',
-      },
-    ]);
-  });
-
-  it('deduplicates identical dependencies and flags malformed lockfiles', () => {
-    const result = parseDependencies({
-      'package-lock.json': '{not json',
-      'requirements.txt': 'requests==2.31.0\nrequests==2.31.0\n',
     });
     expect(result.partial).toBe(true);
     expect(result.dependencies).toEqual([
@@ -240,12 +213,14 @@ describe('semver helpers', () => {
     expect(compareVersions('not-a-version', '1.0.0')).toBeNull();
   });
 
-  it('marks outdated only when a valid newer latest exists', () => {
-    expect(isOutdated('1.0.0', '1.0.1')).toBe(true);
-    expect(isOutdated('1.0.1', '1.0.1')).toBe(false);
-    expect(isOutdated('1.0.1', '1.0.0')).toBe(false);
+  it('marks outdated only when the latest major is ahead', () => {
+    expect(isOutdated('1.0.0', '1.0.1')).toBe(false);
+    expect(isOutdated('1.0.0', '1.9.9')).toBe(false);
+    expect(isOutdated('1.0.0', '2.0.0')).toBe(true);
+    expect(isOutdated('0.9.0', '1.0.0')).toBe(true);
+    expect(isOutdated('2.0.0', '1.0.0')).toBe(false);
     expect(isOutdated('1.0.1', null)).toBe(false);
-    expect(isOutdated('workspace:*', '1.0.0')).toBe(false);
+    expect(isOutdated('*', '2.0.0')).toBe(false);
   });
 });
 

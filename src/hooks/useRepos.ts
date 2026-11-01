@@ -4,11 +4,11 @@ import { api } from "@/lib/api"
 import { queryClient } from "@/lib/query-client"
 import type { GitHubRepo } from "@/types/local"
 
-export function useRepos() {
+export function useRepos(enabled = true) {
   return useQuery({
     queryKey: ["repos"],
-    queryFn: () =>
-      api.get<{ repositories: TrackedRepository[] }>("/repos"),
+    enabled,
+    queryFn: () => api.get<{ repositories: TrackedRepository[] }>("/repos"),
   })
 }
 
@@ -22,9 +22,7 @@ export function useGitHubRepos() {
   return useInfiniteQuery({
     queryKey: ["repos", "github"],
     queryFn: ({ pageParam }) =>
-      api.get<GitHubReposPage>(
-        `/repos/github?page=${pageParam}&perPage=100`,
-      ),
+      api.get<GitHubReposPage>(`/repos/github?page=${pageParam}&perPage=100`),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.page + 1 : undefined,

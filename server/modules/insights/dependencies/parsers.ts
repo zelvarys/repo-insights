@@ -11,6 +11,8 @@ export type ParseResult = {
   partial: boolean;
 };
 
+export const ANY_VERSION = '*';
+
 const DIFFICULT_VERSIONS =
   /^(workspace|link|file|git|https?|npm|catalog|portal):/i;
 
@@ -38,6 +40,30 @@ function declaredVersion(value: string): string | null {
   return match ? cleanVersion(match[0]) : null;
 }
 
+function manifestVersion(value: string): string | null {
+  const raw = value.trim().replace(/^["']|["']$/g, '');
+  if (!raw) return null;
+  if (
+    DIFFICULT_VERSIONS.test(raw) ||
+    raw.includes('://') ||
+    /@\s*(git\+|https?|file|link|workspace)/i.test(raw)
+  ) {
+    return null;
+  }
+  return declaredVersion(raw) ?? ANY_VERSION;
+}
+
+function parseRequirement(value: string): ParsedDependency | null {
+  const cleaned = value.replace(/#.*$/, '').trim();
+  if (!cleaned || cleaned.startsWith('-')) return null;
+  const match = /^([A-Za-z0-9_.-]+)(?:\[[^\]]+\])?\s*(.*)$/.exec(cleaned);
+  if (!match) return null;
+  const spec = match[2]!.split(';')[0]!.trim();
+  const version = spec ? manifestVersion(spec) : ANY_VERSION;
+  if (!version) return null;
+  return { ecosystem: 'pypi', name: match[1]!, version };
+}
+
 function parsePackageJson(content: string): ParsedDependency[] {
   const data = JSON.parse(content) as {
     dependencies?: Record<string, string>;
@@ -51,138 +77,25 @@ function parsePackageJson(content: string): ParsedDependency[] {
     data.optionalDependencies,
   ]) {
     for (const [name, rawVersion] of Object.entries(section ?? {})) {
-      const version = declaredVersion(rawVersion);
+      const version = manifestVersion(rawVersion);
       if (version) result.push({ ecosystem: 'npm', name, version });
     }
   }
   return result;
 }
 
-function npmNameFromSelector(selector: string): string | null {
-  const first = selector
-    .replace(/^["']|["']$/g, '')
-    .split(',')[0]!
-    .trim();
-  if (!first || first.startsWith('__metadata')) return null;
-  const at = first.lastIndexOf('@');
-  if (at <= 0) return null;
-  const name = first.slice(0, at);
-  return name.startsWith('@') || !name.includes(':') ? name : null;
-}
-
-function parsePackageLock(content: string): ParsedDependency[] {
-  const data = JSON.parse(content) as {
-    packages?: Record<string, { version?: string }>;
-    dependencies?: Record<string, { version?: string; dependencies?: unknown }>;
-  };
-  const result: ParsedDependency[] = [];
-  const seen = new Set<string>();
-
-  function add(name: string, rawVersion: string | undefined): void {
-    if (!rawVersion) return;
-    const version = cleanVersion(rawVersion);
-    if (!version) return;
-    const key = `${name}@${version}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    result.push({ ecosystem: 'npm', name, version });
-  }
-
-  if (data.packages) {
-    for (const [path, entry] of Object.entries(data.packages)) {
-      if (!path) continue;
-      const marker = 'node_modules/';
-      const index = path.lastIndexOf(marker);
-      if (index === -1) continue;
-      add(path.slice(index + marker.length), entry.version);
-    }
-  }
-
-  if (result.length === 0 && data.dependencies) {
-    function walk(
-      deps: Record<string, { version?: string; dependencies?: unknown }>,
-    ): void {
-      for (const [name, entry] of Object.entries(deps)) {
-        add(name, entry.version);
-        if (entry.dependencies) {
-          walk(
-            entry.dependencies as Record<
-              string,
-              { version?: string; dependencies?: unknown }
-            >,
-          );
-        }
-      }
-    }
-    walk(data.dependencies);
-  }
-
-  return result;
-}
-
-function parseYarnLock(content: string): ParsedDependency[] {
-  const result: ParsedDependency[] = [];
-  for (const block of content.split(/\n\s*\n/)) {
-    const lines = block.split(/\r?\n/);
-    const header = lines[0]?.trim();
-    if (!header || header.startsWith('#') || header.startsWith('__metadata'))
-      continue;
-    const selector = header.replace(/:$/, '');
-    const name = npmNameFromSelector(selector);
-    if (!name) continue;
-    const versionLine = lines.find((line) => /^\s+version:?/.test(line));
-    if (!versionLine) continue;
-    const match = /version:?\s+["']?([^"'\s]+)["']?/.exec(versionLine);
-    const version = match ? cleanVersion(match[1]!) : null;
-    if (version) result.push({ ecosystem: 'npm', name, version });
-  }
-  return result;
-}
-
-function parsePnpmLock(content: string): ParsedDependency[] {
-  const result: ParsedDependency[] = [];
-  let inPackages = false;
-  for (const line of content.split(/\r?\n/)) {
-    if (/^packages:\s*$/.test(line)) {
-      inPackages = true;
-      continue;
-    }
-    if (!inPackages) continue;
-    if (/^\S/.test(line)) break;
-    const keyMatch = /^\s{2}['"]?([^'"]+?)['"]?:\s*$/.exec(line);
-    if (!keyMatch) continue;
-    let key = keyMatch[1]!.replace(/^\//, '');
-    key = key.replace(/\(.*\)$/, '');
-    const at = key.lastIndexOf('@');
-    if (at <= 0) continue;
-    const name = key.slice(0, at);
-    const version = cleanVersion(key.slice(at + 1).split('_')[0]!);
-    if (version) result.push({ ecosystem: 'npm', name, version });
-  }
-  return result;
-}
-
 function parseRequirements(content: string): ParsedDependency[] {
   const result: ParsedDependency[] = [];
-  for (const line of content.split(/\r?\n/)) {
-    const cleaned = line.replace(/#.*$/, '').trim();
-    if (!cleaned || cleaned.startsWith('-')) continue;
-    const match = /^([A-Za-z0-9_.-]+)(?:\[[^\]]+\])?\s*(.*)$/.exec(cleaned);
-    if (!match) continue;
-    const version = declaredVersion(match[2]!);
-    if (version) result.push({ ecosystem: 'pypi', name: match[1]!, version });
+  const logical = content.replace(/\\\r?\n/g, ' ');
+  for (const line of logical.split(/\r?\n/)) {
+    const dependency = parseRequirement(line);
+    if (dependency) result.push(dependency);
   }
   return result;
 }
 
 function parsePyproject(content: string): ParsedDependency[] {
   const result: ParsedDependency[] = [];
-  const quoted = /["']([A-Za-z0-9_.-]+)\s*===\s*([A-Za-z0-9_.+!-]+)["']/g;
-  for (const match of content.matchAll(quoted)) {
-    const version = cleanVersion(match[2]!);
-    if (version) result.push({ ecosystem: 'pypi', name: match[1]!, version });
-  }
-
   const lines = content.split(/\r?\n/);
   const dependenciesStart = lines.findIndex((line) =>
     /^\s*dependencies\s*=\s*\[/.test(line),
@@ -194,21 +107,15 @@ function parsePyproject(content: string): ParsedDependency[] {
         index === dependenciesStart ? line.slice(line.indexOf('[') + 1) : line;
       if (/^\s*\]/.test(itemText)) break;
       for (const item of itemText.matchAll(/["']([^"']+)["']/g)) {
-        const match = /^([A-Za-z0-9_.-]+)(?:\[[^\]]+\])?\s*(.*)$/.exec(
-          item[1]!,
-        );
-        if (!match) continue;
-        const version = declaredVersion(match[2]!);
-        if (version) {
-          result.push({ ecosystem: 'pypi', name: match[1]!, version });
-        }
+        const dependency = parseRequirement(item[1]!);
+        if (dependency) result.push(dependency);
       }
     }
   }
 
   let inPoetry = false;
-  for (const line of content.split(/\r?\n/)) {
-    if (/^\s*\[tool\.poetry\.dependencies\]\s*$/.test(line)) {
+  for (const line of lines) {
+    if (/^\s*\[tool\.poetry.*dependencies\]\s*$/.test(line)) {
       inPoetry = true;
       continue;
     }
@@ -217,11 +124,69 @@ function parsePyproject(content: string): ParsedDependency[] {
       continue;
     }
     if (!inPoetry) continue;
-    const match = /^\s*([A-Za-z0-9_.-]+)\s*=\s*["']([0-9][^"']*)["']/.exec(
-      line,
-    );
+    const match =
+      /^\s*([A-Za-z0-9_.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{[^}]*version\s*=\s*["']([^"']+)["'][^}]*\})/.exec(
+        line,
+      );
     if (!match || match[1]!.toLowerCase() === 'python') continue;
-    const version = declaredVersion(match[2]!);
+    const rawVersion = match[2] ?? match[3] ?? match[4] ?? '';
+    const version = rawVersion.trim()
+      ? manifestVersion(rawVersion)
+      : ANY_VERSION;
+    if (version) result.push({ ecosystem: 'pypi', name: match[1]!, version });
+  }
+  return result;
+}
+
+function parseSetupCfg(content: string): ParsedDependency[] {
+  const result: ParsedDependency[] = [];
+  let inRequirements = false;
+  for (const line of content.split(/\r?\n/)) {
+    if (/^\s*install_requires\s*=\s*$/.test(line)) {
+      inRequirements = true;
+      continue;
+    }
+    if (inRequirements && /^\S/.test(line)) break;
+    if (!inRequirements) continue;
+    const dependency = parseRequirement(line);
+    if (dependency) result.push(dependency);
+  }
+  return result;
+}
+
+function parseSetupPy(content: string): ParsedDependency[] {
+  const result: ParsedDependency[] = [];
+  const match = /install_requires\s*=\s*\[([\s\S]*?)\]/.exec(content);
+  if (!match) return result;
+  for (const item of match[1]!.matchAll(/["']([^"']+)["']/g)) {
+    const dependency = parseRequirement(item[1]!);
+    if (dependency) result.push(dependency);
+  }
+  return result;
+}
+
+function parsePipfile(content: string): ParsedDependency[] {
+  const result: ParsedDependency[] = [];
+  let inPackages = false;
+  for (const line of content.split(/\r?\n/)) {
+    if (/^\s*\[(?:dev-)?packages\]\s*$/.test(line)) {
+      inPackages = true;
+      continue;
+    }
+    if (/^\s*\[/.test(line)) {
+      inPackages = false;
+      continue;
+    }
+    if (!inPackages) continue;
+    const match =
+      /^\s*([A-Za-z0-9_.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{[^}]*version\s*=\s*["']([^"']+)["'][^}]*\})/.exec(
+        line,
+      );
+    if (!match) continue;
+    const rawVersion = match[2] ?? match[3] ?? match[4] ?? '';
+    const version = rawVersion.trim()
+      ? manifestVersion(rawVersion)
+      : ANY_VERSION;
     if (version) result.push({ ecosystem: 'pypi', name: match[1]!, version });
   }
   return result;
@@ -250,72 +215,17 @@ function parseGoMod(content: string): ParsedDependency[] {
   return result;
 }
 
-function parseGoSum(content: string): ParsedDependency[] {
-  const result: ParsedDependency[] = [];
-  for (const line of content.split(/\r?\n/)) {
-    const [name, rawVersion] = line.trim().split(/\s+/);
-    if (!name || !rawVersion || rawVersion.endsWith('/go.mod')) continue;
-    const version = cleanVersion(rawVersion);
-    if (version) result.push({ ecosystem: 'go', name, version });
-  }
-  return result;
-}
-
-function parseGemfileLock(content: string): ParsedDependency[] {
-  const result: ParsedDependency[] = [];
-  let inGemSpecs = false;
-  for (const line of content.split(/\r?\n/)) {
-    if (/^GEM\s*$/.test(line)) {
-      inGemSpecs = false;
-      continue;
-    }
-    if (/^\s{2}specs:\s*$/.test(line)) {
-      inGemSpecs = true;
-      continue;
-    }
-    if (/^\S/.test(line)) {
-      inGemSpecs = false;
-      continue;
-    }
-    if (!inGemSpecs) continue;
-    const match = /^\s{4}([A-Za-z0-9_.-]+)\s+\(([^)]+)\)/.exec(line);
-    if (!match) continue;
-    const version = cleanVersion(match[2]!);
-    if (version)
-      result.push({ ecosystem: 'rubygems', name: match[1]!, version });
-  }
-  return result;
-}
-
 function parseGemfile(content: string): ParsedDependency[] {
   const result: ParsedDependency[] = [];
   for (const line of content.split(/\r?\n/)) {
-    const match = /^\s*gem\s+["']([^"']+)["']\s*,\s*["']([^"']+)["']/.exec(
+    if (/\b(?:git|path|github):/.test(line)) continue;
+    const match = /^\s*gem\s+["']([^"']+)["'](?:\s*,\s*["']([^"']+)["'])?/.exec(
       line,
     );
     if (!match) continue;
-    const version = declaredVersion(match[2]!);
+    const version = match[2] ? manifestVersion(match[2]) : ANY_VERSION;
     if (version) {
       result.push({ ecosystem: 'rubygems', name: match[1]!, version });
-    }
-  }
-  return result;
-}
-
-function parseComposerLock(content: string): ParsedDependency[] {
-  const data = JSON.parse(content) as {
-    packages?: Array<{ name?: string; version?: string }>;
-    'packages-dev'?: Array<{ name?: string; version?: string }>;
-  };
-  const result: ParsedDependency[] = [];
-  for (const entry of [
-    ...(data.packages ?? []),
-    ...(data['packages-dev'] ?? []),
-  ]) {
-    if (!entry.name || !entry.version) continue;
-    const version = cleanVersion(entry.version);
-    if (version) {
-      result.push({ ecosystem: 'packagist', name: entry.name, version });
     }
   }
   return result;
@@ -331,8 +241,10 @@ function parseComposerJson(content: string): ParsedDependency[] {
     ...(data.require ?? {}),
     ...(data['require-dev'] ?? {}),
   })) {
-    if (name.toLowerCase() === 'php') continue;
-    const version = declaredVersion(rawVersion);
+    if (name.toLowerCase() === 'php' || name.toLowerCase().startsWith('ext-')) {
+      continue;
+    }
+    const version = manifestVersion(rawVersion);
     if (version) {
       result.push({ ecosystem: 'packagist', name, version });
     }
@@ -355,40 +267,18 @@ export function parseDependencies(
   > = [
     ['package.json', parsePackageJson, 'npm'],
     ['requirements.txt', parseRequirements, 'pypi'],
+    ['requirements-dev.txt', parseRequirements, 'pypi'],
+    ['dev-requirements.txt', parseRequirements, 'pypi'],
     ['pyproject.toml', parsePyproject, 'pypi'],
+    ['setup.cfg', parseSetupCfg, 'pypi'],
+    ['setup.py', parseSetupPy, 'pypi'],
+    ['Pipfile', parsePipfile, 'pypi'],
     ['go.mod', parseGoMod, 'go'],
     ['Gemfile', parseGemfile, 'rubygems'],
     ['composer.json', parseComposerJson, 'packagist'],
   ];
-  const fallbackParsers: Array<
-    [
-      string,
-      (content: string) => ParsedDependency[],
-      'npm' | 'pypi' | 'go' | 'rubygems' | 'packagist',
-    ]
-  > = [
-    ['package-lock.json', parsePackageLock, 'npm'],
-    ['yarn.lock', parseYarnLock, 'npm'],
-    ['pnpm-lock.yaml', parsePnpmLock, 'npm'],
-    ['go.sum', parseGoSum, 'go'],
-    ['Gemfile.lock', parseGemfileLock, 'rubygems'],
-    ['composer.lock', parseComposerLock, 'packagist'],
-  ];
 
-  const manifestEcosystems = new Set<string>();
-  for (const [path, parser, ecosystem] of manifestParsers) {
-    const content = configFiles[path];
-    if (content === undefined) continue;
-    try {
-      dependencies.push(...parser(content));
-      manifestEcosystems.add(ecosystem);
-    } catch {
-      partial = true;
-    }
-  }
-
-  for (const [path, parser, ecosystem] of fallbackParsers) {
-    if (manifestEcosystems.has(ecosystem)) continue;
+  for (const [path, parser] of manifestParsers) {
     const content = configFiles[path];
     if (content === undefined) continue;
     try {
@@ -400,8 +290,14 @@ export function parseDependencies(
 
   const unique = new Map<string, ParsedDependency>();
   for (const dependency of dependencies) {
-    const key = `${dependency.ecosystem}:${dependency.name}@${dependency.version}`;
-    if (!unique.has(key)) unique.set(key, dependency);
+    const key = `${dependency.ecosystem}:${dependency.name}`;
+    const existing = unique.get(key);
+    if (
+      !existing ||
+      (existing.version === ANY_VERSION && dependency.version !== ANY_VERSION)
+    ) {
+      unique.set(key, dependency);
+    }
   }
 
   return {

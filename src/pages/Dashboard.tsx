@@ -1,8 +1,11 @@
 import { useState } from "react"
 import { useQueries } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
-import { formatDistanceToNowStrict } from "date-fns"
-import type { RepoMetrics, TrackedRepository } from "@shared/types"
+import type {
+  OverviewResponse,
+  RepoMetrics,
+  TrackedRepository,
+} from "@shared/types"
 import {
   Activity,
   ArrowRight,
@@ -39,6 +42,7 @@ import {
 import { useAuth } from "@/hooks/useAuth"
 import { useRepos } from "@/hooks/useRepos"
 import { api } from "@/lib/api"
+import { formatPercent } from "@/lib/format"
 import { recentRepoIds } from "@/lib/recent-repos"
 
 const introFeatures = [
@@ -192,6 +196,14 @@ export default function Dashboard() {
       enabled: Boolean(user),
     })),
   })
+  const overviewQueries = useQueries({
+    queries: recentRepositories.map((repo) => ({
+      queryKey: ["repo", repo.id, "insights", "overview"],
+      queryFn: () => api.get<OverviewResponse>(`/repos/${repo.id}/overview`),
+      enabled: Boolean(user),
+    })),
+  })
+
   if (isLoading) return <ReposSkeleton />
   if (!user) return <PublicDashboard />
 
@@ -302,47 +314,67 @@ export default function Dashboard() {
                   </p>
                 ) : (
                   <div className="divide-y border-t">
-                    {recentRepositories.map((repo) => (
-                      <Link
-                        key={repo.id}
-                        to={`/repos/${repo.id}`}
-                        className="block py-3 text-sm transition-colors last:pb-0 hover:text-primary"
-                      >
-                        <span className="flex items-center justify-between gap-3 font-medium">
-                          <span className="truncate">{repo.fullName}</span>
-                          <ArrowRight className="size-4 shrink-0" />
-                        </span>
-                        <span className="mt-2 flex flex-wrap items-center gap-2">
-                          <Badge
-                            variant={repo.isPrivate ? "outline" : "secondary"}
-                            className="gap-1"
-                          >
-                            {repo.isPrivate ? (
-                              <Lock className="size-3" />
-                            ) : null}
-                            {repo.isPrivate ? "Private" : "Public"}
-                          </Badge>
-                          <Badge variant="secondary" className="gap-1">
-                            <Star className="size-3" />
-                            {repo.stars}
-                          </Badge>
-                          <Badge variant="secondary" className="gap-1">
-                            <Users className="size-3" />
-                            {repo.contributorCount} contributors
-                          </Badge>
-                          <Badge variant="secondary" className="gap-1">
-                            <GitFork className="size-3" />
-                            {repo.forks}
-                          </Badge>
-                        </span>
-                        <span className="mt-2 block text-xs text-muted-foreground">
-                          Added{" "}
-                          {formatDistanceToNowStrict(new Date(repo.createdAt), {
-                            addSuffix: true,
-                          })}
-                        </span>
-                      </Link>
-                    ))}
+                    {recentRepositories.map((repo, index) => {
+                      const overview = overviewQueries[index]?.data
+                      const health = overview?.health?.score
+                      const cards = overview?.cards
+                      const summary = [
+                        `Health: ${
+                          health === null || health === undefined
+                            ? "—"
+                            : health.toFixed(1)
+                        }`,
+                        cards?.activity
+                          ? `${cards.activity.last90Commits} commits`
+                          : null,
+                        cards?.dependencies
+                          ? `${cards.dependencies.outdated} outdated`
+                          : null,
+                        cards?.ci
+                          ? `${formatPercent(cards.ci.successRate)} CI`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" • ")
+                      return (
+                        <Link
+                          key={repo.id}
+                          to={`/repos/${repo.id}`}
+                          className="block py-3 text-sm transition-colors last:pb-0 hover:text-primary"
+                        >
+                          <span className="flex items-center justify-between gap-3 font-medium">
+                            <span className="truncate">{repo.fullName}</span>
+                            <ArrowRight className="size-4 shrink-0" />
+                          </span>
+                          <span className="mt-2 flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant={repo.isPrivate ? "outline" : "secondary"}
+                              className="gap-1"
+                            >
+                              {repo.isPrivate ? (
+                                <Lock className="size-3" />
+                              ) : null}
+                              {repo.isPrivate ? "Private" : "Public"}
+                            </Badge>
+                            <Badge variant="secondary" className="gap-1">
+                              <Star className="size-3" />
+                              {repo.stars}
+                            </Badge>
+                            <Badge variant="secondary" className="gap-1">
+                              <Users className="size-3" />
+                              {repo.contributorCount} contributors
+                            </Badge>
+                            <Badge variant="secondary" className="gap-1">
+                              <GitFork className="size-3" />
+                              {repo.forks}
+                            </Badge>
+                          </span>
+                          <span className="mt-2 block text-xs text-muted-foreground">
+                            {summary}
+                          </span>
+                        </Link>
+                      )
+                    })}
                   </div>
                 )}
               </div>

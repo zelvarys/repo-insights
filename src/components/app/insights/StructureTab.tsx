@@ -251,8 +251,8 @@ export function StructureTab({
               No file types were returned for this scan.
             </p>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-[60%_40%] lg:items-center lg:gap-0">
-              <div className="relative h-64">
+            <div className="grid grid-cols-[60%_40%] items-center gap-0">
+              <div className="relative h-64 justify-self-start">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -295,7 +295,7 @@ export function StructureTab({
                   <span className="text-xs text-muted-foreground">files</span>
                 </div>
               </div>
-              <div className="max-h-64 space-y-2 overflow-y-auto pr-1 lg:pl-6">
+              <div className="max-h-64 space-y-2 overflow-y-auto pl-3 pr-1">
                 {chartFileTypes.map((stat, index) => {
                   const share =
                     structure.fileCount > 0

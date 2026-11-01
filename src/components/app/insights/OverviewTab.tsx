@@ -328,7 +328,11 @@ export function OverviewTab({
             onOpen={() => onSelectTab("activity")}
           >
             <p className="text-2xl font-semibold">
-              {formatPercent(cards.commitQuality.conventionalPercent)}
+              {formatPercent(
+                (cards.commitQuality.conventionalPercent +
+                  cards.commitQuality.bodyPercent) /
+                  2,
+              )}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Conventional Commits ·{" "}

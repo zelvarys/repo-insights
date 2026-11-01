@@ -1,8 +1,11 @@
 import { useState } from "react"
 import { useQueries } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
-import { formatDistanceToNowStrict } from "date-fns"
-import type { RepoMetrics } from "@shared/types"
+import type {
+  OverviewResponse,
+  RepoMetrics,
+  TrackedRepository,
+} from "@shared/types"
 import {
   Activity,
   ArrowRight,
@@ -37,6 +40,7 @@ import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/hooks/useAuth"
 import { useRepos } from "@/hooks/useRepos"
 import { api } from "@/lib/api"
+import { recentRepoIds } from "@/lib/recent-repos"
 
 const introFeatures = [
   {
@@ -173,9 +177,15 @@ function PublicDashboard() {
 
 export default function Dashboard() {
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [recentIds] = useState(() => recentRepoIds())
   const { user, isLoading } = useAuth()
   const reposQuery = useRepos(Boolean(user))
   const repos = reposQuery.data?.repositories ?? []
+  const reposById = new Map(repos.map((repo) => [repo.id, repo]))
+  const recentRepositories = recentIds
+    .map((id) => reposById.get(id))
+    .filter((repo): repo is TrackedRepository => repo !== undefined)
+    .slice(0, 3)
   const metricQueries = useQueries({
     queries: repos.map((repo) => ({
       queryKey: ["repo", repo.id, "metrics"],
@@ -183,14 +193,17 @@ export default function Dashboard() {
       enabled: Boolean(user),
     })),
   })
+  const overviewQueries = useQueries({
+    queries: recentRepositories.map((repo) => ({
+      queryKey: ["repo", repo.id, "insights", "overview"],
+      queryFn: () => api.get<OverviewResponse>(`/repos/${repo.id}/overview`),
+      enabled: Boolean(user),
+    })),
+  })
 
   if (isLoading) return <ReposSkeleton />
   if (!user) return <PublicDashboard />
 
-  const sortedRepos = [...repos].sort(
-    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
-  )
-  const recentRepositories = sortedRepos.slice(0, 3)
   const scannedMetrics = metricQueries
     .map((query) => query.data)
     .filter((metrics): metrics is RepoMetrics => Boolean(metrics?.scanId))
@@ -289,29 +302,38 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-5">
               <div>
-                <p className="mb-2 text-xs text-muted-foreground">
-                  Most recent repositories
+                <p className="mb-1 text-xs text-muted-foreground">
+                  Recently visited
                 </p>
-                <div className="space-y-3">
-                  {recentRepositories.map((repo) => (
-                    <Link
-                      key={repo.id}
-                      to={`/repos/${repo.id}`}
-                      className="block rounded-md border p-3 transition-colors hover:border-primary/50 hover:bg-accent/50"
-                    >
-                      <span className="flex items-center justify-between gap-3 text-sm font-medium">
-                        <span className="truncate">{repo.fullName}</span>
-                        <ArrowRight className="size-4 shrink-0" />
-                      </span>
-                      <span className="mt-1 block text-xs text-muted-foreground">
-                        Added{" "}
-                        {formatDistanceToNowStrict(new Date(repo.createdAt), {
-                          addSuffix: true,
-                        })}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
+                {recentRepositories.length === 0 ? (
+                  <p className="py-3 text-sm text-muted-foreground">
+                    No repositories visited yet.
+                  </p>
+                ) : (
+                  <div className="divide-y">
+                    {recentRepositories.map((repo, index) => {
+                      const health = overviewQueries[index]?.data?.health
+                      return (
+                        <Link
+                          key={repo.id}
+                          to={`/repos/${repo.id}`}
+                          className="flex items-center justify-between gap-3 py-3 text-sm transition-colors hover:text-primary"
+                        >
+                          <span className="truncate font-medium">
+                            {repo.fullName}
+                          </span>
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            Health{" "}
+                            {health?.score === null ||
+                            health?.score === undefined
+                              ? "—"
+                              : health.score.toFixed(1)}
+                          </span>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
 
               <Separator />

@@ -196,7 +196,7 @@ export function StructureTab({
       ? [
           ...visibleFileTypes.slice(0, 9),
           {
-            extension: "others",
+            extension: "etc",
             count: visibleFileTypes
               .slice(9)
               .reduce((sum, stat) => sum + stat.count, 0),
@@ -251,8 +251,8 @@ export function StructureTab({
               No file types were returned for this scan.
             </p>
           ) : (
-            <div className="grid grid-cols-[60%_40%] items-center gap-0">
-              <div className="relative h-64 justify-self-start">
+            <div className="grid grid-cols-[70%_30%] items-center gap-0">
+              <div className="relative h-64 w-full min-w-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -268,7 +268,7 @@ export function StructureTab({
                         <Cell
                           key={stat.extension}
                           fill={
-                            stat.extension === "others"
+                            stat.extension === "etc"
                               ? "#ffffff"
                               : chartColor(index)
                           }
@@ -311,7 +311,7 @@ export function StructureTab({
                           className="size-2.5 shrink-0 rounded-sm"
                           style={{
                             backgroundColor:
-                              stat.extension === "others"
+                              stat.extension === "etc"
                                 ? "#ffffff"
                                 : chartColor(index),
                           }}

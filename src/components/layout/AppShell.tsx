@@ -36,8 +36,8 @@ const navItems = [
 const repoFeatures = [
   { tab: "overview", label: "Overview", icon: Gauge },
   { tab: "activity", label: "Activity", icon: Activity },
-  { tab: "structure", label: "Structure", icon: FolderTree },
   { tab: "dependencies", label: "Dependencies", icon: Package },
+  { tab: "structure", label: "Structure", icon: FolderTree },
   { tab: "workflows", label: "Workflows", icon: Workflow },
   { tab: "tools", label: "Tools", icon: Wrench },
 ]

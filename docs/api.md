@@ -39,7 +39,7 @@ other's quota. Unauthenticated routes key by IP.
 | Repository insight reads (`GET /repos/:id/{structure,activity,concentration,ci,dependencies,overview}`) | 120/min |
 | `POST /repos/:id/dependencies/refresh` | 10/min |
 | Scan reads (`GET /repos/:id/scans`, `GET /scans/:scanId`) | 120/min |
-| Writes (`PUT /repos/:id/tracked-tools`, `DELETE /repos/:id`) | 20/min |
+| Writes (`PUT /repos/:id/tracked-tools`, `DELETE /repos/:id`, GitHub write actions) | 20/min |
 | Auth routes | 300/min |
 
 If the API runs behind a reverse proxy, set `TRUST_PROXY` so Express resolves
@@ -59,7 +59,7 @@ No auth, no rate limit.
 
 ### `GET /auth/github`
 
-Redirects to GitHub's authorize URL. Sets a `state` value in Redis (10m TTL) and an `oauth_state` httpOnly cookie for CSRF protection. Requests the read-only scopes `read:user`, `user:email`, `public_repo`, and `read:org`.
+Redirects to GitHub's authorize URL. Sets a `state` value in Redis (10m TTL) and an `oauth_state` httpOnly cookie for CSRF protection. Requests `read:user`, `user:email`, `repo`, `read:org`, and `codespace`. `repo` covers repository reads and write actions; `codespace` is required to create Codespaces. Tokens issued before this scope change must re-authenticate.
 
 ### `GET /auth/github/callback?code=…&state=…`
 
@@ -109,8 +109,8 @@ actually merged; opened-but-unmerged pull requests do not count.
   12 months.
 - Repos owned by others are included when the user committed there or had a
   pull request merged there, even if `/user/repos` does not list them.
-- Discovery is limited to repos the token can read. The app requests
-  `public_repo`, so external private repos are not supported.
+- Discovery is limited to repos the token can read. The app requests `repo`,
+  so public and private repositories are supported.
 - Commit contributions are capped at 100 repositories. Merged pull-request
   search paginates up to 1,000 results and is capped at 100 unique repos.
 
@@ -554,6 +554,100 @@ Health weights are activity 25%, dependency freshness 25%, workflow stability 20
 spread 15%, and commit quality 15%. Missing components are removed and the
 remaining weights are renormalized. See
 [`docs/architecture.md#composite-health-score`](architecture.md#composite-health-score).
+
+## GitHub write actions
+
+These routes use the authenticated user's stored GitHub token and call GitHub
+synchronously. All are rate-limited to 20/min and available to any authenticated
+user in the shared workspace. GitHub `401`/`403` responses become `403
+FORBIDDEN` (usually a missing scope); `404` becomes `404 NOT_FOUND`; `409` and
+`422` map to `CONFLICT` and `BAD_REQUEST`; `429` becomes `429 RATE_LIMITED`.
+
+Required OAuth scopes: `repo` for workflow re-runs and issue creation, and
+`codespace` for Codespace creation. Users who authenticated before these scopes
+were requested must sign in again.
+
+### `POST /repos/:id/ci/runs/:runId/rerun`
+
+Requires auth. Rate-limited to 20/min. Queues a new run for all jobs in a
+failed GitHub Actions workflow run.
+
+No request body.
+
+Response `202 Accepted`:
+
+```json
+{ "runId": 12345, "queued": true }
+```
+
+`400 BAD_REQUEST` for a non-numeric run id, `404 NOT_FOUND` for an unknown
+repository, and `403 FORBIDDEN` when GitHub denies access or the token lacks
+the `repo` scope.
+
+### `POST /repos/:id/issues`
+
+Requires auth. Rate-limited to 20/min. Creates an issue using the user's GitHub
+token. Issue drafts are prepared in the UI from overview findings, then reviewed
+before submission.
+
+Body:
+
+```json
+{
+  "title": "Dependency health: 4 outdated packages in octocat/hello-world",
+  "body": "## Finding\n4 of 12 direct dependencies are outdated."
+}
+```
+
+`title` is required, trimmed, and limited to 256 characters. `body` is optional
+and limited to 65,536 characters.
+
+Response `201 Created`:
+
+```json
+{
+  "issue": {
+    "number": 42,
+    "url": "https://github.com/octocat/hello-world/issues/42",
+    "title": "Dependency health: 4 outdated packages in octocat/hello-world"
+  }
+}
+```
+
+Errors: `400 BAD_REQUEST` for invalid input, `404 NOT_FOUND` for an unknown
+repository, and `403 FORBIDDEN` when GitHub denies access or the token lacks the
+`repo` scope.
+
+### `POST /repos/:id/codespaces`
+
+Requires auth. Rate-limited to 20/min. Creates a GitHub Codespace for the
+repository and returns its URL. The client opens that URL in a new tab after
+confirmation.
+
+Body (optional):
+
+```json
+{ "ref": "main" }
+```
+
+`ref` defaults to the repository's tracked `defaultBranch` and is limited to 255
+characters.
+
+Response `201 Created`:
+
+```json
+{
+  "codespace": {
+    "name": "fluffy-space",
+    "webUrl": "https://fluffy-space.github.dev",
+    "state": "Available"
+  }
+}
+```
+
+Errors: `400 BAD_REQUEST` for an invalid ref, `404 NOT_FOUND` for an unknown
+repository, and `403 FORBIDDEN` when GitHub denies access or the token lacks the
+`codespace` scope.
 
 ## Tracked tools
 

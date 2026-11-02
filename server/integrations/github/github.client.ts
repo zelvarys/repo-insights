@@ -68,6 +68,30 @@ async function ghFetch<T>(
   return (await res.json()) as T;
 }
 
+async function ghFetchEmpty(
+  path: string,
+  token: string,
+  init: RequestInit = {},
+): Promise<void> {
+  const res = await fetchWithTimeout(`${API}${path}`, {
+    ...init,
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${token}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'repo-insights',
+      ...(init.headers ?? {}),
+    },
+  }, path);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new GitHubApiError(
+      `GitHub API ${res.status} on ${path}: ${body.slice(0, 200)}`,
+      res.status,
+    );
+  }
+}
+
 async function ghGraphql<T>(
   query: string,
   variables: Record<string, unknown>,
@@ -646,4 +670,57 @@ export async function fetchWorkflowRuns(
     if (runs.length < 100) break;
   }
   return all;
+}
+
+
+// ─── Write actions ──────────────────────────────────────────────────────
+
+export type GitHubIssue = {
+  number: number;
+  html_url: string;
+  title: string;
+};
+
+export type GitHubCodespace = {
+  name: string;
+  web_url: string;
+  state: string;
+};
+
+export async function rerunWorkflowRun(
+  token: string,
+  owner: string,
+  repo: string,
+  runId: number,
+): Promise<void> {
+  await ghFetchEmpty(
+    `/repos/${owner}/${repo}/actions/runs/${runId}/rerun`,
+    token,
+    { method: 'POST' },
+  );
+}
+
+export async function createIssue(
+  token: string,
+  owner: string,
+  repo: string,
+  title: string,
+  body: string,
+): Promise<GitHubIssue> {
+  return ghFetch<GitHubIssue>(`/repos/${owner}/${repo}/issues`, token, {
+    method: 'POST',
+    body: JSON.stringify({ title, body }),
+  });
+}
+
+export async function createCodespace(
+  token: string,
+  owner: string,
+  repo: string,
+  ref: string,
+): Promise<GitHubCodespace> {
+  return ghFetch<GitHubCodespace>(`/repos/${owner}/${repo}/codespaces`, token, {
+    method: 'POST',
+    body: JSON.stringify({ ref }),
+  });
 }

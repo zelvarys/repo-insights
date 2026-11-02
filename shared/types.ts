@@ -310,3 +310,27 @@ export type OverviewResponse = InsightAvailability & {
   health?: RepoHealth;
   cards?: OverviewCards;
 };
+export type RerunWorkflowResponse = {
+  runId: number;
+  queued: true;
+};
+
+export type CreatedIssue = {
+  number: number;
+  url: string;
+  title: string;
+};
+
+export type CreateIssueResponse = {
+  issue: CreatedIssue;
+};
+
+export type CreatedCodespace = {
+  name: string;
+  webUrl: string;
+  state: string;
+};
+
+export type CreateCodespaceResponse = {
+  codespace: CreatedCodespace;
+};

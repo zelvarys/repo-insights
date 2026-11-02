@@ -17,7 +17,7 @@ export function dependencyIssueDraft(
       ? `${finding.advisoryCount} known advisor${finding.advisoryCount === 1 ? 'y' : 'ies'} were found.`
       : 'No known advisories were found.'
   return {
-    title: `Dependency health: ${finding.outdated} outdated packages in ${repoFullName}`,
+    title: `Dependency health: ${finding.outdated} outdated package${finding.outdated === 1 ? '' : 's'} in ${repoFullName}`,
     body: [
       '## Finding',
       `${finding.outdated} of ${finding.total} direct dependencies are outdated.`,

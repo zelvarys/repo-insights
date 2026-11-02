@@ -48,15 +48,33 @@ export function CodespaceDialog({
             disabled={createCodespace.isPending}
             onClick={(event) => {
               event.preventDefault()
+              const popup = window.open('about:blank', '_blank')
+              if (popup) popup.opener = null
               createCodespace.mutate(undefined, {
                 onSuccess: ({ codespace }) => {
                   toast.success('Codespace created', {
                     description: codespace.name,
+                    action: popup
+                      ? undefined
+                      : {
+                          label: 'Open',
+                          onClick: () =>
+                            window.open(codespace.webUrl, '_blank'),
+                        },
                   })
                   onOpenChange(false)
-                  window.open(codespace.webUrl, '_blank', 'noopener,noreferrer')
+                  if (popup) {
+                    popup.location.href = codespace.webUrl
+                  } else {
+                    window.open(
+                      codespace.webUrl,
+                      '_blank',
+                      'noopener,noreferrer',
+                    )
+                  }
                 },
                 onError: (error) => {
+                  popup?.close()
                   toast.error('Could not create Codespace', {
                     description: error.message,
                   })

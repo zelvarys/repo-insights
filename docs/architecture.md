@@ -32,6 +32,28 @@
 5. Worker picks up job → marks `status = 'running'` → fetches GitHub data (config files, up to 1,000 commits, recursive tree, recent Actions runs) → builds `ScanContext` → saves to `scan:context:<scanId>` (1h TTL) → runs 13 detectors → persists `tool_usage` rows → backfills `tracked_tools` → computes activity/commit quality, contributor concentration, structure, workflow health, and dependency health → writes `scans.languages`, `scans.repo_tree`, `scan_ci_runs`, `scan_dependencies`, and the scored `scans.summary` → caches completed scan.
 6. On failure → final attempt writes `status = 'failed'` and error text, invalidates matching caches; earlier attempts log and leave the row for BullMQ retry (up to 3 attempts with exponential backoff). Stale retries cannot overwrite a newer scan's cached result.
 
+## Request lifecycle — automatic rescans
+
+Each tracked repository has its own BullMQ Job Scheduler named
+`repo-scan:<repoId>`, so concurrent repositories never share a schedule.
+
+1. `POST /repos` inserts the repository and upserts the scheduler with
+   `{ every: 6 hours }`. The scheduler template is a `scheduled-scan` job with
+   `{ repoId }`; it does not contain a pre-created `scanId`. If the scheduler
+   cannot be registered, the repository insert is rolled back and the request
+   returns `503 SERVICE_UNAVAILABLE`.
+2. When a scheduled occurrence is processed, the worker resolves the
+   repository's `added_by` user and calls `requestScan(repoId, addedBy)`. This
+   reuses the normal in-flight guard, so a repository with a pending, running,
+   or fresh cached scan is skipped instead of creating a duplicate.
+3. `DELETE /repos/:id` removes the repository's scheduler. Any occurrence
+   already queued for a deleted repository exits cleanly when the worker sees
+   that the repository no longer exists.
+4. BullMQ Job Schedulers keep at most one upcoming occurrence per scheduler.
+   Intervals missed while the worker is offline are not replayed. On restart,
+   one overdue occurrence runs and the next occurrence is scheduled from the
+   current cadence, avoiding an accumulation or catch-up burst.
+
 ## Request lifecycle — metrics
 
 1. `GET /repos/:id/metrics` → `getRepoMetrics()`

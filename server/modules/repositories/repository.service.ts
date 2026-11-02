@@ -6,9 +6,18 @@ import {
   getContributorCount,
   type GitHubRepo,
 } from '../../integrations/github/github.client.js';
-import { AppError, badRequest, notFound } from '../../utils/errors.js';
+import {
+  AppError,
+  badRequest,
+  notFound,
+  serviceUnavailable,
+} from '../../utils/errors.js';
 import { cacheDel, cacheDelPattern, cacheKeys } from '../../utils/cache.js';
 import { logger } from '../../utils/logger.js';
+import {
+  removeRepoRescanScheduler,
+  upsertRepoRescanScheduler,
+} from '../scans/scan.scheduler.js';
 import type { TrackedRepository } from '../../../shared/types.js';
 
 function toTracked(row: {
@@ -132,8 +141,25 @@ export async function addTrackedRepository(
       userId,
     ],
   );
+  const repo = toTracked(rows[0]!);
 
-  return toTracked(rows[0]!);
+  try {
+    await upsertRepoRescanScheduler(repo.id);
+  } catch (err) {
+    await pool
+      .query('DELETE FROM repositories WHERE id = $1', [repo.id])
+      .catch((cleanupErr: Error) => {
+        logger.error(
+          `Failed to roll back repository ${repo.id} after scheduler error: ${cleanupErr.message}`,
+        );
+      });
+    logger.error(
+      `Failed to register rescan scheduler for repo ${repo.id}: ${(err as Error).message}`,
+    );
+    throw serviceUnavailable('Failed to schedule automatic rescans');
+  }
+
+  return repo;
 }
 
 /**
@@ -150,6 +176,14 @@ export async function deleteTrackedRepository(id: string): Promise<void> {
   );
 
   await pool.query('DELETE FROM repositories WHERE id = $1', [id]);
+
+  try {
+    await removeRepoRescanScheduler(id);
+  } catch (err) {
+    logger.warn(
+      `Failed to remove rescan scheduler for deleted repository ${id}: ${(err as Error).message}`,
+    );
+  }
 
   try {
     await cacheDel(cacheKeys.scanResult(id));
@@ -182,4 +216,15 @@ export async function getTrackedRepository(id: string): Promise<TrackedRepositor
   const row = rows[0];
   if (!row) throw notFound('Repository not found');
   return toTracked(row);
+}
+
+export async function getTrackedRepositoryOwner(
+  id: string,
+): Promise<{ addedBy: string | null } | null> {
+  const { rows } = await pool.query<{ added_by: string | null }>(
+    'SELECT added_by FROM repositories WHERE id = $1',
+    [id],
+  );
+  const row = rows[0];
+  return row ? { addedBy: row.added_by } : null;
 }

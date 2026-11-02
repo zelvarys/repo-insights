@@ -6,7 +6,9 @@ import {
   type DependencyRefreshJobData,
   type ScanJobData,
   type ScanQueueJobData,
+  type ScheduledScanJobData,
 } from './scan.queue.js';
+import { SCHEDULED_SCAN_JOB_NAME } from './scan.scheduler.js';
 import { logger } from '../../utils/logger.js';
 import { getAccessTokenForUser } from '../auth/auth.service.js';
 import {
@@ -30,7 +32,9 @@ import { backfillTrackedToolsFromScan } from '../tracked-tools/tracked-tools.ser
 import {
   cacheCompletedScan,
   invalidateScanCache,
+  requestScan,
 } from './scan.service.js';
+import { getTrackedRepositoryOwner } from '../repositories/repository.service.js';
 import {
   computeScore,
   detectLanguages,
@@ -562,6 +566,30 @@ export async function processDependencyRefreshJob(job: {
   await refreshDependenciesForScan(scanId, repoId);
 }
 
+export async function processScheduledScanJob(job: {
+  data: ScheduledScanJobData;
+}): Promise<void> {
+  const { repoId } = job.data;
+  const owner = await getTrackedRepositoryOwner(repoId);
+  if (!owner) {
+    logger.warn(`Scheduled scan skipped: repository ${repoId} no longer exists`);
+    return;
+  }
+  if (!owner.addedBy) {
+    logger.warn(
+      `Scheduled scan skipped: repository ${repoId} has no owner to authenticate with`,
+    );
+    return;
+  }
+
+  const { scan, cached } = await requestScan(repoId, owner.addedBy);
+  logger.info(
+    cached
+      ? `Scheduled scan skipped for repo ${repoId}; scan ${scan.id} is already pending, running, or cached`
+      : `Scheduled scan ${scan.id} queued for repo ${repoId}`,
+  );
+}
+
 export function startWorker(): Worker<ScanQueueJobData> {
   const worker = new Worker<ScanQueueJobData>(
     SCAN_QUEUE_NAME,
@@ -569,6 +597,12 @@ export function startWorker(): Worker<ScanQueueJobData> {
       if (job.name === 'dependencies-refresh') {
         await processDependencyRefreshJob({
           data: job.data as DependencyRefreshJobData,
+        });
+        return;
+      }
+      if (job.name === SCHEDULED_SCAN_JOB_NAME) {
+        await processScheduledScanJob({
+          data: job.data as ScheduledScanJobData,
         });
         return;
       }

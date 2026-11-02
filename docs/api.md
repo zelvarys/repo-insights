@@ -173,6 +173,11 @@ Response `201`:
 }
 ```
 
+Adding a repository also registers a repo-scoped BullMQ Job Scheduler that
+queues an automatic scan every six hours. The scheduler id is
+`repo-scan:<repoId>`. If the scheduler cannot be registered, the repository
+insert is rolled back and the request returns `503 SERVICE_UNAVAILABLE`.
+
 Errors: `400 BAD_REQUEST` if `githubId` isn't accessible or already tracked is a `409 CONFLICT`.
 
 ### `GET /repos`
@@ -192,7 +197,9 @@ metrics cache, and tracked-tool settings. Pending or running scans are marked
 `failed` with `error = "Repository removed"` before the repository row is
 deleted; the schema cascades `scans`, `tool_usage`, and `tracked_tools`.
 Redis keys `cache:scan-result:<repoId>` and `cache:metrics:<repoId>:*` are
-invalidated. `scan:context:<scanId>` entries are left to expire.
+invalidated, and the repository's automatic-rescan scheduler
+(`repo-scan:<repoId>`) is removed. `scan:context:<scanId>` entries are left to
+expire.
 
 Returns `204 No Content` with an empty body. Unknown repository → `404
 NOT_FOUND`; malformed id → `400 BAD_REQUEST`.
@@ -213,6 +220,16 @@ Requires auth. Rate-limited to 10/min.
   scan is marked failed before returning.
 - **`500 INTERNAL_ERROR`** — another enqueue failure occurred; the scan is
   marked failed.
+
+### Automatic rescans
+
+Every tracked repository is scheduled to rescan every six hours. Adding a repo
+creates the scheduler `repo-scan:<repoId>`; deleting the repo removes it.
+Scheduled runs call the same scan-request path as `POST /repos/:id/scan`, so
+they are skipped when a scan for that repository is already pending or
+running. Missed intervals while the worker is offline are not replayed: on
+restart one overdue occurrence runs, then the regular cadence resumes with no
+catch-up burst.
 
 Scan shape:
 

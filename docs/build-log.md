@@ -248,7 +248,8 @@ Frontend:
 Decisions:
 
 - Keep the `public_repo` OAuth scope; expose unavailable states for private
-  repos and Actions data that cannot be read.
+  repos and Actions data that cannot be read. (Later superseded by `repo` and
+  `codespace` scopes for GitHub write actions.)
 - Keep the README Status section removed and document features instead.
 - Refresh dependencies via the queue, not a synchronous request.
 

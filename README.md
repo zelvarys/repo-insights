@@ -1,10 +1,10 @@
 <h1 align="center">
   <img src="public/favicon.png" alt="repo-insights logo" width="96" height="96" />
-  <br />
-  repo-insights
 </h1>
 
-repo-insights is a repository health dashboard for maintainers. It brings activity, dependency freshness, workflow reliability, codebase structure, contributor concentration, commit quality, and tool adoption into one clear view.
+# repo-insights
+
+This is a repository health dashboard for maintainers. It brings activity, dependency freshness, workflow reliability, codebase structure, contributor concentration, commit quality, and tool adoption into one clear view.
 
 > **"Is this repository healthy, and where should we focus next?"**
 

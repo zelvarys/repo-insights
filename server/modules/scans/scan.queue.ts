@@ -14,7 +14,14 @@ export type DependencyRefreshJobData = {
   repoId: string;
 };
 
-export type ScanQueueJobData = ScanJobData | DependencyRefreshJobData;
+export type ScheduledScanJobData = {
+  repoId: string;
+};
+
+export type ScanQueueJobData =
+  | ScanJobData
+  | DependencyRefreshJobData
+  | ScheduledScanJobData;
 
 export const scanQueue = new Queue<ScanQueueJobData>(SCAN_QUEUE_NAME, {
   connection: createRedisConnection(),

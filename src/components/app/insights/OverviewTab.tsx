@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
   Area,
   AreaChart,
@@ -7,6 +8,7 @@ import {
 import {
   Activity,
   AlertTriangle,
+  FilePlus2,
   Gauge,
   GitBranch,
   ShieldAlert,
@@ -19,6 +21,8 @@ import {
   InsightLoading,
   InsightUnavailable,
 } from "@/components/app/insights/InsightState"
+import { CreateIssueDialog } from "@/components/app/CreateIssueDialog"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -30,6 +34,11 @@ import { Progress } from "@/components/ui/progress"
 import { useRepoMetrics } from "@/hooks/useRepoDetail"
 import { useRepoOverview } from "@/hooks/useRepoInsights"
 import { formatPercent } from "@/lib/format"
+import {
+  concentrationIssueDraft,
+  dependencyIssueDraft,
+  type IssueDraft,
+} from "@/lib/issue-drafts"
 import { cn } from "@/lib/utils"
 
 type RepoTab =
@@ -55,17 +64,23 @@ function GlanceCard({
   description,
   icon,
   onOpen,
+  action,
   children,
 }: {
   title: string
   description: string
   icon: React.ReactNode
   onOpen: () => void
+  action?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
-    <button type="button" onClick={onOpen} className="text-left">
-      <Card className="h-full transition-colors hover:border-primary/50">
+    <Card className="h-full transition-colors hover:border-primary/50">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex flex-1 flex-col gap-6 text-left"
+      >
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-medium">
             {icon}
@@ -74,8 +89,9 @@ function GlanceCard({
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent>{children}</CardContent>
-      </Card>
-    </button>
+      </button>
+      {action ? <div className="px-6">{action}</div> : null}
+    </Card>
   )
 }
 
@@ -92,6 +108,7 @@ export function OverviewTab({
 }) {
   const metrics = useRepoMetrics(repoId)
   const overview = useRepoOverview(repoId)
+  const [issueDraft, setIssueDraft] = useState<IssueDraft | null>(null)
 
   if (metrics.isLoading || overview.isLoading) return <InsightLoading />
   if (metrics.isError) {
@@ -124,6 +141,7 @@ export function OverviewTab({
   const health = overview.data.health
   const cards = overview.data.cards ?? {}
   const adoption = metrics.data?.adoptionScore ?? 0
+  const repoFullName = metrics.data?.repoFullName ?? "this repository"
 
   return (
     <div className="space-y-6">
@@ -218,6 +236,20 @@ export function OverviewTab({
             description="How dependent the project is on a few people."
             icon={<Users className="size-4" />}
             onOpen={() => onSelectTab("activity")}
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setIssueDraft(
+                    concentrationIssueDraft(repoFullName, cards.concentration!),
+                  )
+                }
+              >
+                <FilePlus2 className="size-4" />
+                Create issue
+              </Button>
+            }
           >
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -281,6 +313,20 @@ export function OverviewTab({
             description="Outdated packages and known advisories."
             icon={<ShieldAlert className="size-4" />}
             onOpen={() => onSelectTab("dependencies")}
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setIssueDraft(
+                    dependencyIssueDraft(repoFullName, cards.dependencies!),
+                  )
+                }
+              >
+                <FilePlus2 className="size-4" />
+                Create issue
+              </Button>
+            }
           >
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-md border px-2 py-2">
@@ -350,6 +396,15 @@ export function OverviewTab({
           to collect them.
         </p>
       ) : null}
+
+      <CreateIssueDialog
+        repoId={repoId}
+        draft={issueDraft}
+        open={issueDraft !== null}
+        onOpenChange={(open) => {
+          if (!open) setIssueDraft(null)
+        }}
+      />
     </div>
   )
 }

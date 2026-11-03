@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { CheckCircle2, ExternalLink, Workflow, XCircle } from "lucide-react"
+import { CheckCircle2, ExternalLink, Workflow, X, XCircle } from "lucide-react"
 import { EmptyState } from "@/components/app/EmptyState"
 import {
   InsightError,
@@ -154,7 +154,7 @@ export function CiTab({
             ))}
           </div>
           <form
-            className="flex min-w-0 flex-col gap-2 sm:flex-row"
+            className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)]"
             onSubmit={(event) => {
               event.preventDefault()
               setBranch(branchInput.trim())
@@ -164,7 +164,7 @@ export function CiTab({
               aria-label="Workflow filter"
               value={workflow}
               onChange={(event) => setWorkflow(event.target.value)}
-              className="h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 text-sm sm:w-52 sm:shrink-0"
+              className="h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 text-sm"
             >
               <option value="">All workflows</option>
               {knownWorkflows.map((name) => (
@@ -173,28 +173,30 @@ export function CiTab({
                 </option>
               ))}
             </select>
-            <Input
-              placeholder="Filter by branch"
-              value={branchInput}
-              onChange={(event) => setBranchInput(event.target.value)}
-              className="min-w-0 flex-1"
-            />
-            <Button type="submit" variant="outline" className="shrink-0">
+            <div className="relative min-w-0">
+              <Input
+                placeholder="Filter by branch"
+                value={branchInput}
+                onChange={(event) => setBranchInput(event.target.value)}
+                className={branch ? "pr-9" : undefined}
+              />
+              {branch ? (
+                <button
+                  type="button"
+                  aria-label="Clear branch filter"
+                  onClick={() => {
+                    setBranch("")
+                    setBranchInput("")
+                  }}
+                  className="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <X className="size-4" />
+                </button>
+              ) : null}
+            </div>
+            <Button type="submit" variant="outline" className="w-full min-w-0">
               Apply branch
             </Button>
-            {branch ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className="shrink-0"
-                onClick={() => {
-                  setBranch("")
-                  setBranchInput("")
-                }}
-              >
-                Clear branch
-              </Button>
-            ) : null}
           </form>
         </CardContent>
       </Card>

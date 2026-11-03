@@ -154,7 +154,7 @@ export function CiTab({
             ))}
           </div>
           <form
-            className="flex flex-col gap-2 sm:flex-row"
+            className="flex min-w-0 flex-col gap-2 sm:flex-row"
             onSubmit={(event) => {
               event.preventDefault()
               setBranch(branchInput.trim())
@@ -164,7 +164,7 @@ export function CiTab({
               aria-label="Workflow filter"
               value={workflow}
               onChange={(event) => setWorkflow(event.target.value)}
-              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+              className="h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 text-sm sm:w-52 sm:shrink-0"
             >
               <option value="">All workflows</option>
               {knownWorkflows.map((name) => (
@@ -177,14 +177,16 @@ export function CiTab({
               placeholder="Filter by branch"
               value={branchInput}
               onChange={(event) => setBranchInput(event.target.value)}
+              className="min-w-0 flex-1"
             />
-            <Button type="submit" variant="outline">
+            <Button type="submit" variant="outline" className="shrink-0">
               Apply branch
             </Button>
             {branch ? (
               <Button
                 type="button"
                 variant="ghost"
+                className="shrink-0"
                 onClick={() => {
                   setBranch("")
                   setBranchInput("")
@@ -197,8 +199,8 @@ export function CiTab({
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Workflow success rates</CardTitle>
             <CardDescription>Last 50 runs per workflow.</CardDescription>
@@ -215,7 +217,9 @@ export function CiTab({
                   className="space-y-2 rounded-lg border p-3"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-medium">{item.name}</span>
+                    <span className="min-w-0 break-words font-medium">
+                      {item.name}
+                    </span>
                     <span className="text-sm text-muted-foreground">
                       {formatPercent(item.successRate)}
                     </span>
@@ -245,7 +249,7 @@ export function CiTab({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Recent failures</CardTitle>
             <CardDescription>
@@ -267,7 +271,7 @@ export function CiTab({
                   href={failure.url ?? "#"}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-accent/50"
+                  className="flex min-w-0 items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-accent/50"
                 >
                   <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
                   <div className="min-w-0 flex-1">

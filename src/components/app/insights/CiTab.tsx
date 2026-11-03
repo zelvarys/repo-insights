@@ -205,7 +205,7 @@ export function CiTab({
         <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Workflow success rates</CardTitle>
-            <CardDescription>Last 50 runs per workflow.</CardDescription>
+            <CardDescription>Last 30 runs per workflow.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {ci.workflows.length === 0 ? (

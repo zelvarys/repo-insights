@@ -216,6 +216,22 @@ describe('CI health', () => {
     expect(health.recentFailures.map((failure) => failure.runId)).toEqual([2]);
   });
 
+  it('uses only the latest 30 completed runs per workflow', () => {
+    const base = Date.parse('2026-01-01T00:00:00Z');
+    const manyRuns = Array.from({ length: 35 }, (_, index) => ({
+      ...runs[0]!,
+      runId: 100 + index,
+      conclusion: index < 5 ? 'failure' : 'success',
+      completedAt: new Date(base + index * 86_400_000).toISOString(),
+    }));
+    const health = aggregateCiHealth(manyRuns);
+    const ci = health.workflows.find((workflow) => workflow.name === 'CI')!;
+    expect(ci.totalRuns).toBe(30);
+    expect(ci.successfulRuns).toBe(30);
+    expect(ci.failedRuns).toBe(0);
+    expect(ci.successRate).toBe(100);
+  });
+
   it('filters by workflow, branch, and time range', () => {
     expect(filterCiRuns(runs, { workflow: 'Deploy' })).toHaveLength(1);
     expect(filterCiRuns(runs, { branch: 'main' })).toHaveLength(3);

@@ -281,22 +281,20 @@ export default function Dashboard() {
           }
         />
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
-          <div className="space-y-6">
-            <div className="grid gap-3 sm:grid-cols-3">
-              {stats.map((stat) => (
-                <StatCard
-                  key={stat.label}
-                  label={stat.label}
-                  value={stat.value}
-                  detail={stat.detail}
-                  icon={stat.icon}
-                />
-              ))}
-            </div>
+        <div className="space-y-6">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {stats.map((stat) => (
+              <StatCard
+                key={stat.label}
+                label={stat.label}
+                value={stat.value}
+                detail={stat.detail}
+                icon={stat.icon}
+              />
+            ))}
           </div>
 
-          <Card className="h-fit">
+          <Card>
             <CardHeader>
               <CardTitle>Workspace</CardTitle>
               <CardDescription>
@@ -345,40 +343,44 @@ export default function Dashboard() {
                           to={`/repos/${repo.id}`}
                           className="block py-4 text-sm transition-colors hover:text-primary"
                         >
-                          <span className="flex items-center justify-between gap-3 font-medium">
-                            <span className="flex min-w-0 items-center gap-3">
-                              <span className="flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold text-muted-foreground">
-                                {index + 1}
-                              </span>
-                              <span className="truncate">{repo.fullName}</span>
+                          <span className="flex items-start gap-3">
+                            <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold text-muted-foreground">
+                              {index + 1}
                             </span>
-                            <ArrowRight className="size-4 shrink-0" />
-                          </span>
-                          <span className="mt-2 flex flex-wrap items-center gap-2">
-                            <Badge
-                              variant={repo.isPrivate ? "outline" : "secondary"}
-                              className="gap-1"
-                            >
-                              {repo.isPrivate ? (
-                                <Lock className="size-3" />
-                              ) : null}
-                              {repo.isPrivate ? "Private" : "Public"}
-                            </Badge>
-                            <Badge variant="secondary" className="gap-1">
-                              <Star className="size-3" />
-                              {repo.stars}
-                            </Badge>
-                            <Badge variant="secondary" className="gap-1">
-                              <Users className="size-3" />
-                              {repo.contributorCount} contributors
-                            </Badge>
-                            <Badge variant="secondary" className="gap-1">
-                              <GitFork className="size-3" />
-                              {repo.forks}
-                            </Badge>
-                          </span>
-                          <span className="mt-2 block text-xs text-muted-foreground">
-                            {summary}
+                            <span className="flex min-w-0 flex-1 flex-col gap-2">
+                              <span className="flex items-center justify-between gap-3 font-medium">
+                                <span className="truncate">{repo.fullName}</span>
+                                <ArrowRight className="size-4 shrink-0" />
+                              </span>
+                              <span className="flex flex-wrap items-center gap-2">
+                                <Badge
+                                  variant={
+                                    repo.isPrivate ? "outline" : "secondary"
+                                  }
+                                  className="gap-1"
+                                >
+                                  {repo.isPrivate ? (
+                                    <Lock className="size-3" />
+                                  ) : null}
+                                  {repo.isPrivate ? "Private" : "Public"}
+                                </Badge>
+                                <Badge variant="secondary" className="gap-1">
+                                  <Star className="size-3" />
+                                  {repo.stars}
+                                </Badge>
+                                <Badge variant="secondary" className="gap-1">
+                                  <Users className="size-3" />
+                                  {repo.contributorCount} contributors
+                                </Badge>
+                                <Badge variant="secondary" className="gap-1">
+                                  <GitFork className="size-3" />
+                                  {repo.forks}
+                                </Badge>
+                              </span>
+                              <span className="block text-xs text-muted-foreground">
+                                {summary}
+                              </span>
+                            </span>
                           </span>
                         </Link>
                       )

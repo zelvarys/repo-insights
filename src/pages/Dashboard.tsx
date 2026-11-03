@@ -312,8 +312,8 @@ export default function Dashboard() {
                           to={`/repos/${repo.id}`}
                           className="block py-4 text-sm transition-colors hover:text-primary"
                         >
-                          <span className="flex items-start gap-3">
-                            <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold text-muted-foreground">
+                          <span className="flex items-center gap-3">
+                            <span className="flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold text-muted-foreground">
                               {index + 1}
                             </span>
                             <span className="flex min-w-0 flex-1 flex-col">

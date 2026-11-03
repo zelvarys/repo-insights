@@ -34,6 +34,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -301,6 +302,12 @@ export default function Dashboard() {
               <CardDescription>
                 Recent changes and shortcuts for this workspace.
               </CardDescription>
+              <CardAction>
+                <Button size="sm" onClick={() => setDialogOpen(true)}>
+                  <Plus className="size-4" />
+                  Add repository
+                </Button>
+              </CardAction>
             </CardHeader>
             <CardContent>
               <div>
@@ -336,10 +343,15 @@ export default function Dashboard() {
                         <Link
                           key={repo.id}
                           to={`/repos/${repo.id}`}
-                          className="block py-3 text-sm transition-colors last:pb-0 hover:text-primary"
+                          className="block py-4 text-sm transition-colors hover:text-primary"
                         >
                           <span className="flex items-center justify-between gap-3 font-medium">
-                            <span className="truncate">{repo.fullName}</span>
+                            <span className="flex min-w-0 items-center gap-3">
+                              <span className="flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold text-muted-foreground">
+                                {index + 1}
+                              </span>
+                              <span className="truncate">{repo.fullName}</span>
+                            </span>
                             <ArrowRight className="size-4 shrink-0" />
                           </span>
                           <span className="mt-2 flex flex-wrap items-center gap-2">
@@ -375,16 +387,12 @@ export default function Dashboard() {
                 )}
               </div>
 
-              <div className="mt-3 flex flex-col gap-2 border-t pt-3">
-                <Button variant="outline" asChild>
+              <div className="mt-3 border-t pt-3">
+                <Button variant="outline" className="w-full" asChild>
                   <Link to="/repos">
                     Browse repositories
                     <ArrowRight className="size-4" />
                   </Link>
-                </Button>
-                <Button onClick={() => setDialogOpen(true)}>
-                  <Plus className="size-4" />
-                  Add repository
                 </Button>
               </div>
             </CardContent>

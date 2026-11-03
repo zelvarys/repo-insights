@@ -1,11 +1,7 @@
 import { useState } from "react"
 import { useQueries } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
-import type {
-  OverviewResponse,
-  RepoMetrics,
-  TrackedRepository,
-} from "@shared/types"
+import type { RepoMetrics, TrackedRepository } from "@shared/types"
 import {
   Activity,
   ArrowRight,
@@ -195,14 +191,6 @@ export default function Dashboard() {
       enabled: Boolean(user),
     })),
   })
-  const overviewQueries = useQueries({
-    queries: recentRepositories.map((repo) => ({
-      queryKey: ["repo", repo.id, "insights", "overview"],
-      queryFn: () => api.get<OverviewResponse>(`/repos/${repo.id}/overview`),
-      enabled: Boolean(user),
-    })),
-  })
-
   if (isLoading) return <ReposSkeleton />
   if (!user) return <PublicDashboard />
 
@@ -318,10 +306,6 @@ export default function Dashboard() {
                 ) : (
                   <div className="divide-y border-t">
                     {recentRepositories.map((repo, index) => {
-                      const overview = overviewQueries[index]?.data
-                      const health = overview?.health?.score
-                      const cards = overview?.cards
-                      const hasHealth = health !== null && health !== undefined
                       return (
                         <Link
                           key={repo.id}
@@ -332,58 +316,38 @@ export default function Dashboard() {
                             <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold text-muted-foreground">
                               {index + 1}
                             </span>
-                            <span className="flex min-w-0 flex-1 flex-col gap-2">
+                            <span className="flex min-w-0 flex-1 flex-col">
                               <span className="flex items-center justify-between gap-3 font-medium">
                                 <span className="truncate">
                                   {repo.fullName}
                                 </span>
-                                <span className="flex shrink-0 items-center gap-3 text-xs font-normal text-muted-foreground">
-                                  <span
-                                    className="inline-flex items-center gap-1"
-                                    aria-label={`${repo.stars} stars`}
-                                  >
-                                    <Star className="size-3.5" />
-                                    {repo.stars.toLocaleString()}
-                                  </span>
-                                  <span
-                                    className="inline-flex items-center gap-1"
-                                    aria-label={`${repo.contributorCount} contributors`}
-                                  >
-                                    <Users className="size-3.5" />
-                                    {repo.contributorCount.toLocaleString()}
-                                  </span>
-                                  <span
-                                    className="inline-flex items-center gap-1"
-                                    aria-label={`${repo.forks} forks`}
-                                  >
-                                    <GitFork className="size-3.5" />
-                                    {repo.forks.toLocaleString()}
+                                <span className="flex shrink-0 items-center gap-6 text-xs font-normal text-muted-foreground">
+                                  <span className="flex items-center gap-3">
+                                    <span
+                                      className="inline-flex items-center gap-1"
+                                      aria-label={`${repo.stars} stars`}
+                                    >
+                                      <Star className="size-3.5" />
+                                      {repo.stars.toLocaleString()}
+                                    </span>
+                                    <span
+                                      className="inline-flex items-center gap-1"
+                                      aria-label={`${repo.contributorCount} contributors`}
+                                    >
+                                      <Users className="size-3.5" />
+                                      {repo.contributorCount.toLocaleString()}
+                                    </span>
+                                    <span
+                                      className="inline-flex items-center gap-1"
+                                      aria-label={`${repo.forks} forks`}
+                                    >
+                                      <GitFork className="size-3.5" />
+                                      {repo.forks.toLocaleString()}
+                                    </span>
                                   </span>
                                   <ArrowRight className="size-4 shrink-0" />
                                 </span>
                               </span>
-                              {overview?.reason === "no_scan" ? (
-                                <span className="block text-sm text-muted-foreground">
-                                  This repository has not been scanned yet.
-                                </span>
-                              ) : overview?.available ? (
-                                <span className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-muted-foreground">
-                                  {hasHealth ? (
-                                    <span>Health: {health.toFixed(1)}</span>
-                                  ) : null}
-                                  {cards?.activity ? (
-                                    <span>
-                                      {cards.activity.last90Commits} commits
-                                    </span>
-                                  ) : null}
-                                  {cards?.dependencies ? (
-                                    <span>
-                                      {cards.dependencies.outdated} outdated
-                                      packages
-                                    </span>
-                                  ) : null}
-                                </span>
-                              ) : null}
                             </span>
                           </span>
                         </Link>

@@ -1,30 +1,11 @@
 import { useEffect, useState } from "react"
-import {
-  CheckCircle2,
-  ExternalLink,
-  Loader2,
-  RotateCcw,
-  Workflow,
-  XCircle,
-} from "lucide-react"
-import { toast } from "sonner"
-import type { CiFailure } from "@shared/types"
+import { CheckCircle2, ExternalLink, Workflow, XCircle } from "lucide-react"
 import { EmptyState } from "@/components/app/EmptyState"
 import {
   InsightError,
   InsightLoading,
   InsightUnavailable,
 } from "@/components/app/insights/InsightState"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,7 +17,6 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
-import { useRerunWorkflow } from "@/hooks/useRepoActions"
 import {
   useRepoCi,
   type CiFilters,
@@ -58,8 +38,6 @@ export function CiTab({
   const [branchInput, setBranchInput] = useState("")
   const [branch, setBranch] = useState("")
   const [knownWorkflows, setKnownWorkflows] = useState<string[]>([])
-  const [failureToRerun, setFailureToRerun] = useState<CiFailure | null>(null)
-  const rerun = useRerunWorkflow(repoId)
   const filters: CiFilters = {
     range,
     ...(workflow ? { workflow } : {}),
@@ -284,97 +262,33 @@ export function CiTab({
               </div>
             ) : (
               ci.recentFailures.map((failure) => (
-                <div
+                <a
                   key={failure.runId}
+                  href={failure.url ?? "#"}
+                  target="_blank"
+                  rel="noreferrer"
                   className="flex items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-accent/50"
                 >
-                  <a
-                    href={failure.url ?? "#"}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex min-w-0 flex-1 items-start gap-3"
-                  >
-                    <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {failure.workflowName}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {failure.branch ?? "unknown branch"} ·{" "}
-                        {failure.actor ?? "unknown actor"} ·{" "}
-                        {failure.completedAt
-                          ? new Date(failure.completedAt).toLocaleString()
-                          : "unknown time"}
-                      </p>
-                    </div>
-                    <ExternalLink className="size-3.5 text-muted-foreground" />
-                  </a>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setFailureToRerun(failure)}
-                    disabled={rerun.isPending}
-                  >
-                    <RotateCcw className="size-4" />
-                    Re-run
-                  </Button>
-                </div>
+                  <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {failure.workflowName}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {failure.branch ?? "unknown branch"} ·{" "}
+                      {failure.actor ?? "unknown actor"} ·{" "}
+                      {failure.completedAt
+                        ? new Date(failure.completedAt).toLocaleString()
+                        : "unknown time"}
+                    </p>
+                  </div>
+                  <ExternalLink className="size-3.5 text-muted-foreground" />
+                </a>
               ))
             )}
           </CardContent>
         </Card>
       </div>
-
-      <AlertDialog
-        open={failureToRerun !== null}
-        onOpenChange={(open) => {
-          if (!open && !rerun.isPending) setFailureToRerun(null)
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Re-run {failureToRerun?.workflowName ?? "this workflow"}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              GitHub will queue a new run for all jobs in this failed workflow
-              run. Any currently running jobs are unaffected.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={rerun.isPending}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={rerun.isPending}
-              onClick={(event) => {
-                event.preventDefault()
-                if (!failureToRerun) return
-                rerun.mutate(failureToRerun.runId, {
-                  onSuccess: () => {
-                    toast.success("Workflow re-run queued", {
-                      description: "Run a new scan to refresh CI data.",
-                    })
-                    setFailureToRerun(null)
-                  },
-                  onError: (error) => {
-                    toast.error("Could not re-run workflow", {
-                      description: error.message,
-                    })
-                  },
-                })
-              }}
-            >
-              {rerun.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <RotateCcw className="size-4" />
-              )}
-              Re-run workflow
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }

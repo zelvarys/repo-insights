@@ -11,7 +11,6 @@ import { scanRoutes } from './modules/scans/scan.routes.js';
 import { metricsRoutes } from './modules/metrics/metrics.routes.js';
 import { trackedToolsRoutes } from './modules/tracked-tools/tracked-tools.routes.js';
 import { insightsRoutes } from './modules/insights/insights.routes.js';
-import { repoActionsRoutes } from './modules/repo-actions/repo-actions.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -50,7 +49,6 @@ export function createApp(): Express {
   app.use(metricsRoutes);
   app.use(trackedToolsRoutes);
   app.use(insightsRoutes);
-  app.use(repoActionsRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

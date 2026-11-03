@@ -116,11 +116,9 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 5. Leave **Expire user access tokens** unchecked
 6. Copy the Client ID and generate a Client Secret into `.env`
 
-The app requests `read:user`, `user:email`, `repo`, `read:org`, and `codespace`
-at login. `repo` is needed for repository reads and for re-running workflows
-and creating issues; `codespace` is needed to create Codespaces. The app stores
-the encrypted token and uses it for both scans and these user-initiated write
-actions. Existing users must re-authenticate after changing scopes.
+The app requests the read-only scopes `read:user`, `user:email`, `public_repo`,
+and `read:org` at login. Scans only read repository contents, contributors,
+commits, and workflows; no write scopes are requested.
 
 ## Migrations
 

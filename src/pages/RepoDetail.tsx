@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
-import { Code2, Loader2, RefreshCw, ScanLine } from "lucide-react"
+import { Loader2, RefreshCw, ScanLine } from "lucide-react"
 import { toast } from "sonner"
-import { CodespaceDialog } from "@/components/app/CodespaceDialog"
 import { EmptyState } from "@/components/app/EmptyState"
 import { ErrorState } from "@/components/app/ErrorState"
 import { RepoDetailSkeleton } from "@/components/app/LoadingSkeletons"
@@ -81,7 +80,6 @@ export default function RepoDetail() {
 
   const [pollingScanId, setPollingScanId] = useState<string | null>(null)
   const [autoPolledScanId, setAutoPolledScanId] = useState<string | null>(null)
-  const [codespaceOpen, setCodespaceOpen] = useState(false)
 
   const repoQuery = useRepo(repoId)
   const metricsQuery = useRepoMetrics(repoId)
@@ -199,24 +197,14 @@ export default function RepoDetail() {
         }
         className="border-b pb-4"
         actions={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setCodespaceOpen(true)}
-              disabled={!repo || !repoId}
-            >
-              <Code2 className="size-4" />
-              Open in Codespace
-            </Button>
-            <Button onClick={handleRunScan} disabled={runDisabled}>
-              {scanning ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <RefreshCw className="size-4" />
-              )}
-              {scanning ? "Scanning..." : "Run scan"}
-            </Button>
-          </div>
+          <Button onClick={handleRunScan} disabled={runDisabled}>
+            {scanning ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <RefreshCw className="size-4" />
+            )}
+            {scanning ? "Scanning..." : "Run scan"}
+          </Button>
         }
       />
 
@@ -291,13 +279,6 @@ export default function RepoDetail() {
           </div>
         </>
       )}
-
-      <CodespaceDialog
-        repoId={repoId}
-        repoName={repo?.fullName}
-        open={codespaceOpen}
-        onOpenChange={setCodespaceOpen}
-      />
     </>
   )
 }

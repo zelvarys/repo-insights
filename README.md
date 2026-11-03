@@ -22,7 +22,7 @@ Connect a GitHub repository to see how work is progressing, where risk is buildi
 
 Tool adoption is one signal alongside activity, dependency freshness, workflow stability, contributor spread, and commit quality. All repository views are first-class, and missing sources are removed and renormalized rather than presented as a primary workflow.
 
-The app requests `repo` and `codespace` OAuth scopes. `repo` allows public and private repository reads plus the write actions (re-running workflows and creating issues), and `codespace` allows creating Codespaces. Some Actions data may still be unavailable to the token; the UI reports that source as not collected instead of failing the whole report. Tokens issued before this scope change must re-authenticate.
+The app requests the read-only `public_repo` scope, so it analyzes public repositories. Some Actions data may still be unavailable to the token; the UI reports that source as not collected instead of failing the whole report.
 
 ## Repository layout
 

@@ -72,7 +72,7 @@ export function aggregateCiHealth(
 
   const workflows: WorkflowHealth[] = [...buckets.entries()]
     .map(([name, workflowRuns]) => {
-      const sample = workflowRuns.slice(0, 50);
+      const sample = workflowRuns.slice(0, 30);
       const successfulRuns = sample.filter(
         (run) => run.conclusion === 'success',
       ).length;

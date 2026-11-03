@@ -100,10 +100,9 @@ capped at 100 unique repositories. Search has separate GitHub rate limits, so
 this discovery path makes more requests than the old single contributions
 query.
 
-The app requests the `repo` OAuth scope, so private external contributions are
-readable when the user can access them. The older `public_repo`-only limitation
-no longer applies; tokens issued before the change must be refreshed through a
-new OAuth flow.
+With the app's `public_repo` OAuth scope, only public external repos are
+readable; private external contributions are out of scope until the scope
+changes.
 
 ## Data model
 
@@ -142,7 +141,7 @@ Redis is not a source of truth — everything cached here can be regenerated fro
 ## Authentication
 
 1. `GET /auth/github` → 32-byte random `state` stored in Redis (10m TTL) → redirect to GitHub authorize URL
-2. `GET /auth/github/callback` → validate `state` (delete on match) → exchange code for token → fetch GitHub user + primary email → encrypt token → upsert `users` → sign JWT (`sub = user id`, random `jti`) → set `httpOnly` cookie → redirect to `FRONTEND_URL`. Requested GitHub scopes are `read:user`, `user:email`, `repo`, `read:org`, and `codespace`. `repo` supports repository reads plus the write actions (workflow re-runs and issue creation); `codespace` supports Codespace creation.
+2. `GET /auth/github/callback` → validate `state` (delete on match) → exchange code for token → fetch GitHub user + primary email → encrypt token → upsert `users` → sign JWT (`sub = user id`, random `jti`) → set `httpOnly` cookie → redirect to `FRONTEND_URL`. Requested GitHub scopes are read-only: `read:user`, `user:email`, `public_repo`, `read:org`.
 3. Protected routes → `requireAuth` middleware → read `token` cookie → verify HMAC (timing-safe) → reject if the `jti` exists under `revoked:<jti>` → attach `req.userId`
 4. `POST /auth/logout` clears the cookie and writes the current `jti` to Redis with the token's remaining TTL. Revocation is per-session; other sessions stay valid.
 5. Every protected handler resolves the GitHub token via `getAccessTokenForUser(req.userId)` which decrypts at rest; decrypt failures are treated as "no token available" (worker fails the scan cleanly, user must re-authenticate)
@@ -222,13 +221,12 @@ and displayed alongside it.
 | Workflows | `GET /repos/:id/ci` | GitHub Actions runs | `scan_ci_runs`, `scans.summary.ci_health` (`ctx.ciRuns`) |
 | Concentration | `GET /repos/:id/concentration` | Commit author counts | `scans.summary.concentration` (`ctx.commitHistory`) |
 | Tool adoption | `GET /repos/:id/metrics` | Existing scanner output | `scans.summary.tool_usage`, `tracked_tools` |
-| GitHub write actions | `POST /repos/:id/{ci/runs/:runId/rerun,issues,codespaces}` | GitHub REST API with the user's token | None (GitHub-side only) |
 
 ## Repository insights
 
 - **Structure** — recursive tree from GitHub, capped at 500 entries and depth 4. Directory sizes/counts are rolled up; `.git` internals and submodule `commit` nodes are excluded. Last-modified timestamps come from the 365-day commit history.
 - **Activity** — 90/180/365-day aggregates from up to 1,000 commits. Daily buckets use UTC; weekly buckets start Monday UTC. Commit quality ignores merge commits and sanitizes examples.
 - **Concentration** — top-1/top-3/top-10 share and Gini over positive contributor commit counts. Risk is green `<50%`, yellow `50–75%`, red `>75%` top-3 share.
-- **Workflows** — up to 300 workflow runs per scan. Workflow/branch/range filters are applied to persisted rows. The `repo` scope covers Actions reads; if Actions access is unavailable, workflows are reported unavailable rather than failing the scan. Failed runs can be re-run through the write-action endpoint.
+- **Workflows** — up to 300 workflow runs per scan. Workflow/branch/range filters are applied to persisted rows. Public repos use `public_repo`; if Actions read access is unavailable, workflows are reported unavailable rather than failing the scan.
 - **Dependencies** — parsers read direct manifests only: `package.json`, `requirements.txt`, `pyproject.toml`, `setup.cfg`, `setup.py`, `Pipfile`, `go.mod`, `Gemfile`, and `composer.json`. Lockfiles are never parsed, so transitive packages are not reported. Unpinned packages are shown as `unpinned`; outdated means the latest major release is at least one major ahead. Lookups are capped at 300 dependencies, concurrency 8, 90s budget, with 24h registry/OSV caches. Refresh is queued and updates the latest completed scan in place.
 - **GitHub budget** — insight collection adds roughly 11 GitHub calls per scan beyond the old pipeline (up to 10 commit pages in total, one tree, and up to 3 Actions pages), keeping the normal total near 87.

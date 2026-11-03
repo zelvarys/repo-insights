@@ -1,11 +1,7 @@
 import { useState } from "react"
 import { useQueries } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
-import type {
-  OverviewResponse,
-  RepoMetrics,
-  TrackedRepository,
-} from "@shared/types"
+import type { RepoMetrics, TrackedRepository } from "@shared/types"
 import {
   Activity,
   ArrowRight,
@@ -14,7 +10,6 @@ import {
   Gauge,
   GitFork,
   Github,
-  Lock,
   Package,
   Plus,
   ScanLine,
@@ -34,6 +29,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -195,14 +191,6 @@ export default function Dashboard() {
       enabled: Boolean(user),
     })),
   })
-  const overviewQueries = useQueries({
-    queries: recentRepositories.map((repo) => ({
-      queryKey: ["repo", repo.id, "insights", "overview"],
-      queryFn: () => api.get<OverviewResponse>(`/repos/${repo.id}/overview`),
-      enabled: Boolean(user),
-    })),
-  })
-
   if (isLoading) return <ReposSkeleton />
   if (!user) return <PublicDashboard />
 
@@ -280,27 +268,31 @@ export default function Dashboard() {
           }
         />
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
-          <div className="space-y-6">
-            <div className="grid gap-3 sm:grid-cols-3">
-              {stats.map((stat) => (
-                <StatCard
-                  key={stat.label}
-                  label={stat.label}
-                  value={stat.value}
-                  detail={stat.detail}
-                  icon={stat.icon}
-                />
-              ))}
-            </div>
+        <div className="space-y-6">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {stats.map((stat) => (
+              <StatCard
+                key={stat.label}
+                label={stat.label}
+                value={stat.value}
+                detail={stat.detail}
+                icon={stat.icon}
+              />
+            ))}
           </div>
 
-          <Card className="h-fit">
+          <Card>
             <CardHeader>
               <CardTitle>Workspace</CardTitle>
               <CardDescription>
                 Recent changes and shortcuts for this workspace.
               </CardDescription>
+              <CardAction>
+                <Button size="sm" onClick={() => setDialogOpen(true)}>
+                  <Plus className="size-4" />
+                  Add repository
+                </Button>
+              </CardAction>
             </CardHeader>
             <CardContent>
               <div>
@@ -314,59 +306,49 @@ export default function Dashboard() {
                 ) : (
                   <div className="divide-y border-t">
                     {recentRepositories.map((repo, index) => {
-                      const overview = overviewQueries[index]?.data
-                      const health = overview?.health?.score
-                      const cards = overview?.cards
-                      const summary = [
-                        `Health: ${
-                          health === null || health === undefined
-                            ? "—"
-                            : health.toFixed(1)
-                        }`,
-                        cards?.activity
-                          ? `${cards.activity.last90Commits} commits`
-                          : null,
-                        cards?.dependencies
-                          ? `${cards.dependencies.outdated} outdated packages`
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join("    •    ")
                       return (
                         <Link
                           key={repo.id}
                           to={`/repos/${repo.id}`}
-                          className="block py-3 text-sm transition-colors last:pb-0 hover:text-primary"
+                          className="block py-4 text-sm transition-colors hover:text-primary"
                         >
-                          <span className="flex items-center justify-between gap-3 font-medium">
-                            <span className="truncate">{repo.fullName}</span>
-                            <ArrowRight className="size-4 shrink-0" />
-                          </span>
-                          <span className="mt-2 flex flex-wrap items-center gap-2">
-                            <Badge
-                              variant={repo.isPrivate ? "outline" : "secondary"}
-                              className="gap-1"
-                            >
-                              {repo.isPrivate ? (
-                                <Lock className="size-3" />
-                              ) : null}
-                              {repo.isPrivate ? "Private" : "Public"}
-                            </Badge>
-                            <Badge variant="secondary" className="gap-1">
-                              <Star className="size-3" />
-                              {repo.stars}
-                            </Badge>
-                            <Badge variant="secondary" className="gap-1">
-                              <Users className="size-3" />
-                              {repo.contributorCount} contributors
-                            </Badge>
-                            <Badge variant="secondary" className="gap-1">
-                              <GitFork className="size-3" />
-                              {repo.forks}
-                            </Badge>
-                          </span>
-                          <span className="mt-2 block text-xs text-muted-foreground">
-                            {summary}
+                          <span className="flex items-center gap-3">
+                            <span className="flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold text-muted-foreground">
+                              {index + 1}
+                            </span>
+                            <span className="flex min-w-0 flex-1 flex-col">
+                              <span className="flex items-center justify-between gap-3 font-medium">
+                                <span className="truncate">
+                                  {repo.fullName}
+                                </span>
+                                <span className="flex shrink-0 items-center gap-6 text-xs font-normal text-muted-foreground">
+                                  <span className="flex items-center gap-3">
+                                    <span
+                                      className="inline-flex items-center gap-1"
+                                      aria-label={`${repo.stars} stars`}
+                                    >
+                                      <Star className="size-3.5" />
+                                      {repo.stars.toLocaleString()}
+                                    </span>
+                                    <span
+                                      className="inline-flex items-center gap-1"
+                                      aria-label={`${repo.contributorCount} contributors`}
+                                    >
+                                      <Users className="size-3.5" />
+                                      {repo.contributorCount.toLocaleString()}
+                                    </span>
+                                    <span
+                                      className="inline-flex items-center gap-1"
+                                      aria-label={`${repo.forks} forks`}
+                                    >
+                                      <GitFork className="size-3.5" />
+                                      {repo.forks.toLocaleString()}
+                                    </span>
+                                  </span>
+                                  <ArrowRight className="size-4 shrink-0" />
+                                </span>
+                              </span>
+                            </span>
                           </span>
                         </Link>
                       )
@@ -375,16 +357,12 @@ export default function Dashboard() {
                 )}
               </div>
 
-              <div className="mt-3 flex flex-col gap-2 border-t pt-3">
-                <Button variant="outline" asChild>
+              <div className="mt-3 border-t pt-3">
+                <Button variant="outline" className="w-full" asChild>
                   <Link to="/repos">
                     Browse repositories
                     <ArrowRight className="size-4" />
                   </Link>
-                </Button>
-                <Button onClick={() => setDialogOpen(true)}>
-                  <Plus className="size-4" />
-                  Add repository
                 </Button>
               </div>
             </CardContent>

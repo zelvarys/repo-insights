@@ -38,7 +38,7 @@ export function createApp(): Express {
   app.get('/health', (_req, res) => {
     res.json({
       status: 'ok',
-      service: 'repo-insights',
+      service: 'repositron',
       time: new Date().toISOString(),
     });
   });

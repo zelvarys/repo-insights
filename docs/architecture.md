@@ -2,7 +2,7 @@
 
 ## Overview
 
-`repo-insights` is a two-process backend: an Express HTTP API and a BullMQ scan worker. Both connect to the same Postgres database and Redis instance. The frontend (Vite app in `src/`) calls the API over HTTP.
+`repositron` is a two-process backend: an Express HTTP API and a BullMQ scan worker. Both connect to the same Postgres database and Redis instance. The frontend (Vite app in `src/`) calls the API over HTTP.
 
 ```
 ┌─────────────┐        HTTP        ┌─────────────────┐
@@ -23,7 +23,7 @@
                         └──────────────────────────────────────┘
 ```
 
-## Request lifecycle — scan
+## Request lifecycle: scan
 
 1. `POST /repos/:id/scan` → `requestScan()` in `server/modules/scans/scan.service.ts`
 2. Cache check: `cache:scan-result:<repoId>` (1h TTL). Fresh → return `200 { scan, cached: true }` unless a newer scan row exists.
@@ -32,7 +32,7 @@
 5. Worker picks up job → marks `status = 'running'` → fetches GitHub data (config files, up to 1,000 commits, recursive tree, recent Actions runs) → builds `ScanContext` → saves to `scan:context:<scanId>` (1h TTL) → runs 13 detectors → persists `tool_usage` rows → backfills `tracked_tools` → computes activity/commit quality, contributor concentration, structure, workflow health, and dependency health → writes `scans.languages`, `scans.repo_tree`, `scan_ci_runs`, `scan_dependencies`, and the scored `scans.summary` → caches completed scan.
 6. On failure → final attempt writes `status = 'failed'` and error text, invalidates matching caches; earlier attempts log and leave the row for BullMQ retry (up to 3 attempts with exponential backoff). Stale retries cannot overwrite a newer scan's cached result.
 
-## Request lifecycle — automatic rescans
+## Request lifecycle: automatic rescans
 
 Each tracked repository has its own BullMQ Job Scheduler named
 `repo-scan:<repoId>`, so concurrent repositories never share a schedule.
@@ -54,14 +54,14 @@ Each tracked repository has its own BullMQ Job Scheduler named
    one overdue occurrence runs and the next occurrence is scheduled from the
    current cadence, avoiding an accumulation or catch-up burst.
 
-## Request lifecycle — metrics
+## Request lifecycle: metrics
 
 1. `GET /repos/:id/metrics` → `getRepoMetrics()`
 2. Latest completed scan for repo → cache key `cache:metrics:<repoId>:<scanId>` (60s TTL)
 3. Cache miss → aggregate `tool_usage` + `tracked_tools`, read persisted `scans.languages` (Redis context fallback only when NULL) → compute the adoption score → write cache → return
 4. New scan → new scan id → new cache key; old key expires naturally
 
-## Request lifecycle — repository insights
+## Request lifecycle: repository insights
 
 1. `GET /repos/:id/{structure,activity,concentration,ci,dependencies,overview}` → latest **completed** scan for the repo.
 2. No completed scan → `available: false, reason: "no_scan"` with an empty, well-shaped payload where needed.
@@ -106,14 +106,14 @@ changes.
 
 ## Data model
 
-- **users** — GitHub identity + encrypted access token (AES-256-GCM)
-- **repositories** — tracked repos; metadata synced from GitHub at add time
-- **scans** — one row per scan request; status, timestamps, detected `languages` (`TEXT[]`), `repo_tree` JSONB, summary JSON
-- **scan_ci_runs** — up to 300 GitHub Actions runs per scan; workflow, branch, actor, conclusion, duration, URL
-- **scan_dependencies** — parsed dependency rows per scan; current/latest version, outdated flag, advisory count/severity, registry URL
-- **tool_usage** — one repo-level row per tool per scan (`contributor_login IS NULL`), plus one per-contributor row per tool per scan
-- **tracked_tools** — user's curated set of tools per repo (`enabled` flag); scan worker backfills newly detected + relevant tools with `ON CONFLICT DO NOTHING` so user choices win
-- **migrations** — applied migration ledger
+- **users**: GitHub identity + encrypted access token (AES-256-GCM)
+- **repositories**: tracked repos; metadata synced from GitHub at add time
+- **scans**: one row per scan request; status, timestamps, detected `languages` (`TEXT[]`), `repo_tree` JSONB, summary JSON
+- **scan_ci_runs**: up to 300 GitHub Actions runs per scan; workflow, branch, actor, conclusion, duration, URL
+- **scan_dependencies**: parsed dependency rows per scan; current/latest version, outdated flag, advisory count/severity, registry URL
+- **tool_usage**: one repo-level row per tool per scan (`contributor_login IS NULL`), plus one per-contributor row per tool per scan
+- **tracked_tools**: user's curated set of tools per repo (`enabled` flag); scan worker backfills newly detected + relevant tools with `ON CONFLICT DO NOTHING` so user choices win
+- **migrations**: applied migration ledger
 
 Cascades: deleting a repo cascades to its `scans`, `tool_usage`, and `tracked_tools`.
 Deleting a repo is a single service operation: in-flight scans are first marked
@@ -136,7 +136,7 @@ surviving scan row if present, and exits without throwing.
 | `ratelimit:<name>:<identity>:<window>` | window + 1s | Fixed-window rate counter |
 | `oauth:state:<state>` | 10m | OAuth CSRF state |
 
-Redis is not a source of truth — everything cached here can be regenerated from Postgres and GitHub.
+Redis is not a source of truth: everything cached here can be regenerated from Postgres and GitHub.
 
 ## Authentication
 
@@ -148,10 +148,10 @@ Redis is not a source of truth — everything cached here can be regenerated fro
 
 ## Tenancy model
 
-repo-insights is deployed as a **single shared workspace**. All authenticated
+repositron is deployed as a **single shared workspace**. All authenticated
 users see the same set of tracked repositories, scans, and metrics.
 
-`repositories.added_by` records who added the repo — it is informational,
+`repositories.added_by` records who added the repo: it is informational,
 not an ownership model. It does not gate access. Any authenticated user may
 delete any tracked repository.
 
@@ -185,7 +185,7 @@ there is still no way to share.
 
 - `adoption = mean(adoptionRate of detected tracked tools that aren't commit-presence proxies)`
 - `adoptionScore = adoption`; there is no separate coverage multiplier.
-- Commit-presence proxies (`github-actions`, `dependabot`, `renovate`) are always reported but never count toward `adoption` — their per-contributor signal is "made a commit," which would inflate the score to 100 on any active repo.
+- Commit-presence proxies (`github-actions`, `dependabot`, `renovate`) are always reported but never count toward `adoption`: their per-contributor signal is "made a commit," which would inflate the score to 100 on any active repo.
 
 When `tracked_tools` is empty (uncurated repo), scoring falls back to "everything detected and relevant" so a fresh repo doesn't score 0.
 
@@ -224,9 +224,9 @@ and displayed alongside it.
 
 ## Repository insights
 
-- **Structure** — recursive tree from GitHub, capped at 500 entries and depth 4. Directory sizes/counts are rolled up; `.git` internals and submodule `commit` nodes are excluded. Last-modified timestamps come from the 365-day commit history.
-- **Activity** — 90/180/365-day aggregates from up to 1,000 commits. Daily buckets use UTC; weekly buckets start Monday UTC. Commit quality ignores merge commits and sanitizes examples.
-- **Concentration** — top-1/top-3/top-10 share and Gini over positive contributor commit counts. Risk is green `<50%`, yellow `50–75%`, red `>75%` top-3 share.
-- **Workflows** — up to 300 workflow runs per scan. Workflow/branch/range filters are applied to persisted rows. Public repos use `public_repo`; if Actions read access is unavailable, workflows are reported unavailable rather than failing the scan.
-- **Dependencies** — parsers read direct manifests only: `package.json`, `requirements.txt`, `pyproject.toml`, `setup.cfg`, `setup.py`, `Pipfile`, `go.mod`, `Gemfile`, and `composer.json`. Lockfiles are never parsed, so transitive packages are not reported. Unpinned packages are shown as `unpinned`; outdated means the latest major release is at least one major ahead. Lookups are capped at 300 dependencies, concurrency 8, 90s budget, with 24h registry/OSV caches. Refresh is queued and updates the latest completed scan in place.
-- **GitHub budget** — insight collection adds roughly 11 GitHub calls per scan beyond the old pipeline (up to 10 commit pages in total, one tree, and up to 3 Actions pages), keeping the normal total near 87.
+- **Structure**: recursive tree from GitHub, capped at 500 entries and depth 4. Directory sizes/counts are rolled up; `.git` internals and submodule `commit` nodes are excluded. Last-modified timestamps come from the 365-day commit history.
+- **Activity**: 90/180/365-day aggregates from up to 1,000 commits. Daily buckets use UTC; weekly buckets start Monday UTC. Commit quality ignores merge commits and sanitizes examples.
+- **Concentration**: top-1/top-3/top-10 share and Gini over positive contributor commit counts. Risk is green `<50%`, yellow `50–75%`, red `>75%` top-3 share.
+- **Workflows**: up to 300 workflow runs per scan. Workflow/branch/range filters are applied to persisted rows. Public repos use `public_repo`; if Actions read access is unavailable, workflows are reported unavailable rather than failing the scan.
+- **Dependencies**: parsers read direct manifests only: `package.json`, `requirements.txt`, `pyproject.toml`, `setup.cfg`, `setup.py`, `Pipfile`, `go.mod`, `Gemfile`, and `composer.json`. Lockfiles are never parsed, so transitive packages are not reported. Unpinned packages are shown as `unpinned`; outdated means the latest major release is at least one major ahead. Lookups are capped at 300 dependencies, concurrency 8, 90s budget, with 24h registry/OSV caches. Refresh is queued and updates the latest completed scan in place.
+- **GitHub budget**: insight collection adds roughly 11 GitHub calls per scan beyond the old pipeline (up to 10 commit pages in total, one tree, and up to 3 Actions pages), keeping the normal total near 87.

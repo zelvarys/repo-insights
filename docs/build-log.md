@@ -1,10 +1,10 @@
 # Build Log
 
-Phase-by-phase history of how `repo-insights` was built. Each phase was a self-contained, testable milestone with its own acceptance test. Kept as engineering documentation for future contributors.
+Phase-by-phase history of how `repositron` was built. Each phase was a self-contained, testable milestone with its own acceptance test. Kept as engineering documentation for future contributors.
 
 ---
 
-## Phase 0 — Project Skeleton 
+## Phase 0: Project Skeleton
 
 Express server with `/health` returning `{ status: 'ok' }`.
 
@@ -12,7 +12,7 @@ Files: `package.json`, `tsconfig.json`, `.env(.example)`, `.gitignore`, `server/
 
 ---
 
-## Phase 1 — Postgres + Redis + Migrations 
+## Phase 1: Postgres + Redis + Migrations
 
 Postgres and Redis running locally, schema applied via a migration runner.
 
@@ -20,7 +20,7 @@ Files: `server/config/database.ts`, `server/config/redis.ts`, `migrations/001_in
 
 ---
 
-## Phase 2 — GitHub OAuth 
+## Phase 2: GitHub OAuth
 
 User logs in via GitHub, receives a JWT cookie, GitHub access token encrypted at rest with AES-256-GCM.
 
@@ -28,7 +28,7 @@ Files: `server/utils/jwt.ts`, `server/utils/crypto.ts`, `server/integrations/git
 
 ---
 
-## Phase 3 — Repository Module 
+## Phase 3: Repository Module
 
 List GitHub repos, add to tracking, list tracked repos, get one. Org-repo filter excludes repos the user has never contributed to.
 
@@ -36,7 +36,7 @@ Files: `server/modules/repositories/*`.
 
 ---
 
-## Phase 4 — Scan Queue 
+## Phase 4: Scan Queue
 
 `POST /repos/:id/scan` enqueues a BullMQ job; worker writes `scans` rows.
 
@@ -44,7 +44,7 @@ Files: `server/modules/scans/scan.{queue,service,controller,routes,worker}.ts`.
 
 ---
 
-## Phase 5 — GitHub Data Fetching 
+## Phase 5: GitHub Data Fetching
 
 Worker fetches commits, contributors, config files, workflow listings and caches them in Redis as `scan:context:<scanId>` with 1h TTL.
 
@@ -52,7 +52,7 @@ Files: `server/modules/scans/scan.context.ts`; extended `server/integrations/git
 
 ---
 
-## Phase 6 — First Detector (Jest) + GraphQL N+1 Fix 
+## Phase 6: First Detector (Jest) + GraphQL N+1 Fix
 
 Jest detector writes `tool_usage` rows. Replaced org-repo N+1 REST filter with a single GraphQL `commitContributionsByRepository` query.
 
@@ -60,7 +60,7 @@ Files: `server/modules/tools/detector.{interface,registry}.ts`, `server/modules/
 
 ---
 
-## Phase 7 — Remaining Detectors 
+## Phase 7: Remaining Detectors
 
 Twelve more detectors, 13 total: eslint, prettier, pytest, black, ruff, pre-commit, github-actions, dependabot, renovate, go-test, golangci-lint, phpunit.
 
@@ -68,7 +68,7 @@ Files: `server/modules/tools/detectors/*.detector.ts`; extended `scan.worker.ts`
 
 ---
 
-## Phase 8 — Metrics Aggregation 
+## Phase 8: Metrics Aggregation
 
 `GET /repos/:id/metrics` returns adoption score, coverage, adoption, per-tool breakdown, per-contributor counts, language list.
 
@@ -83,7 +83,7 @@ Files: `server/modules/metrics/*`.
 
 ---
 
-## Phase 8b — User-Curated Tracked Tools 
+## Phase 8b: User-Curated Tracked Tools
 
 `tracked_tools` table. `GET/PUT /repos/:id/tracked-tools`. Scan worker backfills newly detected + relevant tools (user choices win). Metrics scores against the user's tracked set; falls back to detected+relevant when uncurated.
 
@@ -91,10 +91,10 @@ Files: `migrations/002_tracked_tools.sql`, `server/modules/tracked-tools/*`.
 
 ---
 
-## Phase 9 — Caching + Rate Limiting 
+## Phase 9: Caching + Rate Limiting
 
 - Scan cache: 1h TTL, keyed by repoId; `cached: true` on fresh hits
-- Metrics cache: 60s TTL, keyed by `repoId + scanId` — a new scan naturally busts
+- Metrics cache: 60s TTL, keyed by `repoId + scanId`: a new scan naturally busts
 - In-flight scan dedup: `pending`/`running` short-circuits
 - Rate limiting: 300/min global, 10/min scan, 120/min metrics; fails open on Redis errors
 
@@ -102,7 +102,7 @@ Files: `server/utils/cache.ts`, `server/middleware/rate-limit.middleware.ts`; ex
 
 ---
 
-## Phase 10 — Hardening + Tests 
+## Phase 10: Hardening + Tests
 
 Vitest unit tests (jwt, crypto, 3 detectors), supertest integration tests (auth, scan pipeline), `attachRequestId` middleware, `INVALID_JSON` 400 handling.
 
@@ -110,13 +110,13 @@ Files: `vitest.config.ts`, `tests/**/*.test.ts`, `tests/helpers/*`; extended `er
 
 ---
 
-## Monorepo refactor 
+## Monorepo refactor
 
 `src/` moved to `server/`. Frontend directory `src/` created and waiting for Vite. Docs moved into `docs/`. CI workflow added.
 
 ---
 
-## Frontend F0 — Scaffold ✅
+## Frontend F0: Scaffold ✅
 
 Vite 6 + React 18 + TypeScript + Tailwind v4 + shadcn/ui (Neutral).
 `src/` is a workspace. Vite proxy forwards `/auth`, `/repos`, `/scans`,
@@ -124,19 +124,19 @@ Vite 6 + React 18 + TypeScript + Tailwind v4 + shadcn/ui (Neutral).
 
 ---
 
-## Frontend F1 — Router, Shell & Landing
+## Frontend F1: Router, Shell & Landing
 
 React Router v6 data router with lazy pages, a shared app shell, and the
 public marketing page.
 
 Routes:
 
-- `/` — landing page
-- `/app` — dashboard
-- `/app/repos` — repositories
-- `/app/repos/:owner/:repo` — repository report
-- `/app/repos/:owner/:repo/settings` — repository settings
-- `*` — 404
+- `/`: landing page
+- `/app`: dashboard
+- `/app/repos`: repositories
+- `/app/repos/:owner/:repo`: repository report
+- `/app/repos/:owner/:repo/settings`: repository settings
+- `*`: 404
 
 Files: `src/router.tsx`, `App.tsx`,
 `components/{ErrorBoundary,PageLoader}.tsx`,
@@ -153,7 +153,7 @@ Vite dev server serving every route above plus unknown paths.
 
 ---
 
-## Frontend F2 — Auth + API Client ✅
+## Frontend F2: Auth + API Client ✅
 
 Typed fetch wrapper (`credentials: include`) with an `ApiError` that preserves
 status, code, message, details, and request ID. TanStack Query with
@@ -169,7 +169,7 @@ Routes moved to `/dashboard`, `/repos`, `/repos/:id`, and
 
 ---
 
-## Frontend F3 — Repo List + Detail ✅
+## Frontend F3: Repo List + Detail ✅
 
 `/repos` lists tracked repos with an AddRepoDialog that fetches GitHub
 repos and posts `githubId`. `/repos/:id` shows metrics with ScoreGauge
@@ -184,7 +184,7 @@ in `src/types/local.ts` because it is not yet in the shared API types.
 
 ---
 
-## Frontend F4 — Settings, GitHub Dark Theme, Polish ✅
+## Frontend F4: Settings, GitHub Dark Theme, Polish ✅
 
 `/repos/:id/settings` with per-tool switches grouped by category, optimistic
 save with debounce + revert on error, warning banner if zero tools enabled.

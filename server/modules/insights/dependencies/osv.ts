@@ -60,7 +60,7 @@ async function queryBatch(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'User-Agent': 'repo-insights',
+      'User-Agent': 'repositron',
     },
     body: JSON.stringify({
       queries: dependencies.map((dependency) => ({

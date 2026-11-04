@@ -54,7 +54,7 @@ async function ghFetch<T>(
       Accept: 'application/vnd.github+json',
       Authorization: `Bearer ${token}`,
       'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'repo-insights',
+      'User-Agent': 'repositron',
       ...(init.headers ?? {}),
     },
   }, path);
@@ -79,7 +79,7 @@ async function ghGraphql<T>(
       Accept: 'application/vnd.github+json',
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
-      'User-Agent': 'repo-insights',
+      'User-Agent': 'repositron',
     },
     body: JSON.stringify({ query, variables }),
   }, 'graphql');
@@ -400,7 +400,7 @@ export async function getContributorCount(
         headers: {
           Accept: 'application/vnd.github+json',
           Authorization: `Bearer ${token}`,
-          'User-Agent': 'repo-insights',
+          'User-Agent': 'repositron',
         },
       },
       `${owner}/${repo}/contributors`,

@@ -1,4 +1,4 @@
-const STORAGE_KEY = "repo-insights:recent-repos"
+const STORAGE_KEY = "repositron:recent-repos"
 const MAX_RECENT = 5
 
 export function rememberRecentRepo(repoId: string): void {

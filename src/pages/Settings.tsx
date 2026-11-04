@@ -32,7 +32,7 @@ export default function Settings() {
           <CardHeader>
             <CardTitle>Account</CardTitle>
             <CardDescription>
-              You are signed in with GitHub. repo-insights only reads the
+              You are signed in with GitHub. repositron only reads the
               repositories you connect.
             </CardDescription>
           </CardHeader>

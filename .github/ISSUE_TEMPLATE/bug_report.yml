@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible problem with repo-insights
+description: Report a reproducible problem with repositron
 title: "[Bug]: "
 labels: ["bug"]
 body:

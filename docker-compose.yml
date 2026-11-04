@@ -1,30 +1,30 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: repo-insights-postgres
+    container_name: repositron-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: repo_tool_insights
+      POSTGRES_DB: repositron
     ports:
       - "5432:5432"
     volumes:
-      - rti_pgdata:/var/lib/postgresql/data
+      - repositron_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d repo_tool_insights"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d repositron"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: repo-insights-redis
+    container_name: repositron-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
-      - rti_redisdata:/data
+      - repositron_redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -32,5 +32,5 @@ services:
       retries: 10
 
 volumes:
-  rti_pgdata:
-  rti_redisdata:
+  repositron_pgdata:
+  repositron_redisdata:

@@ -52,7 +52,7 @@ the client IP correctly for unauthenticated limits.
 No auth, no rate limit.
 
 ```json
-{ "status": "ok", "service": "repo-insights", "time": "2026-01-01T00:00:00.000Z" }
+{ "status": "ok", "service": "repositron", "time": "2026-01-01T00:00:00.000Z" }
 ```
 
 ## Auth
@@ -214,11 +214,11 @@ NOT_FOUND`; malformed id → `400 BAD_REQUEST`.
 
 Requires auth. Rate-limited to 10/min.
 
-- **`202 Accepted`** — new scan queued. Body: `{ scan: {...}, cached: false }`
-- **`200 OK`** — either a fresh cached scan (< 1h old) or a pending/running scan already exists. Body: `{ scan: {...}, cached: true }`
-- **`503 SERVICE_UNAVAILABLE`** — the scan queue (Redis) is unavailable. The
+- **`202 Accepted`**: new scan queued. Body: `{ scan: {...}, cached: false }`
+- **`200 OK`**: either a fresh cached scan (< 1h old) or a pending/running scan already exists. Body: `{ scan: {...}, cached: true }`
+- **`503 SERVICE_UNAVAILABLE`**: the scan queue (Redis) is unavailable. The
   scan is marked failed before returning.
-- **`500 INTERNAL_ERROR`** — another enqueue failure occurred; the scan is
+- **`500 INTERNAL_ERROR`**: another enqueue failure occurred; the scan is
   marked failed.
 
 ### Automatic rescans
@@ -510,9 +510,9 @@ Requires auth. Rate-limited to 10/min. Queues a dependency-only refresh against
 the latest completed scan; the existing scan rows are updated in place and the
 dependency/overview caches are invalidated.
 
-- **`202 Accepted`** — `{ "queued": true, "scanId": "uuid" }`
-- **`409 CONFLICT`** — no completed scan or no dependency data to refresh.
-- **`503 SERVICE_UNAVAILABLE`** — the queue is unavailable.
+- **`202 Accepted`**: `{ "queued": true, "scanId": "uuid" }`
+- **`409 CONFLICT`**: no completed scan or no dependency data to refresh.
+- **`503 SERVICE_UNAVAILABLE`**: the queue is unavailable.
 
 Clients should poll `GET /repos/:id/dependencies` until `summary.checkedAt`
 advances.

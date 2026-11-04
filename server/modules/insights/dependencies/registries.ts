@@ -12,7 +12,7 @@ async function fetchJson(url: string): Promise<unknown> {
   const response = await fetch(url, {
     headers: {
       Accept: 'application/json',
-      'User-Agent': 'repo-insights',
+      'User-Agent': 'repositron',
     },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });

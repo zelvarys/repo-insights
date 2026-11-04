@@ -178,29 +178,6 @@ function QualityCard({ quality }: { quality: CommitQuality }) {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">
-              Average subject length
-            </p>
-            <p className="mt-1 text-lg font-semibold">
-              {quality.averageMessageLength} chars
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Aim for 50 characters or fewer so subjects are easy to scan.
-            </p>
-          </div>
-          <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">Average body length</p>
-            <p className="mt-1 text-lg font-semibold">
-              {quality.averageBodyLength} chars
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Bodies add useful context for larger or non-obvious changes.
-            </p>
-          </div>
-        </div>
-
         {quality.examples.length > 0 ? (
           <details open className="group rounded-lg border p-3">
             <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium [&::-webkit-details-marker]:hidden">

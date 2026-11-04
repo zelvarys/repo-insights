@@ -1,6 +1,6 @@
 import { pool } from '../../server/config/database.js';
 
-const KNOWN_APP_DATABASES = new Set(['repo_insights', 'postgres']);
+const KNOWN_APP_DATABASES = new Set(['repositron', 'postgres']);
 
 export function assertTestDatabase(): void {
   if (process.env.NODE_ENV !== 'test') {
@@ -14,7 +14,7 @@ export function assertTestDatabase(): void {
   if (!databaseUrl) {
     throw new Error(
       'truncateAll() refused: DATABASE_URL is not set. ' +
-        'Create repo_insights_test and set DATABASE_URL=postgres://<user>@localhost:5432/repo_insights_test, ' +
+        'Create repositron_test and set DATABASE_URL=postgres://<user>@localhost:5432/repositron_test, ' +
         'or set ALLOW_TEST_TRUNCATE=1 to override the _test suffix check.',
     );
   }
@@ -25,14 +25,14 @@ export function assertTestDatabase(): void {
   } catch {
     throw new Error(
       'truncateAll() refused: DATABASE_URL is not a valid URL. ' +
-        'Set DATABASE_URL=postgres://<user>@localhost:5432/repo_insights_test.',
+        'Set DATABASE_URL=postgres://<user>@localhost:5432/repositron_test.',
     );
   }
 
   if (!databaseName.endsWith('_test') && process.env.ALLOW_TEST_TRUNCATE !== '1') {
     throw new Error(
       `truncateAll() refused: database "${databaseName}" does not end in _test. ` +
-        'Create repo_insights_test and point DATABASE_URL at it, ' +
+        'Create repositron_test and point DATABASE_URL at it, ' +
         'or set ALLOW_TEST_TRUNCATE=1 to override the suffix check.',
     );
   }
@@ -40,7 +40,7 @@ export function assertTestDatabase(): void {
   if (KNOWN_APP_DATABASES.has(databaseName)) {
     throw new Error(
       `truncateAll() refused: database "${databaseName}" is an application database. ` +
-        'Create repo_insights_test and point DATABASE_URL at it.',
+        'Create repositron_test and point DATABASE_URL at it.',
     );
   }
 }

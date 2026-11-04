@@ -12,13 +12,13 @@ interface ToolDetector {
 }
 ```
 
-`ScanContext` carries everything a detector should need — no additional GitHub calls:
+`ScanContext` carries everything a detector should need, with no additional GitHub calls:
 
-- `commits` — up to 300 recent commits on the default branch; first 30 include per-file diffs
-- `contributors` — up to 200 contributors with contribution counts
-- `rootFiles` — file names at the repository root
-- `configFiles` — a map of path → text content for selected config files
-- `workflowFiles` — paths under `.github/workflows/`
+- `commits`: up to 300 recent commits on the default branch; first 30 include per-file diffs
+- `contributors`: up to 200 contributors with contribution counts
+- `rootFiles`: file names at the repository root
+- `configFiles`: a map of path → text content for selected config files
+- `workflowFiles`: paths under `.github/workflows/`
 
 A detector must not import from `server/integrations/` or make network calls. Everything must come from `ctx`.
 
@@ -72,13 +72,13 @@ This is a proxy, not proof. A contributor could touch a `.py` file without runni
 
 `github-actions`, `dependabot`, and `renovate` don't have a meaningful per-contributor signal (there is no "contributor ran CI locally"), so their per-contributor rows are set to "made a commit in the window." These three are excluded from `adoptionScore` via `countsTowardScore: false` in the metrics response.
 
-When a signal isn't present at all for a detector, the whole detector is excluded from the score denominator — a Python-only repo doesn't get penalised for missing `jest`.
+When a signal isn't present at all for a detector, the whole detector is excluded from the score denominator: a Python-only repo doesn't get penalised for missing `jest`.
 
 ## Language gating
 
 `go-test`, `golangci-lint`, and `phpunit` suppress themselves entirely on repos with no Go/PHP signals. Their `detected` is `false`, `perContributor` is `{}`. Metrics also flags them with `relevant: false`.
 
-JS and Python detectors use a softer approach — they stay relevant if their language is detected, but their per-contributor count is populated for every contributor regardless of language. A JS-only repo will show `pytest` as `relevant: false` (so the UI can dim it) but still populate its per-contributor rows.
+JS and Python detectors use a softer approach: they stay relevant if their language is detected, but their per-contributor count is populated for every contributor regardless of language. A JS-only repo will show `pytest` as `relevant: false` (so the UI can dim it) but still populate its per-contributor rows.
 
 ## Adding a new detector
 

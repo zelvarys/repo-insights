@@ -18,7 +18,7 @@ export default function Repos() {
     <>
       <PageHeader
         title="Repositories"
-        description="Repositories you have connected to repo-insights."
+        description="Repositories you have connected to repositron."
         actions={
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="size-4" />

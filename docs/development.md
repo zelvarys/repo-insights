@@ -6,7 +6,7 @@
 - Postgres 15+
 - Redis 7+
 
-## Option A — Docker (recommended on desktop)
+## Option A: Docker (recommended on desktop)
 
 ```bash
 docker compose up -d
@@ -15,11 +15,11 @@ docker compose up -d
 This starts Postgres (`localhost:5432`) and Redis (`localhost:6379`) with health checks. `.env` should use:
 
 ```bash
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/repo_insights
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/repositron
 REDIS_URL=redis://localhost:6379
 ```
 
-## Option B — Native install
+## Option B: Native install
 
 ### Linux (Debian/Ubuntu)
 
@@ -27,7 +27,7 @@ REDIS_URL=redis://localhost:6379
 sudo apt install postgresql redis-server
 
 sudo -u postgres psql -c "CREATE USER you WITH PASSWORD 'dev';"
-sudo -u postgres createdb -O you repo_insights
+sudo -u postgres createdb -O you repositron
 
 sudo systemctl enable --now postgresql
 sudo systemctl enable --now redis-server
@@ -36,7 +36,7 @@ sudo systemctl enable --now redis-server
 `.env`:
 
 ```bash
-DATABASE_URL=postgres://you:dev@localhost:5432/repo_insights
+DATABASE_URL=postgres://you:dev@localhost:5432/repositron
 REDIS_URL=redis://localhost:6379
 ```
 
@@ -47,13 +47,13 @@ brew install postgresql@15 redis
 brew services start postgresql@15
 brew services start redis
 
-createdb repo_insights
+createdb repositron
 ```
 
 `.env`:
 
 ```bash
-DATABASE_URL=postgres://user@localhost:5432/repo_insights
+DATABASE_URL=postgres://user@localhost:5432/repositron
 REDIS_URL=redis://localhost:6379
 ```
 
@@ -66,14 +66,14 @@ mkdir -p $PREFIX/var/lib/postgresql
 initdb $PREFIX/var/lib/postgresql
 
 pg_ctl -D $PREFIX/var/lib/postgresql -l $PREFIX/var/lib/postgresql/logfile start
-createdb repo_insights
+createdb repositron
 redis-server --daemonize yes
 ```
 
 `.env`:
 
 ```bash
-DATABASE_URL=postgres://user@localhost:5432/repo_insights
+DATABASE_URL=postgres://user@localhost:5432/repositron
 REDIS_URL=redis://localhost:6379
 ```
 
@@ -131,8 +131,8 @@ Re-running is a no-op. The `migrations` table in Postgres records what's applied
 To migrate the test database explicitly:
 
 ```bash
-createdb repo_insights_test
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/repo_insights_test npm run migrate
+createdb repositron_test
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/repositron_test npm run migrate
 ```
 
 ## Run
@@ -142,7 +142,7 @@ npm run dev      # API on http://localhost:3000
 npm run worker   # in a separate terminal
 ```
 
-Both must be running for scan processing to work — the API only enqueues jobs; the worker executes them.
+Both must be running for scan processing to work: the API only enqueues jobs; the worker executes them.
 
 ## Verify
 
@@ -170,8 +170,8 @@ Tests read configuration from a gitignored `.env.test`. Create it with
 migrations:
 
 ```bash
-createdb repo_insights_test
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/repo_insights_test npm run migrate
+createdb repositron_test
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/repositron_test npm run migrate
 ```
 
 Tests use the same Redis instance as development. Each test truncates the
@@ -195,9 +195,9 @@ terminal.
 
 Frontend scripts:
 
-- `npm run dev:frontend` — Vite dev server
-- `npm run build:frontend` — production build into `dist/frontend/`
-- `npm run typecheck:frontend` — TypeScript check
+- `npm run dev:frontend`: Vite dev server
+- `npm run build:frontend`: production build into `dist/frontend/`
+- `npm run typecheck:frontend`: TypeScript check
 
 shadcn components live in `src/components/ui/`. Add a new one from the repo root with:
 

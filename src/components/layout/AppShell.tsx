@@ -146,7 +146,7 @@ export function AppShell() {
             className="flex items-center gap-2 font-semibold"
           >
             <GitBranch className="size-5" />
-            repo-insights
+            repositron
           </Link>
         </div>
         <div className="flex-1 p-4">
@@ -155,7 +155,7 @@ export function AppShell() {
         <div className="border-t p-4">
           <Button variant="outline" className="w-full justify-start" asChild>
             <a
-              href="https://github.com/zelvarys/repo-insights"
+              href="https://github.com/zelvarys/repositron-hq"
               target="_blank"
               rel="noreferrer"
             >
@@ -188,7 +188,7 @@ export function AppShell() {
                     className="flex items-center gap-2 font-semibold"
                   >
                     <GitBranch className="size-5" />
-                    repo-insights
+                    repositron
                   </Link>
                 </SheetTitle>
               </SheetHeader>
@@ -206,7 +206,7 @@ export function AppShell() {
             className="flex items-center gap-2 font-semibold md:hidden"
           >
             <GitBranch className="size-5" />
-            repo-insights
+            repositron
           </Link>
 
           <div className="hidden flex-1 text-sm text-muted-foreground md:block">

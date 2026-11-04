@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="public/favicon.png" alt="repo-insights logo" width="96" height="96" />
+  <img src="public/favicon.svg" alt="repo-insights logo" width="96" height="96" />
 </h1>
 
 # repo-insights

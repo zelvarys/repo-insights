@@ -159,8 +159,8 @@ export function DependenciesTab({
       <div className="grid gap-3 sm:grid-cols-3">
         <Card className="py-4">
           <CardContent>
-            <p className="text-sm font-medium text-muted-foreground">
-              Total:{" "}
+            <p className="flex items-baseline gap-3 text-sm font-medium text-muted-foreground">
+              <span>Total:</span>
               <span className="text-2xl font-semibold text-foreground tabular-nums">
                 {summary.total}
               </span>
@@ -169,8 +169,8 @@ export function DependenciesTab({
         </Card>
         <Card className="py-4">
           <CardContent>
-            <p className="text-sm font-medium text-muted-foreground">
-              Outdated:{" "}
+            <p className="flex items-baseline gap-3 text-sm font-medium text-muted-foreground">
+              <span>Outdated:</span>
               <span className="text-2xl font-semibold text-foreground tabular-nums">
                 {summary.outdated}
               </span>
@@ -179,14 +179,16 @@ export function DependenciesTab({
         </Card>
         <Card className="py-4">
           <CardContent>
-            <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              Advisories:{" "}
-              <span className="text-2xl font-semibold text-foreground tabular-nums">
-                {summary.advisoryCount}
+            <p className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
+              <span>Advisories:</span>
+              <span className="flex items-center gap-2">
+                <span className="text-2xl font-semibold text-foreground tabular-nums">
+                  {summary.advisoryCount}
+                </span>
+                {summary.advisoryCount > 0 ? (
+                  <ShieldAlert className="size-4 text-destructive" />
+                ) : null}
               </span>
-              {summary.advisoryCount > 0 ? (
-                <ShieldAlert className="size-4 text-destructive" />
-              ) : null}
             </p>
           </CardContent>
         </Card>

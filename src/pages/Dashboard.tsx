@@ -1,7 +1,11 @@
 import { useState } from "react"
 import { useQueries } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
-import type { RepoMetrics, TrackedRepository } from "@shared/types"
+import type {
+  OverviewResponse,
+  RepoMetrics,
+  TrackedRepository,
+} from "@shared/types"
 import {
   Activity,
   ArrowRight,
@@ -97,58 +101,56 @@ function PublicDashboard() {
         description="Repository health and tool adoption at a glance."
       />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <Badge variant="secondary" className="mb-2 w-fit gap-1.5">
-                <Wrench className="size-3" />
-                Repository insights for maintainers
-              </Badge>
-              <CardTitle className="text-2xl text-balance sm:text-3xl">
-                See how healthy your repositories really are.
-              </CardTitle>
-              <CardDescription className="max-w-2xl text-base">
-                Connect GitHub to scan repository health, activity,
-                dependencies, workflows, structure, and how consistently
-                contributors use your tools.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap items-center gap-3">
-              <Button size="lg" onClick={signIn}>
-                <Github className="size-4" />
-                Connect GitHub
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Read-only access. Public repositories only.
-              </p>
-            </CardContent>
-          </Card>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <Badge variant="secondary" className="mb-2 w-fit gap-1.5">
+              <Wrench className="size-3" />
+              Repository insights for maintainers
+            </Badge>
+            <CardTitle className="text-2xl text-balance sm:text-3xl">
+              See how healthy your repositories really are.
+            </CardTitle>
+            <CardDescription className="max-w-2xl text-base">
+              Connect GitHub to scan repository health, activity, dependencies,
+              workflows, structure, and how consistently contributors use your
+              tools.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-3">
+            <Button size="lg" onClick={signIn}>
+              <Github className="size-4" />
+              Connect GitHub
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Read-only access. Public repositories only.
+            </p>
+          </CardContent>
+        </Card>
 
-          <div>
-            <div className="mb-3">
-              <h2 className="text-lg font-semibold">What you get</h2>
-              <p className="text-sm text-muted-foreground">
-                A complete picture of repository health in one place.
-              </p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {introFeatures.map((feature) => (
-                <Card key={feature.title}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-sm">
-                      <feature.icon className="size-4 text-primary" />
-                      {feature.title}
-                    </CardTitle>
-                    <CardDescription>{feature.description}</CardDescription>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
+        <div>
+          <div className="mb-3">
+            <h2 className="text-lg font-semibold">What you get</h2>
+            <p className="text-sm text-muted-foreground">
+              A complete picture of repository health in one place.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {introFeatures.map((feature) => (
+              <Card key={feature.title}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <feature.icon className="size-4 text-primary" />
+                    {feature.title}
+                  </CardTitle>
+                  <CardDescription>{feature.description}</CardDescription>
+                </CardHeader>
+              </Card>
+            ))}
           </div>
         </div>
 
-        <Card className="h-fit">
+        <Card>
           <CardHeader>
             <CardTitle>How it works</CardTitle>
             <CardDescription>
@@ -191,18 +193,26 @@ export default function Dashboard() {
       enabled: Boolean(user),
     })),
   })
+  const overviewQueries = useQueries({
+    queries: repos.map((repo) => ({
+      queryKey: ["repo", repo.id, "insights", "overview"],
+      queryFn: () => api.get<OverviewResponse>(`/repos/${repo.id}/overview`),
+      enabled: Boolean(user),
+    })),
+  })
   if (isLoading) return <ReposSkeleton />
   if (!user) return <PublicDashboard />
 
   const scannedMetrics = metricQueries
     .map((query) => query.data)
     .filter((metrics): metrics is RepoMetrics => Boolean(metrics?.scanId))
-  const averageAdoption =
-    scannedMetrics.length > 0
-      ? scannedMetrics.reduce(
-          (sum, metrics) => sum + metrics.adoptionScore,
-          0,
-        ) / scannedMetrics.length
+  const healthScores = overviewQueries
+    .map((query) => query.data?.health?.score)
+    .filter((score): score is number => typeof score === "number")
+  const averageHealth =
+    healthScores.length > 0
+      ? healthScores.reduce((sum, score) => sum + score, 0) /
+        healthScores.length
       : null
   const detectedTools = scannedMetrics.reduce(
     (sum, metrics) => sum + metrics.toolsDetected,
@@ -212,15 +222,17 @@ export default function Dashboard() {
     repos.length > 0
       ? Math.round((scannedMetrics.length / repos.length) * 100)
       : 0
-  const metricsLoading = metricQueries.some((query) => query.isLoading)
+  const metricsLoading =
+    metricQueries.some((query) => query.isLoading) ||
+    overviewQueries.some((query) => query.isLoading)
   const stats = [
     {
-      label: "Average adoption",
-      value: averageAdoption === null ? "—" : averageAdoption.toFixed(1),
+      label: "Average health",
+      value: averageHealth === null ? "—" : averageHealth.toFixed(1),
       icon: Gauge,
       detail: metricsLoading
-        ? "Loading repository metrics"
-        : `${scannedMetrics.length} scanned repositories`,
+        ? "Loading repository health"
+        : `${healthScores.length} scanned repositories`,
     },
     {
       label: "Scan coverage",
@@ -304,55 +316,58 @@ export default function Dashboard() {
                     No repositories visited yet.
                   </p>
                 ) : (
-                  <div className="divide-y border-t">
-                    {recentRepositories.map((repo, index) => {
-                      return (
-                        <Link
-                          key={repo.id}
-                          to={`/repos/${repo.id}`}
-                          className="block py-4 text-sm transition-colors hover:text-primary"
-                        >
-                          <span className="flex items-center gap-3">
-                            <span className="flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold text-muted-foreground">
-                              {index + 1}
-                            </span>
-                            <span className="flex min-w-0 flex-1 flex-col">
-                              <span className="flex items-center justify-between gap-3 font-medium">
-                                <span className="truncate">
-                                  {repo.fullName}
-                                </span>
-                                <span className="flex shrink-0 items-center gap-6 text-xs font-normal text-muted-foreground">
-                                  <span className="flex items-center gap-3">
-                                    <span
-                                      className="inline-flex items-center gap-1"
-                                      aria-label={`${repo.stars} stars`}
-                                    >
-                                      <Star className="size-3.5" />
-                                      {repo.stars.toLocaleString()}
-                                    </span>
-                                    <span
-                                      className="inline-flex items-center gap-1"
-                                      aria-label={`${repo.contributorCount} contributors`}
-                                    >
-                                      <Users className="size-3.5" />
-                                      {repo.contributorCount.toLocaleString()}
-                                    </span>
-                                    <span
-                                      className="inline-flex items-center gap-1"
-                                      aria-label={`${repo.forks} forks`}
-                                    >
-                                      <GitFork className="size-3.5" />
-                                      {repo.forks.toLocaleString()}
-                                    </span>
-                                  </span>
-                                  <ArrowRight className="size-4 shrink-0" />
-                                </span>
+                  <div className="mt-2 space-y-1 border-t pt-2">
+                    {recentRepositories.map((repo, index) => (
+                      <Link
+                        key={repo.id}
+                        to={`/repos/${repo.id}`}
+                        className="group/repo -mx-2 flex items-center gap-3 rounded-lg px-2 py-3 text-sm transition-colors hover:bg-accent/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                      >
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full border bg-muted/40 text-xs font-semibold tabular-nums text-muted-foreground">
+                          {index + 1}
+                        </span>
+                        <span className="flex min-w-0 flex-1 items-center justify-between gap-4">
+                          <span className="truncate font-medium">
+                            {repo.fullName}
+                          </span>
+                          <span className="flex shrink-0 items-center gap-6 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-3">
+                              <span
+                                className="inline-flex items-center gap-1"
+                                aria-label={`${repo.stars} stars`}
+                              >
+                                <Star className="size-3.5" aria-hidden="true" />
+                                {repo.stars.toLocaleString()}
+                              </span>
+                              <span
+                                className="inline-flex items-center gap-1"
+                                aria-label={`${repo.contributorCount} contributors`}
+                              >
+                                <Users
+                                  className="size-3.5"
+                                  aria-hidden="true"
+                                />
+                                {repo.contributorCount.toLocaleString()}
+                              </span>
+                              <span
+                                className="inline-flex items-center gap-1"
+                                aria-label={`${repo.forks} forks`}
+                              >
+                                <GitFork
+                                  className="size-3.5"
+                                  aria-hidden="true"
+                                />
+                                {repo.forks.toLocaleString()}
                               </span>
                             </span>
+                            <ArrowRight
+                              className="size-4 shrink-0 transition-transform group-hover/repo:translate-x-0.5"
+                              aria-hidden="true"
+                            />
                           </span>
-                        </Link>
-                      )
-                    })}
+                        </span>
+                      </Link>
+                    ))}
                   </div>
                 )}
               </div>

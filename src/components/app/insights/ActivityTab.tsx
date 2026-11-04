@@ -2,8 +2,6 @@ import { useMemo, useState } from "react"
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip as ChartTooltip,
@@ -17,7 +15,6 @@ import {
   InsightLoading,
   InsightUnavailable,
 } from "@/components/app/insights/InsightState"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -156,7 +153,7 @@ function QualityCard({ quality }: { quality: CommitQuality }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="grid gap-4 sm:grid-cols-[35fr_35fr_30fr] sm:gap-0">
+        <div className="grid gap-4 sm:grid-cols-[38fr_38fr_24fr] sm:gap-0">
           <div className="sm:pr-4">
             <p className="text-xs text-muted-foreground">
               Conventional Commits
@@ -174,39 +171,11 @@ function QualityCard({ quality }: { quality: CommitQuality }) {
             <Progress value={quality.bodyPercent} className="mt-2" />
           </div>
           <div className="sm:border-l sm:pl-4">
-            <p className="text-xs text-muted-foreground">Most common type</p>
+            <p className="text-xs text-muted-foreground">Common type</p>
             <p className="mt-1 text-2xl font-semibold">
               {quality.mostCommonType ?? "—"}
             </p>
           </div>
-        </div>
-
-        <div className="h-40">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={quality.messageLengthBuckets}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" tickLine={false} axisLine={false} />
-              <YAxis
-                orientation="right"
-                allowDecimals={false}
-                tickLine={false}
-                axisLine={false}
-                width={32}
-              />
-              <ChartTooltip
-                contentStyle={{
-                  background: "var(--popover)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 8,
-                }}
-              />
-              <Bar
-                dataKey="count"
-                radius={[4, 4, 0, 0]}
-                fill="var(--chart-2)"
-              />
-            </BarChart>
-          </ResponsiveContainer>
         </div>
 
         {quality.examples.length > 0 ? (
@@ -437,7 +406,6 @@ export function ActivityTab({
       </div>
 
       <QualityCard quality={activity.quality} />
-      <Badge variant="outline">Range: last {activity.range} days</Badge>
     </div>
   )
 }

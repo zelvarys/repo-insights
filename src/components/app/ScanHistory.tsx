@@ -137,7 +137,7 @@ export function ScanHistory({ repoId }: { repoId: string }) {
   const scansQuery = useRepoScans(repoId)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  const scans = scansQuery.data?.scans.slice(0, 5) ?? []
+  const scans = scansQuery.data?.scans.slice(0, 3) ?? []
 
   function toggle(scanId: string) {
     setExpandedId((current) => (current === scanId ? null : scanId))
@@ -147,7 +147,7 @@ export function ScanHistory({ repoId }: { repoId: string }) {
     <Card>
       <CardHeader>
         <CardTitle>Scan history</CardTitle>
-        <CardDescription>The five most recent scans.</CardDescription>
+        <CardDescription>The three most recent scans.</CardDescription>
       </CardHeader>
       <CardContent>
         {scansQuery.isLoading ? (

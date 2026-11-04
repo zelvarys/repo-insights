@@ -1,7 +1,11 @@
 import { useState } from "react"
 import { useQueries } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
-import type { RepoMetrics, TrackedRepository } from "@shared/types"
+import type {
+  OverviewResponse,
+  RepoMetrics,
+  TrackedRepository,
+} from "@shared/types"
 import {
   Activity,
   ArrowRight,
@@ -97,58 +101,56 @@ function PublicDashboard() {
         description="Repository health and tool adoption at a glance."
       />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <Badge variant="secondary" className="mb-2 w-fit gap-1.5">
-                <Wrench className="size-3" />
-                Repository insights for maintainers
-              </Badge>
-              <CardTitle className="text-2xl text-balance sm:text-3xl">
-                See how healthy your repositories really are.
-              </CardTitle>
-              <CardDescription className="max-w-2xl text-base">
-                Connect GitHub to scan repository health, activity,
-                dependencies, workflows, structure, and how consistently
-                contributors use your tools.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap items-center gap-3">
-              <Button size="lg" onClick={signIn}>
-                <Github className="size-4" />
-                Connect GitHub
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Read-only access. Public repositories only.
-              </p>
-            </CardContent>
-          </Card>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <Badge variant="secondary" className="mb-2 w-fit gap-1.5">
+              <Wrench className="size-3" />
+              Repository insights for maintainers
+            </Badge>
+            <CardTitle className="text-2xl text-balance sm:text-3xl">
+              See how healthy your repositories really are.
+            </CardTitle>
+            <CardDescription className="max-w-2xl text-base">
+              Connect GitHub to scan repository health, activity, dependencies,
+              workflows, structure, and how consistently contributors use your
+              tools.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-3">
+            <Button size="lg" onClick={signIn}>
+              <Github className="size-4" />
+              Connect GitHub
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Read-only access. Public repositories only.
+            </p>
+          </CardContent>
+        </Card>
 
-          <div>
-            <div className="mb-3">
-              <h2 className="text-lg font-semibold">What you get</h2>
-              <p className="text-sm text-muted-foreground">
-                A complete picture of repository health in one place.
-              </p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {introFeatures.map((feature) => (
-                <Card key={feature.title}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-sm">
-                      <feature.icon className="size-4 text-primary" />
-                      {feature.title}
-                    </CardTitle>
-                    <CardDescription>{feature.description}</CardDescription>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
+        <div>
+          <div className="mb-3">
+            <h2 className="text-lg font-semibold">What you get</h2>
+            <p className="text-sm text-muted-foreground">
+              A complete picture of repository health in one place.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {introFeatures.map((feature) => (
+              <Card key={feature.title}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <feature.icon className="size-4 text-primary" />
+                    {feature.title}
+                  </CardTitle>
+                  <CardDescription>{feature.description}</CardDescription>
+                </CardHeader>
+              </Card>
+            ))}
           </div>
         </div>
 
-        <Card className="h-fit">
+        <Card>
           <CardHeader>
             <CardTitle>How it works</CardTitle>
             <CardDescription>
@@ -191,18 +193,26 @@ export default function Dashboard() {
       enabled: Boolean(user),
     })),
   })
+  const overviewQueries = useQueries({
+    queries: repos.map((repo) => ({
+      queryKey: ["repo", repo.id, "insights", "overview"],
+      queryFn: () => api.get<OverviewResponse>(`/repos/${repo.id}/overview`),
+      enabled: Boolean(user),
+    })),
+  })
   if (isLoading) return <ReposSkeleton />
   if (!user) return <PublicDashboard />
 
   const scannedMetrics = metricQueries
     .map((query) => query.data)
     .filter((metrics): metrics is RepoMetrics => Boolean(metrics?.scanId))
-  const averageAdoption =
-    scannedMetrics.length > 0
-      ? scannedMetrics.reduce(
-          (sum, metrics) => sum + metrics.adoptionScore,
-          0,
-        ) / scannedMetrics.length
+  const healthScores = overviewQueries
+    .map((query) => query.data?.health?.score)
+    .filter((score): score is number => typeof score === "number")
+  const averageHealth =
+    healthScores.length > 0
+      ? healthScores.reduce((sum, score) => sum + score, 0) /
+        healthScores.length
       : null
   const detectedTools = scannedMetrics.reduce(
     (sum, metrics) => sum + metrics.toolsDetected,
@@ -212,15 +222,17 @@ export default function Dashboard() {
     repos.length > 0
       ? Math.round((scannedMetrics.length / repos.length) * 100)
       : 0
-  const metricsLoading = metricQueries.some((query) => query.isLoading)
+  const metricsLoading =
+    metricQueries.some((query) => query.isLoading) ||
+    overviewQueries.some((query) => query.isLoading)
   const stats = [
     {
-      label: "Average adoption",
-      value: averageAdoption === null ? "—" : averageAdoption.toFixed(1),
+      label: "Average health",
+      value: averageHealth === null ? "—" : averageHealth.toFixed(1),
       icon: Gauge,
       detail: metricsLoading
-        ? "Loading repository metrics"
-        : `${scannedMetrics.length} scanned repositories`,
+        ? "Loading repository health"
+        : `${healthScores.length} scanned repositories`,
     },
     {
       label: "Scan coverage",

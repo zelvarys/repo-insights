@@ -132,7 +132,7 @@ function PublicDashboard() {
                 A complete picture of repository health in one place.
               </p>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {introFeatures.map((feature) => (
                 <Card key={feature.title}>
                   <CardHeader>
@@ -304,55 +304,58 @@ export default function Dashboard() {
                     No repositories visited yet.
                   </p>
                 ) : (
-                  <div className="divide-y border-t">
-                    {recentRepositories.map((repo, index) => {
-                      return (
-                        <Link
-                          key={repo.id}
-                          to={`/repos/${repo.id}`}
-                          className="block py-4 text-sm transition-colors hover:text-primary"
-                        >
-                          <span className="flex items-center gap-3">
-                            <span className="flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold text-muted-foreground">
-                              {index + 1}
-                            </span>
-                            <span className="flex min-w-0 flex-1 flex-col">
-                              <span className="flex items-center justify-between gap-3 font-medium">
-                                <span className="truncate">
-                                  {repo.fullName}
-                                </span>
-                                <span className="flex shrink-0 items-center gap-6 text-xs font-normal text-muted-foreground">
-                                  <span className="flex items-center gap-3">
-                                    <span
-                                      className="inline-flex items-center gap-1"
-                                      aria-label={`${repo.stars} stars`}
-                                    >
-                                      <Star className="size-3.5" />
-                                      {repo.stars.toLocaleString()}
-                                    </span>
-                                    <span
-                                      className="inline-flex items-center gap-1"
-                                      aria-label={`${repo.contributorCount} contributors`}
-                                    >
-                                      <Users className="size-3.5" />
-                                      {repo.contributorCount.toLocaleString()}
-                                    </span>
-                                    <span
-                                      className="inline-flex items-center gap-1"
-                                      aria-label={`${repo.forks} forks`}
-                                    >
-                                      <GitFork className="size-3.5" />
-                                      {repo.forks.toLocaleString()}
-                                    </span>
-                                  </span>
-                                  <ArrowRight className="size-4 shrink-0" />
-                                </span>
+                  <div className="mt-2 space-y-1 border-t pt-2">
+                    {recentRepositories.map((repo, index) => (
+                      <Link
+                        key={repo.id}
+                        to={`/repos/${repo.id}`}
+                        className="group/repo -mx-2 flex items-center gap-3 rounded-lg px-2 py-3 text-sm transition-colors hover:bg-accent/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                      >
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full border bg-muted/40 text-xs font-semibold tabular-nums text-muted-foreground">
+                          {index + 1}
+                        </span>
+                        <span className="flex min-w-0 flex-1 items-center justify-between gap-4">
+                          <span className="truncate font-medium">
+                            {repo.fullName}
+                          </span>
+                          <span className="flex shrink-0 items-center gap-6 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-3">
+                              <span
+                                className="inline-flex items-center gap-1"
+                                aria-label={`${repo.stars} stars`}
+                              >
+                                <Star className="size-3.5" aria-hidden="true" />
+                                {repo.stars.toLocaleString()}
+                              </span>
+                              <span
+                                className="inline-flex items-center gap-1"
+                                aria-label={`${repo.contributorCount} contributors`}
+                              >
+                                <Users
+                                  className="size-3.5"
+                                  aria-hidden="true"
+                                />
+                                {repo.contributorCount.toLocaleString()}
+                              </span>
+                              <span
+                                className="inline-flex items-center gap-1"
+                                aria-label={`${repo.forks} forks`}
+                              >
+                                <GitFork
+                                  className="size-3.5"
+                                  aria-hidden="true"
+                                />
+                                {repo.forks.toLocaleString()}
                               </span>
                             </span>
+                            <ArrowRight
+                              className="size-4 shrink-0 transition-transform group-hover/repo:translate-x-0.5"
+                              aria-hidden="true"
+                            />
                           </span>
-                        </Link>
-                      )
-                    })}
+                        </span>
+                      </Link>
+                    ))}
                   </div>
                 )}
               </div>

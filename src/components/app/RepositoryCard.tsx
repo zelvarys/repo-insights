@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom"
-import { formatDistanceToNowStrict } from "date-fns"
 import { ArrowUpRight, GitBranch, GitFork, Star, Users } from "lucide-react"
 import type { TrackedRepository } from "@shared/types"
 
@@ -35,45 +34,39 @@ export function RepositoryCard({ repo }: { repo: TrackedRepository }) {
           />
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-          <span
-            className="inline-flex items-center gap-1.5"
-            aria-label={`${repo.stars} stars`}
-          >
-            <Star className="size-3.5" aria-hidden="true" />
-            {repo.stars.toLocaleString()}
-          </span>
-          <span
-            className="inline-flex items-center gap-1.5"
-            aria-label={`${repo.forks} forks`}
-          >
-            <GitFork className="size-3.5" aria-hidden="true" />
-            {repo.forks.toLocaleString()}
-          </span>
-          <span
-            className="inline-flex items-center gap-1.5"
-            aria-label={`${repo.contributorCount} contributors`}
-          >
-            <Users className="size-3.5" aria-hidden="true" />
-            {repo.contributorCount.toLocaleString()}
-          </span>
-        </div>
-
-        <div className="mt-auto pt-6">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-xs text-muted-foreground">
-            <span className="inline-flex min-w-0 items-center gap-1.5">
-              <GitBranch className="size-3.5 shrink-0" aria-hidden="true" />
-              <span className="truncate font-mono text-[11px]">
-                {repo.defaultBranch}
-              </span>
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-5 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span
+              className="inline-flex items-center gap-1.5"
+              aria-label={`${repo.stars} stars`}
+            >
+              <Star className="size-3.5" aria-hidden="true" />
+              {repo.stars.toLocaleString()}
             </span>
-            <span className="shrink-0">
-              Added{" "}
-              {formatDistanceToNowStrict(new Date(repo.createdAt), {
-                addSuffix: true,
-              })}
+            <span
+              className="inline-flex items-center gap-1.5"
+              aria-label={`${repo.forks} forks`}
+            >
+              <GitFork className="size-3.5" aria-hidden="true" />
+              {repo.forks.toLocaleString()}
+            </span>
+            <span
+              className="inline-flex items-center gap-1.5"
+              aria-label={`${repo.contributorCount} contributors`}
+            >
+              <Users className="size-3.5" aria-hidden="true" />
+              {repo.contributorCount.toLocaleString()}
             </span>
           </div>
+          <span
+            className="ml-auto inline-flex min-w-0 items-center gap-1.5"
+            aria-label={`Default branch: ${repo.defaultBranch}`}
+          >
+            <GitBranch className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate font-mono text-[11px]">
+              {repo.defaultBranch}
+            </span>
+          </span>
         </div>
       </div>
     </Link>

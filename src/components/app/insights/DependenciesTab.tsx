@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react"
 import { ExternalLink, Loader2, RefreshCw, ShieldAlert } from "lucide-react"
 import { toast } from "sonner"
-import type { DependencyRow, DependencySeverity } from "@shared/types"
+import type { DependencyRow } from "@shared/types"
 import {
   InsightError,
   InsightLoading,
   InsightUnavailable,
 } from "@/components/app/insights/InsightState"
-import { StatCard } from "@/components/app/StatCard"
 import { StatusBadge, type StatusTone } from "@/components/app/StatusBadge"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -31,22 +30,6 @@ import {
   useRepoDependencies,
   type DependencyFilters,
 } from "@/hooks/useRepoInsights"
-
-const SEVERITY_ORDER: DependencySeverity[] = [
-  "critical",
-  "high",
-  "moderate",
-  "low",
-]
-
-function severitySummary(severity: Record<DependencySeverity, number>): string {
-  const present = SEVERITY_ORDER.filter((level) => severity[level] > 0).slice(
-    0,
-    2,
-  )
-  if (present.length === 0) return "No known advisories"
-  return present.map((level) => `${severity[level]} ${level}`).join(", ")
-}
 
 function dependencyStatus(row: DependencyRow): {
   label: string
@@ -174,28 +157,39 @@ export function DependenciesTab({
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard
-          label="Total dependencies"
-          value={summary.total}
-          detail={`${summary.checked} checked against registries`}
-        />
-        <StatCard
-          label="Outdated"
-          value={summary.outdated}
-          detail="Newer stable version available"
-        />
-        <StatCard
-          label="Advisories"
-          value={
-            <span className="flex items-center gap-2">
-              {summary.advisoryCount}
+        <Card className="py-4">
+          <CardContent>
+            <p className="text-sm font-medium text-muted-foreground">
+              Total:{" "}
+              <span className="text-2xl font-semibold text-foreground tabular-nums">
+                {summary.total}
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="py-4">
+          <CardContent>
+            <p className="text-sm font-medium text-muted-foreground">
+              Outdated:{" "}
+              <span className="text-2xl font-semibold text-foreground tabular-nums">
+                {summary.outdated}
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="py-4">
+          <CardContent>
+            <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              Advisories:{" "}
+              <span className="text-2xl font-semibold text-foreground tabular-nums">
+                {summary.advisoryCount}
+              </span>
               {summary.advisoryCount > 0 ? (
                 <ShieldAlert className="size-4 text-destructive" />
               ) : null}
-            </span>
-          }
-          detail={severitySummary(summary.severity)}
-        />
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>

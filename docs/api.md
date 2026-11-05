@@ -2,7 +2,7 @@
 
 Base URL: `http://localhost:3000` in development.
 
-All routes except `/health` and `/auth/github*` require an authenticated session. Authentication uses an `httpOnly` cookie named `token`, set by `GET /auth/github/callback`.
+All routes except `/health`, `/ready`, and `/auth/github*` require an authenticated session. Authentication uses an `httpOnly` cookie named `token`, set by `GET /auth/github/callback`.
 
 Every response includes an `X-Request-Id` header. Error responses include `requestId` in the body so client-side logs and server-side logs can be correlated.
 
@@ -43,7 +43,8 @@ other's quota. Unauthenticated routes key by IP.
 | Auth routes | 300/min |
 
 If the API runs behind a reverse proxy, set `TRUST_PROXY` so Express resolves
-the client IP correctly for unauthenticated limits.
+the client IP correctly for unauthenticated limits. Use `TRUST_PROXY=1` behind
+one proxy; production defaults to one trusted hop when it is unset.
 
 ## Health
 
@@ -54,6 +55,12 @@ No auth, no rate limit.
 ```json
 { "status": "ok", "service": "repositron", "time": "2026-01-01T00:00:00.000Z" }
 ```
+
+### `GET /ready`
+
+No auth, no rate limit. Checks Postgres and Redis connectivity. Returns `200`
+with `{ "status": "ready" }` when both are reachable, or `503` with
+`{ "status": "not_ready" }` otherwise.
 
 ## Auth
 

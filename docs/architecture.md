@@ -23,11 +23,29 @@
                         └──────────────────────────────────────┘
 ```
 
+## Production model
+
+The supported production deployment is **single-team, self-hosted, and
+intentionally not multi-tenant**. It runs on one VPS with Docker Compose:
+
+- The API and worker run from the same image with different commands.
+- Express serves the built SPA from `dist/frontend` and the API from the same
+  origin. A TLS-terminating reverse proxy forwards to the loopback-bound API.
+- Postgres and Redis are internal-only, with no host-published ports.
+- Migrations run as a one-shot service before the API and worker start.
+- `TRUST_PROXY=1` is expected behind the reverse proxy so rate limits use the
+  real client IP.
+- The API exposes `/health` for liveness and `/ready` for Postgres/Redis
+  readiness. The worker publishes `worker:heartbeat:scan` and its container
+  healthcheck fails on a stale heartbeat.
+- Backups are the deployment operator's responsibility, including Redis
+  because BullMQ schedulers/jobs and revoked sessions live there.
+
 ## Request lifecycle: scan
 
 1. `POST /repos/:id/scan` → `requestScan()` in `server/modules/scans/scan.service.ts`
 2. Cache check: `cache:scan-result:<repoId>` (1h TTL). Fresh → return `200 { scan, cached: true }` unless a newer scan row exists.
-3. In-flight check: `scans` row with `status IN ('pending','running')` for this repo → return that row, `cached: true`. Pending scans older than 10 minutes and running scans older than 30 minutes are considered stale and failed during boot reconciliation.
+3. In-flight check: `scans` row with `status IN ('pending','running')` for this repo → return that row, `cached: true`. Pending scans older than 10 minutes and running scans older than 30 minutes (measured from `started_at`, falling back to `created_at`) are considered stale and failed during boot reconciliation.
 4. Insert `scans` row (`status = 'pending'`) → enqueue BullMQ job keyed by scan id → return `202 { scan, cached: false }`. The check, stale update, and insert run in one transaction guarded by `pg_advisory_xact_lock` on the repo id, backed by a partial unique index for active scans.
 5. Worker picks up job → marks `status = 'running'` → fetches GitHub data (config files, up to 1,000 commits, recursive tree, recent Actions runs) → builds `ScanContext` → saves to `scan:context:<scanId>` (1h TTL) → runs 13 detectors → persists `tool_usage` rows → backfills `tracked_tools` → computes activity/commit quality, contributor concentration, structure, workflow health, and dependency health → writes `scans.languages`, `scans.repo_tree`, `scan_ci_runs`, `scan_dependencies`, and the scored `scans.summary` → caches completed scan.
 6. On failure → final attempt writes `status = 'failed'` and error text, invalidates matching caches; earlier attempts log and leave the row for BullMQ retry (up to 3 attempts with exponential backoff). Stale retries cannot overwrite a newer scan's cached result.
@@ -108,7 +126,7 @@ changes.
 
 - **users**: GitHub identity + encrypted access token (AES-256-GCM)
 - **repositories**: tracked repos; metadata synced from GitHub at add time
-- **scans**: one row per scan request; status, timestamps, detected `languages` (`TEXT[]`), `repo_tree` JSONB, summary JSON
+- **scans**: one row per scan request; status, timestamps, detected `languages` (`TEXT[]`), `repo_tree` JSONB, summary JSON. A retention job removes scans older than `SCAN_RETENTION_DAYS` while keeping the latest completed scan per repository.
 - **scan_ci_runs**: up to 300 GitHub Actions runs per scan; workflow, branch, actor, conclusion, duration, URL
 - **scan_dependencies**: parsed dependency rows per scan; current/latest version, outdated flag, advisory count/severity, registry URL
 - **tool_usage**: one repo-level row per tool per scan (`contributor_login IS NULL`), plus one per-contributor row per tool per scan
@@ -135,8 +153,12 @@ surviving scan row if present, and exits without throwing.
 | `revoked:<jti>` | remaining JWT lifetime | Revoked session ids; checked by `requireAuth` |
 | `ratelimit:<name>:<identity>:<window>` | window + 1s | Fixed-window rate counter |
 | `oauth:state:<state>` | 10m | OAuth CSRF state |
+| `worker:heartbeat:scan` | 90s | Worker liveness signal used by the container healthcheck |
 
-Redis is not a source of truth: everything cached here can be regenerated from Postgres and GitHub.
+Cached values can be regenerated from Postgres and GitHub, but Redis also holds
+BullMQ jobs/schedulers, OAuth state, revoked session ids, and the worker
+heartbeat. Losing Redis loses queued scans, automatic rescan schedules, and
+session revocations, so it must be included in backups.
 
 ## Authentication
 
@@ -157,7 +179,7 @@ delete any tracked repository.
 
 This model is correct for:
 
-- A self-hosted deployment used by one team
+- The supported production deployment: a self-hosted instance used by one team
 - A shared demo instance
 - Early-stage SaaS before team features exist
 

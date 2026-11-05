@@ -2,24 +2,14 @@
 
 ## Prerequisites
 
-- Node 20+
+- Node 24 LTS
 - Postgres 15+
 - Redis 7+
 
-## Option A: Docker (recommended on desktop)
+Docker is used for production deployment, not local development. Run Postgres
+and Redis natively for local work.
 
-```bash
-docker compose up -d
-```
-
-This starts Postgres (`localhost:5432`) and Redis (`localhost:6379`) with health checks. `.env` should use:
-
-```bash
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/repositron
-REDIS_URL=redis://localhost:6379
-```
-
-## Option B: Native install
+## Native install
 
 ### Linux (Debian/Ubuntu)
 
@@ -99,7 +89,8 @@ alias startdb='pg_ctl -D $PREFIX/var/lib/postgresql -l $PREFIX/var/lib/postgresq
 | `TOKEN_ENCRYPTION_KEY` | yes (64 hex chars) | AES-256-GCM key for GitHub access tokens at rest |
 | `FRONTEND_URL` | yes | Redirect target after OAuth; also the CORS origin |
 | `GITHUB_FETCH_TIMEOUT_MS` | no (default `15000`) | Timeout for each GitHub API request; must be > 0 |
-| `TRUST_PROXY` | no | Set when behind a reverse proxy so rate limits use the real client IP. `true`, `false`, or an Express trust-proxy value |
+| `TRUST_PROXY` | no | Reverse proxy hops to trust. Use `1` behind one proxy, or `true`, `false`, or an Express trust-proxy value. Defaults to `1` when `NODE_ENV=production`. |
+| `SCAN_RETENTION_DAYS` | no (default `90`) | Delete scans older than this while keeping the latest completed scan per repository. |
 
 Generate the two secrets with:
 
@@ -116,6 +107,11 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 5. Leave **Expire user access tokens** unchecked
 6. Copy the Client ID and generate a Client Secret into `.env`
 
+For production, create or update the OAuth app with the public HTTPS homepage
+and callback URL, for example `https://repositron.example.com` and
+`https://repositron.example.com/auth/github/callback`. `GITHUB_CALLBACK_URL`
+must match exactly.
+
 The app requests the read-only scopes `read:user`, `user:email`, `public_repo`,
 and `read:org` at login. Scans only read repository contents, contributors,
 commits, and workflows; no write scopes are requested.
@@ -126,7 +122,10 @@ commits, and workflows; no write scopes are requested.
 npm run migrate
 ```
 
-Re-running is a no-op. The `migrations` table in Postgres records what's applied.
+Re-running is a no-op. The `migrations` table in Postgres records what's
+applied. The runner takes a Postgres advisory lock and stores a SHA-256
+checksum for each migration, so concurrent deploys cannot race and edited
+applied migrations fail loudly.
 
 To migrate the test database explicitly:
 
@@ -144,11 +143,67 @@ npm run worker   # in a separate terminal
 
 Both must be running for scan processing to work: the API only enqueues jobs; the worker executes them.
 
+## Production deployment
+
+Production runs the full stack from `docker-compose.yml` on one VPS. The API
+serves both the built SPA and the API on the same origin.
+
+1. Copy `.env.example` to `.env`.
+2. On the VPS, comment out the development values and uncomment the production
+   values. Set `POSTGRES_PASSWORD`, `FRONTEND_URL`, `GITHUB_CALLBACK_URL`, and
+   the app secrets. Keep `DATABASE_URL` pointed at the `postgres` service and
+   `REDIS_URL` at the `redis` service.
+3. Build and start the stack:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+4. Put a TLS-terminating reverse proxy in front of `127.0.0.1:3000`. Forward
+   `X-Forwarded-For` and `X-Forwarded-Proto`, and keep `TRUST_PROXY=1`.
+5. Check container and application health:
+
+   ```bash
+   docker compose ps
+   curl -fsS http://127.0.0.1:3000/health
+   curl -fsS http://127.0.0.1:3000/ready
+   ```
+
+The `migrate` service runs before the API and worker. Postgres and Redis are
+internal-only and have no host-published ports. The API and worker use the
+same image with different commands. The worker writes a heartbeat every 30
+seconds; its container healthcheck fails if the heartbeat is more than 90
+seconds old.
+
+To run migrations manually:
+
+```bash
+docker compose run --rm migrate
+```
+
+## Backups
+
+Backups are the deployment operator's responsibility. The repository does not
+schedule them.
+
+- Back up Postgres regularly with `pg_dump`, or use WAL archiving if you need
+  point-in-time recovery. Store backups off-host and encrypted, and test a
+  restore before relying on them.
+- Back up Redis. Cached values can be regenerated, but BullMQ jobs and
+  schedulers, OAuth state, and revoked session ids cannot. Redis runs with
+  AOF enabled, and its volume must be included in the backup plan.
+- Back up the Docker volumes for Postgres and Redis, or dump the databases
+  from inside the containers.
+- Run a restore drill after changing the deployment topology.
+
 ## Verify
 
 ```bash
 curl -s http://localhost:3000/health
 # → {"status":"ok",...}
+
+curl -s http://localhost:3000/ready
+# → {"status":"ready",...}
 
 npm run typecheck
 npm run typecheck:frontend

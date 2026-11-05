@@ -6,6 +6,7 @@ coverage/
 .env.test
 .env.*.local
 *.log
+*.rdb
 *.tsbuildinfo
 .DS_Store
 .vscode/

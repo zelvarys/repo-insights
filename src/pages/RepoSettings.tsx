@@ -81,7 +81,7 @@ export default function RepoSettings() {
         repoName={repo?.fullName}
         onRemoved={() => {
           void queryClient.invalidateQueries({ queryKey: ["repos"] })
-          navigate("/dashboard", { replace: true })
+          void navigate("/dashboard", { replace: true })
         }}
       />
     </>

@@ -1,5 +1,9 @@
 import { Worker, type Job } from 'bullmq';
-import { createRedisConnection } from '../../config/redis.js';
+import {
+  createRedisConnection,
+  redis as sharedRedis,
+  closeRedis,
+} from '../../config/redis.js';
 import { pool } from '../../config/database.js';
 import {
   SCAN_QUEUE_NAME,
@@ -630,10 +634,51 @@ export async function processScanJobForTests(job: { data: ScanJobData }): Promis
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  const WORKER_HEARTBEAT_KEY = 'worker:heartbeat:scan';
+  const WORKER_HEARTBEAT_TTL_MS = 90_000;
+  const WORKER_HEARTBEAT_INTERVAL_MS = 30_000;
+
   const worker = startWorker();
+  let heartbeatTimer: NodeJS.Timeout | undefined;
+
+  const writeHeartbeat = () => {
+    void sharedRedis
+      .set(
+        WORKER_HEARTBEAT_KEY,
+        Date.now().toString(),
+        'PX',
+        WORKER_HEARTBEAT_TTL_MS,
+      )
+      .catch((err: Error) => {
+        logger.warn(`Worker heartbeat failed: ${err.message}`);
+      });
+  };
+
+  worker.on('ready', () => {
+    writeHeartbeat();
+    if (!heartbeatTimer) {
+      heartbeatTimer = setInterval(
+        writeHeartbeat,
+        WORKER_HEARTBEAT_INTERVAL_MS,
+      );
+    }
+  });
+
   const shutdown = async (signal: string) => {
     logger.info(`${signal} received — closing scan worker`);
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = undefined;
+    }
+    try {
+      await sharedRedis.del(WORKER_HEARTBEAT_KEY);
+    } catch (err) {
+      logger.warn(
+        `Failed to clear worker heartbeat: ${(err as Error).message}`,
+      );
+    }
     await worker.close();
+    await closeRedis();
     process.exit(0);
   };
   process.on('SIGINT', () => void shutdown('SIGINT'));

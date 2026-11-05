@@ -29,6 +29,7 @@ The app requests the read-only `public_repo` scope, so it analyzes public reposi
 ```
 server/       Backend: Express API + BullMQ worker
 src/          Frontend: React source for the Vite app
+Dockerfile    Multi-stage production image for the API and worker
 public/       Frontend static assets (favicon)
 shared/       TypeScript types shared between server and frontend (API contract)
 migrations/   SQL migrations
@@ -55,7 +56,7 @@ npm run dev:frontend    # frontend on http://localhost:5173
 Before opening a pull request, run `npm run lint`, `npm run typecheck`,
 `npm run typecheck:frontend`, and `npm test`.
 
-See [`docs/development.md`](docs/development.md) for Postgres/Redis setup (native or Docker).
+See [`docs/development.md`](docs/development.md) for native local setup and the production Docker Compose deployment, including backups.
 
 ## Documentation
 

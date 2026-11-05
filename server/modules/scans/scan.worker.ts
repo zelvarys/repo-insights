@@ -1,5 +1,9 @@
 import { Worker, type Job } from 'bullmq';
-import { createRedisConnection } from '../../config/redis.js';
+import {
+  createRedisConnection,
+  redis as sharedRedis,
+  closeRedis,
+} from '../../config/redis.js';
 import { pool } from '../../config/database.js';
 import {
   SCAN_QUEUE_NAME,
@@ -9,6 +13,9 @@ import {
   type ScheduledScanJobData,
 } from './scan.queue.js';
 import { SCHEDULED_SCAN_JOB_NAME } from './scan.scheduler.js';
+import { isFinalAttempt } from './scan.retry.js';
+import { env } from '../../config/env.js';
+import { pruneOldScans } from './scan.retention.js';
 import { logger } from '../../utils/logger.js';
 import { getAccessTokenForUser } from '../auth/auth.service.js';
 import {
@@ -518,10 +525,9 @@ async function processScanJob(job: {
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const isFinalAttempt =
-      (job.attemptsMade ?? 0) + 1 >= (job.opts?.attempts ?? 1);
+    const finalAttempt = isFinalAttempt(job);
 
-    if (!isFinalAttempt) {
+    if (!finalAttempt) {
       logger.warn(`Scan ${scanId} failed and will retry: ${message}`);
       throw err;
     }
@@ -606,7 +612,7 @@ export function startWorker(): Worker<ScanQueueJobData> {
         });
         return;
       }
-      await processScanJob({ data: job.data as ScanJobData });
+      await processScanJob(job as Job<ScanJobData>);
     },
     { connection: createRedisConnection(), concurrency: 2 },
   );
@@ -630,10 +636,75 @@ export async function processScanJobForTests(job: { data: ScanJobData }): Promis
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  const WORKER_HEARTBEAT_KEY = 'worker:heartbeat:scan';
+  const WORKER_HEARTBEAT_TTL_MS = 90_000;
+  const WORKER_HEARTBEAT_INTERVAL_MS = 30_000;
+
   const worker = startWorker();
+  let heartbeatTimer: NodeJS.Timeout | undefined;
+  let retentionTimer: NodeJS.Timeout | undefined;
+
+  const runRetention = async () => {
+    try {
+      const removed = await pruneOldScans(env.SCAN_RETENTION_DAYS);
+      if (removed > 0) {
+        logger.info(
+          `Pruned ${removed} scan(s) older than ${env.SCAN_RETENTION_DAYS} days`,
+        );
+      }
+    } catch (err) {
+      logger.warn(`Scan retention cleanup failed: ${(err as Error).message}`);
+    }
+  };
+
+  const writeHeartbeat = () => {
+    void sharedRedis
+      .set(
+        WORKER_HEARTBEAT_KEY,
+        Date.now().toString(),
+        'PX',
+        WORKER_HEARTBEAT_TTL_MS,
+      )
+      .catch((err: Error) => {
+        logger.warn(`Worker heartbeat failed: ${err.message}`);
+      });
+  };
+
+  worker.on('ready', () => {
+    writeHeartbeat();
+    if (!heartbeatTimer) {
+      heartbeatTimer = setInterval(
+        writeHeartbeat,
+        WORKER_HEARTBEAT_INTERVAL_MS,
+      );
+    }
+    if (!retentionTimer) {
+      void runRetention();
+      retentionTimer = setInterval(() => {
+        void runRetention();
+      }, 24 * 60 * 60 * 1000);
+    }
+  });
+
   const shutdown = async (signal: string) => {
     logger.info(`${signal} received — closing scan worker`);
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = undefined;
+    }
+    if (retentionTimer) {
+      clearInterval(retentionTimer);
+      retentionTimer = undefined;
+    }
+    try {
+      await sharedRedis.del(WORKER_HEARTBEAT_KEY);
+    } catch (err) {
+      logger.warn(
+        `Failed to clear worker heartbeat: ${(err as Error).message}`,
+      );
+    }
     await worker.close();
+    await closeRedis();
     process.exit(0);
   };
   process.on('SIGINT', () => void shutdown('SIGINT'));

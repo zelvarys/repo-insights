@@ -15,9 +15,12 @@ import {
 } from "@/components/ui/card"
 import { useRepo } from "@/hooks/useRepoDetail"
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export default function RepoSettings() {
   const { id } = useParams<{ id: string }>()
-  const repoId = id ?? ""
+  const repoId = id && UUID_RE.test(id) ? id : ""
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [removeOpen, setRemoveOpen] = useState(false)
@@ -35,7 +38,11 @@ export default function RepoSettings() {
           backTo="/dashboard"
           backLabel="Dashboard"
         />
-        <ErrorState error={new Error("Repository id is required.")} />
+        <ErrorState
+          error={new Error(
+            id ? "Invalid repository id." : "Repository id is required."
+          )}
+        />
       </>
     )
   }
@@ -74,7 +81,7 @@ export default function RepoSettings() {
         repoName={repo?.fullName}
         onRemoved={() => {
           void queryClient.invalidateQueries({ queryKey: ["repos"] })
-          navigate("/dashboard", { replace: true })
+          void navigate("/dashboard", { replace: true })
         }}
       />
     </>

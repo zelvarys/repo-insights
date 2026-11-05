@@ -32,13 +32,22 @@ const FRESH_SCAN_TTL_SECONDS = 60 * 60;
 const PENDING_STALE_AFTER_MS = 10 * 60 * 1000;
 const RUNNING_STALE_AFTER_MS = 30 * 60 * 1000;
 
-function staleScanError(status: string, createdAt: Date): string | null {
-  const age = Date.now() - createdAt.getTime();
-  if (status === 'pending' && age > PENDING_STALE_AFTER_MS) {
+function staleScanError(
+  status: string,
+  createdAt: Date,
+  startedAt: Date | null,
+): string | null {
+  if (
+    status === 'pending' &&
+    Date.now() - createdAt.getTime() > PENDING_STALE_AFTER_MS
+  ) {
     return 'Scan timed out before starting';
   }
-  if (status === 'running' && age > RUNNING_STALE_AFTER_MS) {
-    return 'Scan timed out while running';
+  if (status === 'running') {
+    const runningSince = startedAt ?? createdAt;
+    if (Date.now() - runningSince.getTime() > RUNNING_STALE_AFTER_MS) {
+      return 'Scan timed out while running';
+    }
   }
   return null;
 }
@@ -61,13 +70,18 @@ function isRedisUnavailableError(err: unknown): boolean {
   return /redis|connection is closed|connection lost/i.test(error.message ?? '');
 }
 
-export async function failStalePendingScans(): Promise<number> {
+export async function failStaleScans(): Promise<number> {
   const result = await pool.query(
     `UPDATE scans
      SET status = 'failed', completed_at = NOW(),
-         error = 'Scan timed out before starting'
-     WHERE status = 'pending'
-       AND created_at < NOW() - INTERVAL '10 minutes'`,
+         error = CASE
+           WHEN status = 'pending' THEN 'Scan timed out before starting'
+           ELSE 'Scan timed out while running'
+         END
+     WHERE (status = 'pending'
+            AND created_at < NOW() - INTERVAL '10 minutes')
+        OR (status = 'running'
+            AND COALESCE(started_at, created_at) < NOW() - INTERVAL '30 minutes')`,
   );
   return result.rowCount ?? 0;
 }
@@ -114,7 +128,11 @@ export async function requestScan(
     );
     const inFlight = existing.rows[0];
     if (inFlight) {
-      const staleError = staleScanError(inFlight.status, inFlight.created_at);
+      const staleError = staleScanError(
+        inFlight.status,
+        inFlight.created_at,
+        inFlight.started_at,
+      );
       if (!staleError) {
         await client.query('COMMIT');
         return { scan: toScan(inFlight), cached: true };

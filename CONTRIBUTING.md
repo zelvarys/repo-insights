@@ -12,7 +12,7 @@ Thanks for taking the time to contribute.
 
 ## Development setup
 
-1. Install Node 20+, Postgres 15+, Redis 7+
+1. Install Node 24 LTS, Postgres 15+, Redis 7+
 2. `npm install`
 3. `cp .env.example .env` and fill in the required values
 4. `npm run migrate`
@@ -33,7 +33,7 @@ Full details in `docs/development.md`.
 6. If the tool needs a config file that isn't in the fetch list, add the
    path to `CONFIG_FILE_CANDIDATES` or `CONFIG_SUBDIR_CANDIDATES` in
    `server/modules/scans/scan.worker.ts`
-7. Open a PR: CI runs typecheck, migrations, and tests
+7. Open a PR: CI runs typecheck, lint, migrations, tests, and the production build
 
 ## Commit conventions
 

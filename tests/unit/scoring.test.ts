@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeScore } from '../../server/modules/metrics/scoring.js';
-import type { ToolMetric } from '../../shared/types.js';
+import type { ToolMetric } from '../../shared/types/index.js';
 
 function tool(overrides: Partial<ToolMetric> & { name: string }): ToolMetric {
   return {

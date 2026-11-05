@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { shouldReplaceCachedScan } from '../../server/modules/scans/scan.service.js';
-import type { ScanSummary } from '../../shared/types.js';
+import type { ScanSummary } from '../../shared/types/index.js';
 
 function scan(id: string, createdAt: string): ScanSummary {
   return {

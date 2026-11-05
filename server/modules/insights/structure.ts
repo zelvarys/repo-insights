@@ -2,7 +2,7 @@ import type {
   FileTypeStat,
   RepoStructure,
   RepoTreeNode,
-} from '../../../shared/types.js';
+} from '../../../shared/types/index.js';
 
 export type RawTreeEntry = {
   path: string;

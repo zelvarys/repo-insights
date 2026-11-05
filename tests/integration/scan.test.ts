@@ -15,7 +15,7 @@ import {
 } from '../../server/modules/scans/scan.service.js';
 import { scanQueue } from '../../server/modules/scans/scan.queue.js';
 import { cacheSet, cacheGet, cacheDel, cacheKeys } from '../../server/utils/cache.js';
-import type { ScanSummary } from '../../shared/types.js';
+import type { ScanSummary } from '../../shared/types/index.js';
 import { deleteScanContext } from '../../server/modules/scans/scan.context.js';
 
 let app: Express;

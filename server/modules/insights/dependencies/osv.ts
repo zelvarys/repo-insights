@@ -3,7 +3,7 @@ import { logger } from '../../../utils/logger.js';
 import type {
   DependencyEcosystem,
   DependencySeverity,
-} from '../../../../shared/types.js';
+} from '../../../../shared/types/index.js';
 import type { ParsedDependency } from './parsers.js';
 
 const TIMEOUT_MS = 10_000;

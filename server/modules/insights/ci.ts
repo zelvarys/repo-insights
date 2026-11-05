@@ -2,7 +2,7 @@ import type {
   CiFailure,
   CiHealth,
   WorkflowHealth,
-} from '../../../shared/types.js';
+} from '../../../shared/types/index.js';
 
 export type CiRun = {
   runId: number;

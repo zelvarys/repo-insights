@@ -5,7 +5,7 @@ import { detectors } from '../tools/detector.registry.js';
 import { getRepoMetrics } from '../metrics/metrics.service.js';
 import { cacheDel, cacheKeys } from '../../utils/cache.js';
 import { logger } from '../../utils/logger.js';
-import type { TrackedToolRow } from '../../../shared/types.js';
+import type { TrackedToolRow } from '../../../shared/types/index.js';
 
 export async function listTrackedTools(repoId: string): Promise<TrackedToolRow[]> {
   await getTrackedRepository(repoId);

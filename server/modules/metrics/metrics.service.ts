@@ -14,7 +14,7 @@ import type {
   ToolMetric,
   RepoMetrics,
   ToolCategory,
-} from '../../../shared/types.js';
+} from '../../../shared/types/index.js';
 
 const METRICS_CACHE_TTL_SECONDS = 60;
 

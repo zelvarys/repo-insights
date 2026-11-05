@@ -6,7 +6,7 @@ import type {
   DependencyRow,
   DependencySeverity,
   DependencySummary,
-} from '../../../../shared/types.js';
+} from '../../../../shared/types/index.js';
 import {
   ANY_VERSION,
   parseDependencies,

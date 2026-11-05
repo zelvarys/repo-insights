@@ -2,7 +2,7 @@ import type {
   CommitActivity,
   CommitQuality,
   ContributorActivity,
-} from '../../../shared/types.js';
+} from '../../../shared/types/index.js';
 import { computeCommitQuality } from './commit-quality.js';
 
 export type ActivityCommit = {

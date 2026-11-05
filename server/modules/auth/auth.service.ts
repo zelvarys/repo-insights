@@ -7,7 +7,7 @@ import {
   getPrimaryEmail,
 } from '../../integrations/github/github.client.js';
 import { logger } from '../../utils/logger.js';
-import type { AuthUser } from '../../../shared/types.js';
+import type { AuthUser } from '../../../shared/types/index.js';
 
 export async function handleGithubCallback(accessToken: string): Promise<string> {
   const ghUser = await getAuthenticatedUser(accessToken);

@@ -20,7 +20,7 @@ import type {
   OverviewResponse,
   RepoStructure,
   RepoStructureResponse,
-} from '../../../shared/types.js';
+} from '../../../shared/types/index.js';
 import { selectActivity, type StoredActivity, type ActivityRange } from './activity.js';
 import { aggregateCiHealth, filterCiRuns, worstWorkflow } from './ci.js';
 import { loadCiRuns } from './ci.service.js';

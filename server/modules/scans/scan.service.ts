@@ -4,7 +4,7 @@ import { getTrackedRepository } from '../repositories/repository.service.js';
 import { cacheGet, cacheSet, cacheDel, cacheKeys } from '../../utils/cache.js';
 import { logger } from '../../utils/logger.js';
 import { serviceUnavailable } from '../../utils/errors.js';
-import type { ScanSummary, ScanStatus } from '../../../shared/types.js';
+import type { ScanSummary, ScanStatus } from '../../../shared/types/index.js';
 
 function toScan(row: {
   id: string;

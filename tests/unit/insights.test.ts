@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CiHealth } from '../../shared/types.js';
+import type { CiHealth } from '../../shared/types/index.js';
 import { buildRepoStructure } from '../../server/modules/insights/structure.js';
 import { buildCommitActivity, selectActivity } from '../../server/modules/insights/activity.js';
 import { computeCommitQuality } from '../../server/modules/insights/commit-quality.js';

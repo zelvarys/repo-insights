@@ -18,7 +18,7 @@ import {
   removeRepoRescanScheduler,
   upsertRepoRescanScheduler,
 } from '../scans/scan.scheduler.js';
-import type { TrackedRepository } from '../../../shared/types.js';
+import type { TrackedRepository } from '../../../shared/types/index.js';
 
 function toTracked(row: {
   id: string;

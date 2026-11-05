@@ -1,4 +1,4 @@
-import type { CommitQuality } from '../../../shared/types.js';
+import type { CommitQuality } from '../../../shared/types/index.js';
 
 export type QualityCommit = {
   message: string;

@@ -1,4 +1,4 @@
-import type { RepoMetrics, ToolMetric } from '../../../shared/types.js';
+import type { RepoMetrics, ToolMetric } from '../../../shared/types/index.js';
 
 const COMMIT_PRESENCE_TOOLS = new Set([
   'github-actions',

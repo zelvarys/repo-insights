@@ -4,7 +4,7 @@ import type {
   DependencySummary,
   RepoHealth,
   RepoHealthComponent,
-} from '../../../shared/types.js';
+} from '../../../shared/types/index.js';
 
 export type HealthInput = {
   commitsLast90: number;

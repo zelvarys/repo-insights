@@ -41,7 +41,7 @@ import {
   isToolRelevant,
   languagesToArray,
 } from '../metrics/scoring.js';
-import type { ScanSummary, ToolMetric } from '../../../shared/types.js';
+import type { ScanSummary, ToolMetric } from '../../../shared/types/index.js';
 import { buildCommitActivity } from '../insights/activity.js';
 import { computeConcentration } from '../insights/concentration.js';
 import { aggregateCiHealth } from '../insights/ci.js';

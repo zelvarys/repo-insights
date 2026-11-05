@@ -1,4 +1,4 @@
-// TODO: promote to shared/types.ts
+// TODO: promote to shared/types/index.ts
 export type GitHubRepo = {
   id: number
   name: string

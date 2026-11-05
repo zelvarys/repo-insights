@@ -1,4 +1,4 @@
-import type { DependencyEcosystem } from '../../../../shared/types.js';
+import type { DependencyEcosystem } from '../../../../shared/types/index.js';
 
 export type ParsedDependency = {
   ecosystem: DependencyEcosystem;

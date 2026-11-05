@@ -1,7 +1,7 @@
 import type {
   ContributorConcentration,
   ContributorShare,
-} from '../../../shared/types.js';
+} from '../../../shared/types/index.js';
 
 export type AuthorCommit = {
   authorLogin: string | null;

@@ -414,6 +414,57 @@ describe('scan pipeline', () => {
     ).toBe('pending');
   });
 
+  it('does not treat a running scan as stale based on created_at', async () => {
+    const running = await pool.query<{ id: string }>(
+      `INSERT INTO scans (repo_id, status, created_at, started_at)
+       VALUES ($1, 'running', NOW() - INTERVAL '2 hours', NOW() - INTERVAL '5 minutes')
+       RETURNING id`,
+      [repoId],
+    );
+    const runningId = running.rows[0]!.id;
+
+    const post = await request(app)
+      .post(`/repos/${repoId}/scan`)
+      .set('Cookie', `token=${token}`);
+
+    expect(post.status).toBe(200);
+    expect(post.body.cached).toBe(true);
+    expect(post.body.scan.id).toBe(runningId);
+
+    const rows = await pool.query<{ status: string }>(
+      'SELECT status FROM scans WHERE id = $1',
+      [runningId],
+    );
+    expect(rows.rows[0]?.status).toBe('running');
+  });
+
+  it('fails a stale running scan based on started_at and starts a new one', async () => {
+    const stale = await pool.query<{ id: string }>(
+      `INSERT INTO scans (repo_id, status, created_at, started_at)
+       VALUES ($1, 'running', NOW() - INTERVAL '2 hours', NOW() - INTERVAL '31 minutes')
+       RETURNING id`,
+      [repoId],
+    );
+    const staleId = stale.rows[0]!.id;
+
+    const post = await request(app)
+      .post(`/repos/${repoId}/scan`)
+      .set('Cookie', `token=${token}`);
+
+    expect(post.status).toBe(202);
+    expect(post.body.cached).toBe(false);
+    expect(post.body.scan.id).not.toBe(staleId);
+
+    const rows = await pool.query<{
+      id: string;
+      status: string;
+      error: string | null;
+    }>('SELECT id, status, error FROM scans WHERE repo_id = $1', [repoId]);
+    const staleRow = rows.rows.find((r) => r.id === staleId);
+    expect(staleRow?.status).toBe('failed');
+    expect(staleRow?.error).toBe('Scan timed out while running');
+  });
+
   it('does not let an older retry overwrite a newer cached scan', async () => {
     const key = cacheKeys.scanResult(repoId);
     const newer: ScanSummary = {

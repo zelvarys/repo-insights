@@ -3,7 +3,7 @@ import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
 import { pingDb, closeDb } from './config/database.js';
 import { closeRedis } from './config/redis.js';
-import { failStalePendingScans } from './modules/scans/scan.service.js';
+import { failStaleScans } from './modules/scans/scan.service.js';
 
 const app = createApp();
 
@@ -16,9 +16,9 @@ async function start() {
   }
 
   try {
-    const failed = await failStalePendingScans();
+    const failed = await failStaleScans();
     if (failed > 0) {
-      logger.warn(`Marked ${failed} stale pending scan(s) as failed at boot`);
+      logger.warn(`Marked ${failed} stale scan(s) as failed at boot`);
     }
   } catch (err) {
     logger.warn(`Stale scan reconciliation failed at boot: ${(err as Error).message}`);

@@ -1,8 +1,8 @@
 <h1 align="center">
-  <img src="public/favicon.png" alt="repositron logo" width="96" height="96" />
+  <img src="public/favicon.png" alt="Repositron logo" width="96" height="96" />
+  <br />
+  Repositron
 </h1>
-
-# repositron
 
 This is a repository health dashboard for maintainers. It brings activity, dependency freshness, workflow reliability, codebase structure, contributor concentration, commit quality, and tool adoption into one clear view.
 
